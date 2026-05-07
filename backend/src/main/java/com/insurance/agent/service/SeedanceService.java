@@ -24,7 +24,6 @@ import java.util.List;
 /**
  * AtlasCloud Seedance 2.0 Fast (reference-to-video) 视频生成服务。
  *
- * 就啊时间的话
  * 流程：
  *  1. DeepSeek 把口播脚本拆成 ≤10 秒的多段，并为每段生成英文提示词
  *  2. 对每段串行调用 AtlasCloud POST /api/v1/model/generateVideo
@@ -34,7 +33,6 @@ import java.util.List;
 public class SeedanceService {
 
     private static final Logger log = LoggerFactory.getLogger(SeedanceService.class);
-
     private static final int SPEECH_CHARS_PER_SECOND = 5;
     private static final int MAX_SEGMENT_SECONDS     = 10;
     private static final int MAX_CHARS_PER_SEGMENT   = SPEECH_CHARS_PER_SECOND * MAX_SEGMENT_SECONDS;
