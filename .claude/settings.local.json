@@ -42,7 +42,11 @@
       "Read(//usr/local/**)",
       "Bash(/Users/yang2krown/.maven/bin/mvn compile *)",
       "mcp__Claude_in_Chrome__tabs_context_mcp",
-      "WebSearch"
+      "WebSearch",
+      "Bash(mkdir -p \"/Users/yang2krown/Desktop/保险 Agent/前端\" && cp \"/Users/yang2krown/Library/Mobile Documents/.Trash/前端/saas-koubo_1.html\" \"/Users/yang2krown/Desktop/保险 Agent/前端/saas-koubo_1.html\" && echo \"OK\")",
+      "Bash(awk '{print $NF}')",
+      "Bash(cp \"/Users/yang2krown/Library/Mobile Documents/.Trash/前端/\"*.html \"/Users/yang2krown/Desktop/保险 Agent/前端/\" && ls \"/Users/yang2krown/Desktop/保险 Agent/前端/\")",
+      "Bash(npx --yes acorn --ecma2020 --module src/pages/DramaPage.jsx)"
     ]
   }
 }

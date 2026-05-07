@@ -27,6 +27,8 @@ public class AgentRequest {
     private String imageRatio;
     private Boolean needCover;
     private Boolean needImages;
+    // 前端已编辑好的分镜段（有此字段时跳过 DeepSeek 拆分，直接生成）
+    private java.util.List<java.util.Map<String, Object>> storyboardSegments;
 
     public String getTopic() { return topic; }
     public void setTopic(String topic) { this.topic = topic; }
@@ -99,4 +101,7 @@ public class AgentRequest {
 
     public Boolean isNeedImages() { return needImages != null && needImages; }
     public void setNeedImages(Boolean needImages) { this.needImages = needImages; }
+
+    public java.util.List<java.util.Map<String, Object>> getStoryboardSegments() { return storyboardSegments; }
+    public void setStoryboardSegments(java.util.List<java.util.Map<String, Object>> storyboardSegments) { this.storyboardSegments = storyboardSegments; }
 }

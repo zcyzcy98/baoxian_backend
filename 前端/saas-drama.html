@@ -1,0 +1,1960 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>承知 · 剧情视频</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700;900&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --clay:#CC785C; --clay-deep:#A85A40; --clay-soft:#E9B79E; --clay-tint:#F5E2D5;
+  --pine:#3F5C52; --pine-soft:#C9D4CD; --pine-tint:#E1E8E4;
+  --sand:#C49B5C; --sand-soft:#ECDCBF; --sand-tint:#F4ECD9;
+  --paper:#FAF9F5; --ivory:#F5F1EB; --bone:#EFEAE0;
+  --line:#E4DDCE; --line-2:#D9D0BE;
+  --ink-3:#6B6862; --ink-2:#3A3935; --ink:#1F1F1E;
+  --leaf:#5C8A5C; --crimson:#B85450;
+  --serif:'Noto Serif SC','Source Han Serif SC','Songti SC',ui-serif,Georgia,serif;
+  --serif-en:'Fraunces','Noto Serif SC',ui-serif,Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sh-1:0 1px 2px rgba(31,31,30,.04),0 2px 6px rgba(31,31,30,.04);
+  --sh-2:0 4px 12px rgba(31,31,30,.06),0 8px 24px rgba(31,31,30,.05);
+  --sh-3:0 12px 32px rgba(31,31,30,.10),0 24px 60px rgba(31,31,30,.08);
+  --sh-clay:0 6px 18px rgba(204,120,92,.30);
+  --r-xs:4px; --r-sm:6px; --r-md:10px; --r-lg:16px; --r-xl:24px;
+  --sidebar-w:248px; --topbar-h:56px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+html{font-size:16px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{background:var(--ivory); color:var(--ink); font-family:var(--sans);
+  font-size:14px; line-height:1.6; font-feature-settings:"palt"; overflow:hidden}
+::selection{background:var(--clay-tint); color:var(--clay-deep)}
+a{color:inherit; text-decoration:none}
+img,svg{display:block; max-width:100%}
+button{font-family:inherit; cursor:pointer; border:none; background:transparent; color:inherit}
+input,textarea,select{font-family:inherit; color:inherit; outline:none}
+h1,h2,h3,h4,h5{font-family:var(--serif); font-weight:600; letter-spacing:-.01em; color:var(--ink); line-height:1.25; margin:0}
+.scroll-y{overflow-y:auto}
+.scroll-y::-webkit-scrollbar{width:8px}
+.scroll-y::-webkit-scrollbar-thumb{background:var(--line); border-radius:4px}
+
+/* Layout */
+.app{display:grid; grid-template-columns:var(--sidebar-w) 1fr; height:100vh}
+.sidebar{background:var(--paper); border-right:1px solid var(--line);
+  display:flex; flex-direction:column; height:100vh; overflow:hidden}
+.sidebar-brand{height:var(--topbar-h); display:flex; align-items:center; gap:10px; padding:0 20px;
+  border-bottom:1px solid var(--line); flex-shrink:0}
+.sidebar-brand .mark{width:26px; height:26px; flex-shrink:0}
+.sidebar-brand .name{font-family:var(--serif); font-weight:700; font-size:17px; color:var(--ink)}
+.sidebar-brand .name .en{color:var(--ink-3); font-weight:500; font-family:var(--sans);
+  font-size:11px; margin-left:4px; letter-spacing:.08em}
+.sidebar-nav{flex:1; overflow-y:auto; padding:20px 12px 12px}
+.sidebar-nav::-webkit-scrollbar{width:6px}
+.sidebar-nav::-webkit-scrollbar-thumb{background:var(--line); border-radius:3px}
+.nav-group{margin-bottom:18px}
+.nav-group-title{font-family:var(--serif-en); font-style:italic;
+  font-size:11px; color:var(--ink-3); letter-spacing:.08em; text-transform:uppercase;
+  padding:0 12px; margin-bottom:6px}
+.nav-item{display:flex; align-items:center; gap:10px; padding:8px 12px; margin-bottom:1px;
+  border-radius:var(--r-sm); font-size:13.5px; color:var(--ink-2);
+  cursor:pointer; transition:all .12s; position:relative}
+.nav-item:hover{background:var(--bone); color:var(--ink)}
+.nav-item .icon{width:18px; height:18px; flex-shrink:0; display:flex;
+  align-items:center; justify-content:center; color:var(--ink-3)}
+.nav-item:hover .icon{color:var(--ink-2)}
+.nav-item .label{flex:1; line-height:1.2}
+.nav-item .chevron{width:14px; height:14px; flex-shrink:0; color:var(--ink-3); transition:transform .15s}
+.nav-collapsible.open .chevron{transform:rotate(90deg)}
+.nav-sub{max-height:0; overflow:hidden; transition:max-height .25s ease}
+.nav-collapsible.open > .nav-sub{max-height:600px}
+.nav-sub-item{display:block; padding:7px 12px 7px 40px; font-size:13px; color:var(--ink-3);
+  border-radius:var(--r-sm); cursor:pointer; transition:all .12s; position:relative}
+.nav-sub-item::before{content:''; position:absolute; left:26px; top:50%;
+  width:4px; height:4px; border-radius:50%; background:var(--line-2); transform:translateY(-50%)}
+.nav-sub-item:hover{color:var(--ink); background:var(--bone)}
+.nav-sub-item:hover::before{background:var(--ink-3)}
+.nav-sub-item.active{background:var(--clay-tint); color:var(--clay-deep); font-weight:500}
+.nav-sub-item.active::before{background:var(--clay)}
+.nav-collapsible.nested{margin:1px 0}
+.nav-sub-item.with-chevron{display:flex; align-items:center; justify-content:space-between; padding:7px 12px 7px 40px}
+.nav-sub-item.with-chevron::before{content:''; position:absolute; left:26px; top:50%;
+  width:4px; height:4px; border-radius:50%; background:var(--line-2); transform:translateY(-50%)}
+.nav-sub-item.with-chevron:hover::before{background:var(--ink-3)}
+.nav-sub-item.with-chevron .chevron{color:var(--ink-3); transition:transform .15s; flex-shrink:0}
+.nav-collapsible.nested.open .nav-sub-item.with-chevron .chevron{transform:rotate(90deg)}
+.nav-sub-2{max-height:0; overflow:hidden; transition:max-height .25s ease}
+.nav-collapsible.nested.open .nav-sub-2{max-height:200px}
+.nav-sub-item-2{display:block; padding:6px 12px 6px 56px;
+  font-size:12.5px; color:var(--ink-3); border-radius:var(--r-sm);
+  cursor:pointer; transition:all .12s; position:relative; margin-bottom:1px}
+.nav-sub-item-2::before{content:''; position:absolute; left:42px; top:50%;
+  width:3px; height:3px; border-radius:50%; background:var(--line-2); transform:translateY(-50%)}
+.nav-sub-item-2:hover{color:var(--ink-2); background:var(--bone)}
+.nav-sub-item-2:hover::before{background:var(--ink-3)}
+.nav-sub-item-2.active{background:var(--clay-tint); color:var(--clay-deep); font-weight:500}
+.nav-sub-item-2.active::before{background:var(--clay)}
+
+.sidebar-foot{padding:14px 12px; flex-shrink:0; border-top:1px solid var(--line);
+  display:flex; flex-direction:column; gap:10px}
+.member-card{padding:12px 14px; background:linear-gradient(135deg, var(--clay-tint), var(--sand-soft));
+  border-radius:var(--r-md)}
+.member-card .label{font-family:var(--serif-en); font-style:italic;
+  font-size:10.5px; color:var(--clay-deep); letter-spacing:.04em; margin-bottom:4px}
+.member-card .days{font-family:var(--serif); font-size:14px; font-weight:600; color:var(--ink); margin-bottom:6px}
+.member-card .days b{font-family:var(--serif-en); font-weight:600; font-size:18px; color:var(--clay-deep); margin:0 2px}
+.member-card .renew{display:inline-block; font-size:11.5px; color:var(--clay-deep);
+  font-weight:600; padding:2px 0; border-bottom:1px solid var(--clay); cursor:pointer}
+.user-mini{display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:var(--r-sm);
+  cursor:pointer; transition:background .12s}
+.user-mini:hover{background:var(--bone)}
+.user-mini .avatar{width:32px; height:32px; border-radius:50%;
+  background:linear-gradient(135deg,var(--clay),var(--sand));
+  color:#fff; font-family:var(--serif); font-weight:700;
+  font-size:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0}
+.user-mini .info{flex:1; min-width:0}
+.user-mini .info .name{font-size:13px; color:var(--ink); font-weight:600}
+.user-mini .info .role{font-size:11px; color:var(--ink-3)}
+.user-mini .more{color:var(--ink-3); font-size:14px}
+
+.main{display:flex; flex-direction:column; height:100vh; overflow:hidden; background:var(--ivory)}
+.topbar{height:var(--topbar-h); display:flex; align-items:center; padding:0 24px;
+  border-bottom:1px solid var(--line); background:rgba(245,241,235,.85);
+  backdrop-filter:saturate(150%) blur(12px); flex-shrink:0; gap:16px}
+.breadcrumb{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-3)}
+.breadcrumb .sep{color:var(--line-2)}
+.breadcrumb .current{color:var(--ink); font-weight:500}
+.top-actions{margin-left:auto; display:flex; align-items:center; gap:8px}
+.credits-chip{display:flex; align-items:center; gap:8px; padding:6px 12px; background:var(--paper);
+  border:1px solid var(--line); border-radius:999px;
+  font-size:12.5px; cursor:pointer; transition:all .15s; position:relative}
+.credits-chip:hover{border-color:var(--line-2); background:var(--bone)}
+.credits-chip .star{color:var(--sand); font-size:13px}
+.credits-chip .num{font-family:var(--serif-en); font-weight:600; color:var(--ink); font-size:13px}
+.credits-chip .total{color:var(--ink-3); font-size:11.5px}
+.credits-chip .credits-bar{position:absolute; left:8px; right:8px; bottom:2px;
+  height:2px; background:var(--bone); border-radius:1px; overflow:hidden}
+.credits-chip .credits-bar::after{content:''; display:block; height:100%; width:85%;
+  background:linear-gradient(90deg, var(--clay), var(--sand))}
+.icon-btn{width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+  border-radius:var(--r-sm); color:var(--ink-2); transition:all .12s; position:relative}
+.icon-btn:hover{background:var(--bone); color:var(--ink)}
+.icon-btn .badge{position:absolute; top:6px; right:6px;
+  width:6px; height:6px; border-radius:50%; background:var(--crimson); box-shadow:0 0 0 2px var(--ivory)}
+.avatar-btn{width:36px; height:36px; border-radius:50%;
+  background:linear-gradient(135deg,var(--clay),var(--sand));
+  color:#fff; font-family:var(--serif); font-weight:700;
+  font-size:14px; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:transform .12s; border:2px solid transparent}
+
+.page-head{flex-shrink:0; background:var(--paper); border-bottom:1px solid var(--line); padding:18px 32px 22px}
+.page-title-row{display:flex; align-items:center; justify-content:space-between; margin-bottom:18px}
+.page-title{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.page-title .platform-tag{
+  background:linear-gradient(135deg, #1F1F1E, #3A3935); color:#fff;
+  padding:3px 10px; border-radius:99px; font-size:11px; font-weight:600; letter-spacing:.04em;
+  display:inline-flex; align-items:center; gap:5px;
+}
+.page-title .platform-tag::before{content:''; width:6px; height:6px; background:var(--crimson); border-radius:50%}
+.page-title h2{font-size:18px}
+.page-title .from{font-size:12px; color:var(--ink-3);
+  display:flex; align-items:center; gap:5px; padding:4px 10px;
+  background:var(--ivory); border:1px dashed var(--line-2); border-radius:99px}
+.page-title .from b{color:var(--ink-2); font-weight:500}
+.btn-draft{display:flex; align-items:center; gap:6px; padding:7px 14px;
+  font-size:12.5px; color:var(--ink-2); background:var(--paper);
+  border:1px solid var(--line); border-radius:var(--r-sm); cursor:pointer; transition:all .12s}
+.btn-draft:hover{background:var(--bone); border-color:var(--line-2); color:var(--ink)}
+
+.steps{display:flex; align-items:center; max-width:720px; margin:0 auto}
+.step{flex:1; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px;
+  position:relative; padding:0 8px}
+.step .dot{width:32px; height:32px; border-radius:50%; background:var(--bone);
+  color:var(--ink-3); display:flex; align-items:center; justify-content:center;
+  font-family:var(--serif-en); font-weight:600; font-size:14px;
+  border:2px solid var(--bone); transition:all .2s; position:relative; z-index:2}
+.step .label{font-size:13px; color:var(--ink-3); font-weight:500; white-space:nowrap}
+.step.done .dot{background:var(--leaf); border-color:var(--leaf); color:#fff}
+.step.done .label{color:var(--ink-2)}
+.step.active .dot{background:var(--clay); border-color:var(--clay); color:#fff;
+  box-shadow:0 0 0 4px rgba(204,120,92,.18)}
+.step.active .label{color:var(--clay-deep); font-weight:600}
+.step:not(:last-child)::after{content:''; position:absolute;
+  left:calc(50% + 16px); right:calc(-50% + 16px);
+  top:16px; height:2px; background:var(--bone); z-index:1}
+.step.done:not(:last-child)::after{background:var(--leaf)}
+
+.content{flex:1; overflow-y:auto; padding:24px 24px 100px}
+.content-inner{max-width:1200px; margin:0 auto}
+.step-pane{display:none}
+.step-pane.active{display:block}
+
+.section-card{background:var(--paper); border:1px solid var(--line);
+  border-radius:var(--r-lg); margin-bottom:16px; overflow:hidden}
+.sc-head{padding:16px 22px; display:flex; align-items:center; justify-content:space-between;
+  border-bottom:1px solid var(--line); flex-wrap:wrap; gap:10px}
+.sc-head h3{font-size:15px}
+.sc-head .desc{font-size:12px; color:var(--ink-3)}
+.sc-body{padding:20px 22px}
+
+.form-row{display:grid; grid-template-columns:140px 1fr; gap:24px;
+  padding:18px 0; border-bottom:1px dashed var(--line); align-items:flex-start}
+.form-row:first-child{padding-top:0}
+.form-row:last-child{border-bottom:none; padding-bottom:0}
+.form-row .label{font-size:13px; color:var(--ink-2); font-weight:500; padding-top:8px;
+  display:flex; align-items:center; gap:5px}
+.form-row .label .req{color:var(--clay)}
+.text-field{width:100%; padding:10px 14px; background:var(--ivory);
+  border:1px solid var(--line); border-radius:var(--r-sm);
+  font-size:13.5px; color:var(--ink); transition:all .12s}
+.text-field:focus{border-color:var(--clay); background:var(--paper);
+  box-shadow:0 0 0 3px rgba(204,120,92,.12)}
+textarea.text-field{min-height:80px; resize:vertical; font-family:inherit; line-height:1.65}
+
+.chip-group{display:flex; flex-wrap:wrap; gap:7px}
+.chip{padding:6px 13px; background:var(--ivory);
+  border:1px solid var(--line); border-radius:99px;
+  font-size:12.5px; color:var(--ink-2); cursor:pointer; transition:all .12s; user-select:none}
+.chip:hover{background:var(--bone); border-color:var(--line-2)}
+.chip.selected{background:var(--clay-tint); border-color:var(--clay-soft); color:var(--clay-deep); font-weight:500}
+
+.platform-cards{display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; max-width:680px}
+.platform-card{position:relative; padding:18px 16px;
+  background:var(--ivory); border:1.5px solid var(--line);
+  border-radius:var(--r-md); cursor:pointer; transition:all .12s; text-align:center}
+.platform-card:hover{border-color:var(--line-2); transform:translateY(-1px)}
+.platform-card.selected{background:var(--clay-tint); border-color:var(--clay)}
+.platform-card.selected::after{
+  content:'✓'; position:absolute; top:8px; right:8px;
+  width:18px; height:18px; background:var(--clay); color:#fff;
+  border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:700;
+}
+.platform-card .p-logo{width:38px; height:38px; margin:0 auto 10px;
+  border-radius:8px; display:flex; align-items:center; justify-content:center;
+  color:#fff; font-family:var(--serif); font-weight:700; font-size:18px}
+.platform-card.dy .p-logo{background:#1F1F1E}
+.platform-card.xhs .p-logo{background:#FF2442}
+.platform-card.sph .p-logo{background:linear-gradient(135deg,#FA9D3B,#FF6A38)}
+.platform-card .p-name{font-size:14px; font-weight:600; color:var(--ink); margin-bottom:4px}
+.platform-card.selected .p-name{color:var(--clay-deep)}
+.platform-card .p-meta{font-size:11px; color:var(--ink-3); line-height:1.5}
+
+.refs-list{display:flex; flex-direction:column; gap:6px; margin-bottom:10px}
+.ref-item{display:flex; align-items:center; gap:10px; padding:8px 12px;
+  background:var(--ivory); border:1px solid var(--line); border-radius:var(--r-sm);
+  font-size:12.5px; transition:all .12s}
+.ref-item:hover{background:var(--bone); border-color:var(--line-2)}
+.ref-ico{width:26px; height:26px; border-radius:var(--r-xs);
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; border:1px solid; background:#FEEAE6; color:var(--crimson); border-color:#F5C9C0}
+.ref-name{flex:1; min-width:0; font-weight:500; color:var(--ink);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.ref-size{flex-shrink:0; font-family:var(--mono); font-size:11px; color:var(--ink-3)}
+.ref-remove{width:22px; height:22px; flex-shrink:0;
+  border-radius:var(--r-xs); color:var(--ink-3); font-size:18px; line-height:1;
+  display:flex; align-items:center; justify-content:center; transition:all .12s}
+.ref-remove:hover{background:#FEEAE6; color:var(--crimson)}
+.ref-actions{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.btn-add-ref{display:flex; align-items:center; gap:6px; padding:7px 14px;
+  background:var(--paper); border:1px dashed var(--line-2); border-radius:var(--r-sm);
+  font-size:12.5px; color:var(--ink-2); cursor:pointer; transition:all .12s; font-weight:500}
+.btn-add-ref:hover{background:var(--clay-tint); border-style:solid; border-color:var(--clay); color:var(--clay-deep)}
+.ref-hint{font-size:11px; color:var(--ink-3); line-height:1.5}
+
+.style-options{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.style-option{padding:14px 16px; background:var(--ivory);
+  border:1.5px solid var(--line); border-radius:var(--r-sm);
+  cursor:pointer; transition:all .12s; display:flex; gap:12px; align-items:flex-start}
+.style-option:hover{border-color:var(--line-2)}
+.style-option.selected{background:var(--clay-tint); border-color:var(--clay)}
+.style-option .radio{width:16px; height:16px; flex-shrink:0;
+  border-radius:50%; border:1.5px solid var(--line-2);
+  background:var(--paper); position:relative; margin-top:1px}
+.style-option.selected .radio{border-color:var(--clay)}
+.style-option.selected .radio::after{content:''; position:absolute;
+  top:50%; left:50%; transform:translate(-50%,-50%);
+  width:7px; height:7px; border-radius:50%; background:var(--clay)}
+.style-option .info strong{display:flex; align-items:center; gap:6px;
+  font-size:13.5px; font-weight:600; color:var(--ink); margin-bottom:3px}
+.style-option .info strong .ver-tag{font-family:var(--serif-en); font-weight:600;
+  font-size:10px; background:var(--clay); color:#fff;
+  padding:1px 7px; border-radius:99px; letter-spacing:.04em}
+.style-option .info span{font-size:11.5px; color:var(--ink-3); line-height:1.5}
+
+/* Step 2 双栏 + Tab */
+.work-grid{display:grid; grid-template-columns: 1fr 320px; gap:16px; align-items:flex-start}
+.work-toolbar{display:flex; align-items:center; justify-content:space-between;
+  padding:12px 18px; background:var(--paper); border:1px solid var(--line);
+  border-radius:var(--r-md); margin-bottom:12px; flex-wrap:wrap; gap:12px}
+.work-toolbar .l{display:flex; align-items:center; gap:18px; flex-wrap:wrap}
+.toolbar-stat{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-3)}
+.toolbar-stat b{font-family:var(--serif-en); font-weight:600; color:var(--ink); font-size:14px}
+.toolbar-stat + .toolbar-stat::before{content:'·'; color:var(--line-2); margin-right:8px}
+.toolbar-stat.ok::before{content:''; width:7px; height:7px; border-radius:50%; background:var(--leaf); flex-shrink:0}
+.toolbar-stat.ok{color:var(--leaf)}
+.toolbar-stat.ok b{color:var(--leaf)}
+
+.work-tabs{display:flex; gap:4px; background:var(--ivory); padding:3px;
+  border-radius:var(--r-sm); border:1px solid var(--line)}
+.work-tab{padding:7px 16px; font-size:13px; color:var(--ink-3); border-radius:var(--r-xs);
+  cursor:pointer; transition:all .12s; font-weight:500;
+  display:flex; align-items:center; gap:6px}
+.work-tab:hover{color:var(--ink-2)}
+.work-tab.active{background:var(--paper); color:var(--ink); box-shadow:var(--sh-1)}
+.work-tab .tab-num{font-family:var(--serif-en); font-weight:600;
+  background:var(--bone); color:var(--ink-3);
+  width:18px; height:18px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; font-size:10px}
+.work-tab.active .tab-num{background:var(--clay); color:#fff}
+.work-pane{display:none}
+.work-pane.active{display:block}
+
+/* 剧本视图 */
+.screenplay{background:var(--paper); border:1px solid var(--line); border-radius:var(--r-md); overflow:hidden}
+.screenplay-body{padding:32px 44px; font-family:var(--serif); line-height:2;
+  color:var(--ink); outline:none; min-height:520px}
+.screenplay-body .scene-mark{display:block; margin:24px 0 6px; padding:6px 0;
+  font-size:13px; font-weight:600; color:var(--clay-deep);
+  letter-spacing:.04em; border-bottom:1px solid var(--clay-soft)}
+.screenplay-body .scene-mark:first-child{margin-top:0}
+.screenplay-body .scene-meta{display:block; font-size:11.5px; color:var(--ink-3);
+  font-family:var(--serif-en); font-style:italic; margin-bottom:14px; letter-spacing:.04em}
+.screenplay-body .character{display:block; margin:14px 0 2px;
+  font-size:14px; font-weight:700; color:var(--ink); letter-spacing:.04em}
+.screenplay-body .character .emotion{font-size:12px; font-weight:500;
+  color:var(--ink-3); font-style:italic; margin-left:6px}
+.screenplay-body .dialog{display:block; font-size:15px; line-height:1.85;
+  color:var(--ink); margin-bottom:12px; padding-left:22px}
+.screenplay-body .action{display:block; font-size:13.5px; color:var(--ink-3);
+  font-style:italic; margin:8px 0 14px; padding-left:22px}
+
+/* 分镜视图 */
+.shot-list{display:flex; flex-direction:column; gap:10px}
+.shot-card{background:var(--paper); border:1px solid var(--line);
+  border-radius:var(--r-md); overflow:hidden; transition:all .12s}
+.shot-card.expanded{box-shadow:var(--sh-1)}
+.shot-head{padding:12px 18px; display:flex; align-items:center; gap:12px;
+  cursor:pointer; background:var(--paper);
+  border-bottom:1px solid transparent; transition:all .12s}
+.shot-card.expanded .shot-head{background:var(--ivory); border-bottom-color:var(--line)}
+.shot-num{flex-shrink:0; width:34px; height:34px;
+  border-radius:var(--r-sm); background:var(--ink); color:var(--paper);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--serif-en); font-weight:700; font-size:13px; letter-spacing:.04em}
+.shot-card.expanded .shot-num{background:var(--clay)}
+.shot-head-info{flex:1; min-width:0}
+.shot-head-title{font-size:13.5px; font-weight:600; color:var(--ink);
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.scene-tag{font-size:10.5px; padding:2px 8px;
+  background:var(--pine-tint); color:var(--pine);
+  border-radius:99px; font-weight:500; letter-spacing:.02em;
+  display:inline-flex; align-items:center; gap:4px}
+.scene-tag::before{content:''; width:5px; height:5px; border-radius:50%; background:var(--pine)}
+.shot-head-meta{font-size:11.5px; color:var(--ink-3); font-family:var(--mono);
+  display:flex; align-items:center; gap:6px; margin-top:2px}
+.shot-head-meta .time-bar{display:inline-block; width:36px; height:4px;
+  background:var(--bone); border-radius:2px; position:relative; overflow:hidden}
+.shot-head-meta .time-bar::after{content:''; position:absolute; left:0; top:0; height:100%;
+  background:var(--clay); border-radius:2px}
+.shot-card[data-portion="1"] .time-bar::after{width:11%}
+.shot-card[data-portion="2"] .time-bar::after{width:14%}
+.shot-card[data-portion="3"] .time-bar::after{width:17%}
+.shot-card[data-portion="4"] .time-bar::after{width:13%}
+.shot-card[data-portion="5"] .time-bar::after{width:14%}
+.shot-card[data-portion="6"] .time-bar::after{width:11%}
+.shot-card[data-portion="7"] .time-bar::after{width:13%}
+.shot-card[data-portion="8"] .time-bar::after{width:7%}
+.shot-arrow{flex-shrink:0; color:var(--ink-3); transition:transform .2s; width:18px; height:18px}
+.shot-card.expanded .shot-arrow{transform:rotate(180deg); color:var(--clay)}
+.shot-body{max-height:0; overflow:hidden; transition:max-height .25s ease; background:var(--paper)}
+.shot-card.expanded .shot-body{max-height:800px}
+.shot-body-inner{padding:18px 22px}
+.shot-field{display:grid; grid-template-columns: 78px 1fr; gap:14px;
+  padding:10px 0; align-items:flex-start; border-bottom:1px dashed var(--line)}
+.shot-field:last-child{border-bottom:none}
+.shot-field .sf-key{font-family:var(--serif-en); font-style:italic;
+  font-size:10.5px; color:var(--ink-3); letter-spacing:.06em;
+  text-transform:uppercase; padding-top:4px; font-weight:600}
+.shot-field .sf-val{font-size:13.5px; color:var(--ink); line-height:1.65; min-width:0}
+.shot-field.scene-line .sf-val{color:var(--ink-2); font-style:italic; font-size:12.5px}
+.shot-field.dialog-line .dialog-block{margin-bottom:8px; padding:8px 12px;
+  background:var(--ivory); border-left:2px solid var(--clay-soft); border-radius:0 4px 4px 0}
+.shot-field.dialog-line .dialog-block:last-child{margin-bottom:0}
+.shot-field.dialog-line .dialog-character{font-size:11.5px; font-weight:700;
+  color:var(--clay-deep); letter-spacing:.04em; margin-bottom:3px;
+  display:flex; align-items:center; gap:6px}
+.shot-field.dialog-line .dialog-character .em{font-weight:500; font-style:italic; color:var(--ink-3)}
+.shot-field.dialog-line .dialog-text{font-family:var(--serif); font-size:14px;
+  color:var(--ink); line-height:1.6}
+.shot-field .sf-val[contenteditable]{outline:none; padding:5px 8px;
+  border-radius:var(--r-xs); border:1px dashed transparent;
+  cursor:text; margin:-5px -8px; transition:all .12s}
+.shot-field .sf-val[contenteditable]:hover{border-color:var(--line); background:var(--ivory)}
+.shot-field .sf-val[contenteditable]:focus{border-color:var(--clay); background:var(--paper); border-style:solid}
+
+.cast-tags{display:flex; flex-wrap:wrap; gap:5px}
+.cast-tag{display:inline-flex; align-items:center; gap:4px;
+  padding:3px 9px; font-size:11.5px;
+  background:var(--paper); border:1px solid var(--line);
+  border-radius:99px; color:var(--ink-2); font-weight:500}
+.cast-tag .dot{width:5px; height:5px; border-radius:50%; background:var(--clay)}
+
+.shot-actions{margin-top:14px; padding-top:12px;
+  border-top:1px dashed var(--line); display:flex; gap:8px}
+.shot-action-btn{display:flex; align-items:center; gap:5px;
+  padding:6px 12px; font-size:12px;
+  background:var(--ivory); border:1px solid var(--line);
+  border-radius:var(--r-xs); color:var(--ink-2);
+  cursor:pointer; transition:all .12s}
+.shot-action-btn:hover{background:var(--bone); border-color:var(--line-2); color:var(--ink)}
+.shot-action-btn.danger:hover{background:#FFF0EE; border-color:#E7B5AC; color:var(--crimson)}
+.insert-shot-btn{display:flex; align-items:center; justify-content:center; gap:6px;
+  padding:8px; background:var(--ivory);
+  border:1px dashed var(--line-2); border-radius:var(--r-sm);
+  font-size:11.5px; color:var(--ink-3); cursor:pointer; transition:all .12s}
+.insert-shot-btn:hover{background:var(--clay-tint); border-color:var(--clay);
+  border-style:solid; color:var(--clay-deep)}
+
+/* 右辅助栏 */
+.aux-panel{display:flex; flex-direction:column; gap:12px; position:sticky; top:0}
+.aux-card{background:var(--paper); border:1px solid var(--line);
+  border-radius:var(--r-md); overflow:hidden}
+.aux-head{padding:11px 16px;
+  font-family:var(--serif-en); font-style:italic;
+  font-size:11px; color:var(--ink-3); letter-spacing:.06em;
+  border-bottom:1px solid var(--line); text-transform:uppercase;
+  display:flex; align-items:center; justify-content:space-between}
+.aux-head .count-badge{font-family:var(--mono); font-style:normal;
+  background:var(--bone); color:var(--ink-2);
+  padding:2px 7px; border-radius:99px; font-size:10.5px}
+.aux-head .count-badge.warning{background:var(--sand-tint); color:#8a6a3a}
+.aux-head .count-badge.success{background:#EFF5EF; color:var(--leaf)}
+.aux-body{padding:14px 16px}
+
+.duration-card{padding:18px 18px}
+.duration-card .duration-label{font-family:var(--serif-en); font-style:italic;
+  font-size:11px; color:var(--ink-3); letter-spacing:.06em;
+  margin-bottom:12px; text-transform:uppercase}
+.duration-card .duration-num{display:flex; align-items:baseline; gap:6px; margin-bottom:10px}
+.duration-card .duration-num .num{font-family:var(--serif-en); font-weight:600;
+  font-size:38px; color:var(--ink); line-height:1; letter-spacing:-.02em}
+.duration-card .duration-num .unit{font-size:14px; color:var(--ink-3); font-weight:500}
+.duration-card .duration-target{font-size:11.5px; color:var(--ink-3);
+  font-family:var(--mono); margin-bottom:8px}
+.duration-card .duration-target b{color:var(--ink-2); font-weight:500}
+.duration-track{height:6px; background:var(--bone);
+  border-radius:3px; overflow:hidden; margin-bottom:8px}
+.duration-fill{height:100%;
+  background:linear-gradient(90deg, var(--leaf), var(--sand)); border-radius:3px}
+.duration-status{font-size:11px; color:var(--leaf);
+  display:flex; align-items:center; gap:5px}
+.duration-status::before{content:''; width:6px; height:6px; border-radius:50%; background:var(--leaf)}
+
+/* Cast 列表 */
+.cast-list{padding:0}
+.cast-row{padding:14px 16px; border-bottom:1px dashed var(--line);
+  display:flex; flex-direction:column; gap:8px}
+.cast-row:last-child{border-bottom:none}
+.cast-row-head{display:flex; align-items:center; gap:10px}
+.cast-thumb{width:42px; height:42px; flex-shrink:0;
+  border-radius:50%; overflow:hidden; position:relative;
+  display:flex; align-items:center; justify-content:center}
+.cast-row.scene .cast-thumb{border-radius:6px; width:60px; height:42px}
+.cast-thumb.empty{background:var(--bone);
+  border:2px dashed var(--line-2); color:var(--ink-3)}
+.cast-thumb.uploaded{border:2px solid var(--clay-soft)}
+.cast-thumb.ai-gen{border:2px solid var(--pine-soft)}
+.cast-thumb svg{width:100%; height:100%}
+.cast-thumb .ai-badge{position:absolute; bottom:-2px; right:-2px;
+  background:var(--pine); color:#fff;
+  font-family:var(--serif-en); font-weight:700;
+  font-size:9px; padding:1px 5px; border-radius:99px;
+  border:1.5px solid var(--paper); letter-spacing:.04em}
+.cast-info{flex:1; min-width:0}
+.cast-name{font-size:13px; font-weight:600; color:var(--ink);
+  display:flex; align-items:center; gap:6px; margin-bottom:2px}
+.cast-name .req-mark{display:inline-block;
+  width:6px; height:6px; border-radius:50%; background:var(--crimson)}
+.cast-name .ok-mark{display:inline-block;
+  width:14px; height:14px; border-radius:50%;
+  background:var(--leaf); color:#fff;
+  font-size:9px; font-weight:700; text-align:center; line-height:14px}
+.cast-desc{font-size:11px; color:var(--ink-3); line-height:1.4}
+.cast-actions{display:flex; gap:6px; align-items:center}
+.btn-cast-action{flex:1; display:flex; align-items:center; justify-content:center; gap:5px;
+  padding:6px 10px; font-size:11.5px;
+  background:var(--ivory); border:1px solid var(--line);
+  border-radius:var(--r-xs); color:var(--ink-2);
+  cursor:pointer; transition:all .12s; font-weight:500}
+.btn-cast-action:hover{background:var(--bone); border-color:var(--line-2); color:var(--ink)}
+.btn-cast-action.upload{background:var(--clay-tint); border-color:var(--clay-soft); color:var(--clay-deep)}
+.btn-cast-action.upload:hover{background:var(--clay-soft); border-color:var(--clay)}
+.btn-cast-action.ai{background:var(--pine-tint); border-color:var(--pine-soft); color:var(--pine)}
+.btn-cast-action.ai:hover{background:#B5C5BD; border-color:var(--pine)}
+.btn-cast-action.replace{flex:0 0 auto; padding:6px 8px}
+
+/* 全员授权 */
+.license-block{margin:12px 16px 16px; padding:12px 14px;
+  background:var(--sand-tint); border:1px solid var(--sand-soft);
+  border-radius:var(--r-sm);
+  display:flex; gap:10px; align-items:flex-start;
+  font-size:11.5px; line-height:1.55; color:var(--ink-2);
+  cursor:pointer}
+.license-block .check{width:14px; height:14px; flex-shrink:0;
+  border:1.5px solid var(--ink-2); background:var(--paper);
+  border-radius:3px; position:relative; margin-top:1px; transition:all .12s}
+.license-block.checked .check{background:var(--clay); border-color:var(--clay)}
+.license-block.checked .check::after{content:'✓'; position:absolute;
+  top:50%; left:50%; transform:translate(-50%,-50%);
+  color:#fff; font-size:10px; font-weight:700}
+.license-block label{cursor:pointer; flex:1; pointer-events:none}
+.license-block label b{color:var(--ink); font-weight:600}
+
+.title-cards{display:flex; flex-direction:column; gap:8px}
+.title-card{padding:11px 14px; background:var(--ivory);
+  border:1.5px solid var(--line); border-radius:var(--r-sm);
+  cursor:pointer; transition:all .12s;
+  display:flex; align-items:center; gap:10px}
+.title-card:hover{border-color:var(--line-2)}
+.title-card.selected{background:var(--paper); border-color:var(--clay);
+  box-shadow:0 0 0 3px rgba(204,120,92,.08)}
+.title-card .style-label{flex-shrink:0;
+  font-family:var(--serif-en); font-style:italic;
+  font-size:9.5px; padding:2px 7px;
+  background:var(--paper); border:1px solid var(--line);
+  border-radius:99px; color:var(--ink-3); font-weight:500; letter-spacing:.04em}
+.title-card.selected .style-label{background:var(--clay-tint); border-color:var(--clay-soft); color:var(--clay-deep)}
+.title-card .title-text{flex:1; min-width:0;
+  font-family:var(--serif); font-size:12.5px; font-weight:600;
+  color:var(--ink); line-height:1.4}
+.title-card .check{width:16px; height:16px; flex-shrink:0;
+  border-radius:50%; border:1.5px solid var(--line-2);
+  background:var(--paper); display:flex; align-items:center; justify-content:center;
+  color:transparent; font-size:9px; font-weight:700; transition:all .12s}
+.title-card.selected .check{background:var(--clay); border-color:var(--clay); color:#fff}
+
+.info-row{display:flex; justify-content:space-between; padding:7px 0;
+  font-size:12.5px; border-bottom:1px dashed var(--line)}
+.info-row:last-child{border-bottom:none; padding-bottom:0}
+.info-row:first-child{padding-top:0}
+.info-row .k{color:var(--ink-3)}
+.info-row .v{color:var(--ink); font-weight:500; max-width:170px; text-align:right}
+
+.regen-btn{width:100%; padding:10px;
+  background:var(--ink); color:var(--paper);
+  border-radius:var(--r-sm); font-size:12.5px; font-weight:500;
+  cursor:pointer; transition:all .12s;
+  display:flex; align-items:center; justify-content:center; gap:6px}
+.regen-btn:hover{background:#000}
+.regen-btn .credits-tip{font-size:10.5px; color:rgba(245,249,245,.6);
+  font-family:var(--mono); margin-left:6px}
+
+/* Step 3 */
+.video-result-toolbar{background:var(--paper); border:1px solid var(--line);
+  border-radius:var(--r-md); padding:14px 22px;
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:14px; margin-bottom:16px}
+.video-result-toolbar .l{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+.video-result-toolbar .check-icon{width:24px; height:24px; flex-shrink:0;
+  background:var(--leaf); color:#fff;
+  border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:700}
+.video-result-toolbar .info-text{font-size:13px; color:var(--ink-2)}
+.video-result-toolbar .info-text b{color:var(--ink); font-weight:600}
+.video-result-toolbar .info-text .meta{font-size:11.5px; color:var(--ink-3); margin-top:2px}
+.btn-tool{display:flex; align-items:center; gap:6px;
+  padding:8px 14px; background:var(--ivory);
+  border:1px solid var(--line); border-radius:var(--r-sm);
+  font-size:12.5px; color:var(--ink-2); cursor:pointer; transition:all .12s}
+.btn-tool:hover{background:var(--bone); border-color:var(--line-2); color:var(--ink)}
+.btn-tool.primary{background:var(--clay); color:#fff; border-color:var(--clay); box-shadow:var(--sh-clay)}
+.btn-tool.primary:hover{background:var(--clay-deep)}
+
+.video-main{display:grid; grid-template-columns: 360px 1fr;
+  gap:20px; background:var(--paper);
+  border:1px solid var(--line); border-radius:var(--r-lg);
+  padding:20px; align-items:flex-start; margin-bottom:18px}
+.video-player{width:100%; aspect-ratio: 9/16;
+  background:#0F0E0C; border-radius:var(--r-md); overflow:hidden;
+  position:relative; box-shadow:var(--sh-2)}
+.video-frame{position:absolute; inset:0; display:flex; align-items:center; justify-content:center}
+.video-frame svg{width:100%; height:100%}
+.video-ui{position:absolute; inset:0; display:flex; flex-direction:column; pointer-events:none}
+.video-ui-top{padding:14px 16px;
+  background:linear-gradient(180deg, rgba(0,0,0,.5), transparent);
+  display:flex; justify-content:space-between; align-items:center}
+.video-ui-top .platform-bar{display:flex; align-items:center; gap:6px;
+  font-size:11px; color:#fff; font-weight:500; letter-spacing:.04em;
+  background:rgba(0,0,0,.4); padding:4px 10px; border-radius:99px;
+  backdrop-filter:blur(4px)}
+.video-ui-top .live-tag{width:6px; height:6px; border-radius:50%;
+  background:#FF2442; animation:livePulse 1.5s ease-in-out infinite}
+@keyframes livePulse{0%,100%{opacity:1; transform:scale(1)} 50%{opacity:.5; transform:scale(.9)}}
+.video-ui-top .right-meta{font-size:10.5px; color:rgba(255,255,255,.6); font-family:var(--mono)}
+.video-ui-bottom{margin-top:auto; padding:14px 16px}
+.video-progress-track{height:3px; background:rgba(255,255,255,.2);
+  border-radius:2px; margin-bottom:10px; position:relative; cursor:pointer; pointer-events:auto}
+.video-progress-fill{height:100%; background:#fff; border-radius:2px;
+  width:38%; position:relative}
+.video-progress-fill::after{content:''; position:absolute;
+  right:-5px; top:50%; transform:translateY(-50%);
+  width:10px; height:10px; border-radius:50%;
+  background:#fff; box-shadow:0 0 0 3px rgba(255,255,255,.3)}
+.video-progress-segments{position:absolute; inset:0; pointer-events:none}
+.seg-marker{position:absolute; top:-3px; bottom:-3px;
+  width:1.5px; background:rgba(255,255,255,.4)}
+.video-controls{display:flex; align-items:center; gap:12px; pointer-events:auto}
+.play-btn{width:36px; height:36px;
+  background:rgba(255,255,255,.15); backdrop-filter:blur(4px);
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  color:#fff; cursor:pointer; transition:all .12s;
+  border:1px solid rgba(255,255,255,.25)}
+.play-btn:hover{background:rgba(255,255,255,.25)}
+.video-time{font-size:11.5px; color:#fff; font-family:var(--mono); font-weight:500}
+.video-time .total{color:rgba(255,255,255,.5)}
+.video-controls-right{margin-left:auto; display:flex; align-items:center; gap:8px}
+.video-ctrl-btn{width:30px; height:30px; background:transparent;
+  display:flex; align-items:center; justify-content:center;
+  color:rgba(255,255,255,.85); cursor:pointer; transition:all .12s}
+.video-ctrl-btn:hover{color:#fff}
+
+.video-info-panel{display:flex; flex-direction:column; gap:14px}
+.video-info-title{font-family:var(--serif); font-size:20px; font-weight:600;
+  color:var(--ink); line-height:1.4;
+  padding-bottom:14px; border-bottom:1px solid var(--line)}
+.video-stats{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.video-stat{padding:12px 14px; background:var(--ivory);
+  border:1px solid var(--line); border-radius:var(--r-sm)}
+.video-stat .stat-label{font-family:var(--serif-en); font-style:italic;
+  font-size:10.5px; color:var(--ink-3);
+  letter-spacing:.04em; margin-bottom:5px; text-transform:uppercase}
+.video-stat .stat-value{font-family:var(--serif-en); font-weight:600;
+  font-size:22px; color:var(--ink); line-height:1; letter-spacing:-.02em}
+.video-stat .stat-meta{font-size:11px; color:var(--ink-3); margin-top:4px}
+.video-info-row{display:flex; justify-content:space-between;
+  padding:8px 0; font-size:12.5px; border-bottom:1px dashed var(--line)}
+.video-info-row:last-child{border-bottom:none}
+.video-info-row .k{color:var(--ink-3)}
+.video-info-row .v{color:var(--ink); font-weight:500}
+
+.segment-section{background:var(--paper); border:1px solid var(--line);
+  border-radius:var(--r-lg); overflow:hidden; margin-bottom:18px}
+.segment-list{padding:14px 22px 18px;
+  display:grid; grid-template-columns:repeat(4, 1fr); gap:12px}
+.segment-card{position:relative; background:var(--ivory); border:1px solid var(--line);
+  border-radius:var(--r-md); overflow:hidden;
+  cursor:pointer; transition:all .15s}
+.segment-card:hover{border-color:var(--line-2); transform:translateY(-2px); box-shadow:var(--sh-1)}
+.segment-thumb{position:relative; aspect-ratio: 9/16; background:#0F0E0C; overflow:hidden}
+.segment-thumb svg{width:100%; height:100%}
+.segment-thumb .seg-num{position:absolute; top:8px; left:8px;
+  background:rgba(0,0,0,.6); color:#fff;
+  font-family:var(--serif-en); font-weight:600;
+  font-size:11px; padding:2px 8px; border-radius:99px;
+  letter-spacing:.04em; backdrop-filter:blur(4px)}
+.segment-thumb .seg-time{position:absolute; bottom:8px; right:8px;
+  background:rgba(0,0,0,.6); color:#fff;
+  font-family:var(--mono); font-size:10.5px;
+  padding:2px 7px; border-radius:99px; backdrop-filter:blur(4px)}
+.segment-thumb .play-overlay{position:absolute; inset:0; background:rgba(0,0,0,0);
+  display:flex; align-items:center; justify-content:center;
+  transition:background .15s}
+.segment-card:hover .play-overlay{background:rgba(0,0,0,.4)}
+.segment-thumb .play-overlay::before{content:''; width:34px; height:34px; border-radius:50%;
+  background:rgba(255,255,255,.95);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231F1F1E'%3E%3Cpath d='M8 5v14l11-7z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:center; background-size:18px;
+  opacity:0; transition:opacity .15s}
+.segment-card:hover .play-overlay::before{opacity:1}
+.segment-meta{padding:10px 12px; background:var(--paper)}
+.segment-meta .seg-title{font-size:12.5px; font-weight:600; color:var(--ink); margin-bottom:3px}
+.segment-meta .seg-desc{font-size:11px; color:var(--ink-3);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.4}
+.segment-actions{display:flex; gap:4px; padding:8px 12px;
+  background:var(--ivory); border-top:1px solid var(--line)}
+.seg-action-btn{flex:1;
+  display:flex; align-items:center; justify-content:center; gap:4px;
+  padding:5px 6px; font-size:11px;
+  background:var(--paper); border:1px solid var(--line);
+  border-radius:var(--r-xs); color:var(--ink-2);
+  cursor:pointer; transition:all .12s}
+.seg-action-btn:hover{background:var(--bone); border-color:var(--line-2); color:var(--ink)}
+
+.done-section{background:var(--paper); border:1px solid var(--line);
+  border-left:3px solid var(--leaf); border-radius:var(--r-md);
+  padding:18px 22px;
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:14px}
+.done-section .l{display:flex; align-items:center; gap:14px}
+.done-section .l h4{font-size:15px; font-weight:600; margin-bottom:2px}
+.done-section .l .desc{font-size:12.5px; color:var(--ink-3)}
+.done-section .r{display:flex; gap:8px; flex-wrap:wrap}
+.btn-done{display:flex; align-items:center; gap:6px; padding:9px 16px;
+  background:var(--paper); border:1px solid var(--line); border-radius:var(--r-sm);
+  font-size:12.5px; color:var(--ink-2); cursor:pointer; transition:all .12s; font-weight:500}
+.btn-done:hover{background:var(--bone); border-color:var(--line-2); color:var(--ink)}
+.btn-done.primary{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+.btn-done.primary:hover{background:#000}
+
+.actions-bar{position:fixed; left:var(--sidebar-w); right:0; bottom:0;
+  height:64px; display:flex; align-items:center; justify-content:space-between;
+  padding:0 32px; background:rgba(245,241,235,.94);
+  backdrop-filter:saturate(150%) blur(12px);
+  border-top:1px solid var(--line); z-index:40}
+.actions-bar .l, .actions-bar .r{display:flex; align-items:center; gap:14px}
+.actions-bar .meta{font-size:12px; color:var(--ink-3)}
+.actions-bar .meta b{color:var(--ink); font-weight:500; font-family:var(--serif-en)}
+.btn-primary-large{display:flex; align-items:center; gap:8px;
+  padding:11px 24px; background:var(--clay); color:#fff;
+  border-radius:var(--r-md); font-size:14px; font-weight:600;
+  cursor:pointer; transition:all .12s; box-shadow:var(--sh-clay)}
+.btn-primary-large:hover{background:var(--clay-deep); transform:translateY(-1px)}
+.btn-primary-large.disabled{background:var(--bone); color:var(--ink-3);
+  box-shadow:none; cursor:not-allowed}
+.btn-primary-large.disabled:hover{background:var(--bone); transform:none}
+.btn-primary-large .arr{font-size:14px; transition:transform .15s}
+.btn-primary-large:hover:not(.disabled) .arr{transform:translateX(3px)}
+.btn-back{display:flex; align-items:center; gap:6px; padding:9px 16px;
+  background:transparent; color:var(--ink-2);
+  border:1px solid var(--line); border-radius:var(--r-sm);
+  font-size:13px; cursor:pointer; transition:all .12s}
+.btn-back:hover{background:var(--bone); border-color:var(--line-2)}
+
+@media (max-width:1100px){
+  .work-grid{grid-template-columns:1fr}
+  .video-main{grid-template-columns:1fr}
+  .video-player{max-width:360px; margin:0 auto}
+  .style-options{grid-template-columns:1fr}
+  .platform-cards{grid-template-columns:1fr}
+  .segment-list{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <span class="mark">
+      <svg viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="13" stroke="#1F1F1E" stroke-width="1.4"/>
+        <circle cx="14" cy="9" r="2.2" fill="#CC785C"/>
+        <circle cx="9" cy="17" r="2.2" fill="#3F5C52"/>
+        <circle cx="19" cy="17" r="2.2" fill="#1F1F1E"/>
+        <path d="M14 11.2 L9.8 15.6 M14 11.2 L18.2 15.6 M11 17.5 L17 17.5" stroke="#1F1F1E" stroke-width="1.1" stroke-linecap="round"/>
+      </svg>
+    </span>
+    <span class="name">承知<span class="en">CHENGZHI</span></span>
+  </div>
+
+  <nav class="sidebar-nav scroll-y">
+    <div class="nav-group">
+      <div class="nav-group-title">— Workflow · 主工作流</div>
+      <a class="nav-item" href="#">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L13.5 8.5 L20 10 L13.5 11.5 L12 18 L10.5 11.5 L4 10 L10.5 8.5 Z"/></svg></span>
+        <span class="label">选题广场</span>
+      </a>
+      <div class="nav-collapsible open" data-collapsible>
+        <a class="nav-item" data-toggle>
+          <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/><path d="M8 13h8M8 17h5"/></svg></span>
+          <span class="label">内容创作</span>
+          <span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </a>
+        <div class="nav-sub">
+          <a class="nav-sub-item">小红书创作</a>
+          <a class="nav-sub-item">公众号创作</a>
+          <div class="nav-collapsible nested open" data-collapsible>
+            <a class="nav-sub-item with-chevron" data-toggle>
+              <span>视频创作</span>
+              <span class="chevron"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+            </a>
+            <div class="nav-sub-2">
+              <a class="nav-sub-item-2">口播视频</a>
+              <a class="nav-sub-item-2 active">剧情视频</a>
+            </div>
+          </div>
+          <a class="nav-sub-item">小红书仿写</a>
+          <a class="nav-sub-item">公众号仿写</a>
+          <a class="nav-sub-item">视频仿做</a>
+        </div>
+      </div>
+      <div class="nav-collapsible" data-collapsible>
+        <a class="nav-item" data-toggle>
+          <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>
+          <span class="label">爆款拆解</span>
+          <span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </a>
+        <div class="nav-sub">
+          <a class="nav-sub-item">拆解小红书爆款</a>
+          <a class="nav-sub-item">拆解抖音爆款</a>
+        </div>
+      </div>
+      <a class="nav-item" href="#">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span>
+        <span class="label">答疑逼单</span>
+      </a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">— Settings · 我的设置</div>
+      <a class="nav-item" href="#">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/></svg></span>
+        <span class="label">个人信息</span>
+      </a>
+      <a class="nav-item" href="#">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg></span>
+        <span class="label">个人风格</span>
+      </a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">— Knowledge · 知识库</div>
+      <div class="nav-collapsible" data-collapsible>
+        <a class="nav-item" data-toggle>
+          <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
+          <span class="label">保险知识库</span>
+          <span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </a>
+        <div class="nav-sub">
+          <a class="nav-sub-item">常见 FAQ</a>
+          <a class="nav-sub-item">理赔案例库</a>
+          <a class="nav-sub-item">险种大全</a>
+          <a class="nav-sub-item">投保注意事项</a>
+          <a class="nav-sub-item">保障责任</a>
+          <a class="nav-sub-item">合规词库</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="sidebar-foot">
+    <div class="member-card">
+      <div class="label">— ANNUAL MEMBER</div>
+      <div class="days">还剩 <b>327</b> 天到期</div>
+      <span class="renew">续费 / 加购积分</span>
+    </div>
+    <div class="user-mini">
+      <div class="avatar">林</div>
+      <div class="info">
+        <div class="name">林老师</div>
+        <div class="role">中产家庭保障顾问</div>
+      </div>
+      <span class="more">⋯</span>
+    </div>
+  </div>
+</aside>
+
+<div class="main">
+  <header class="topbar">
+    <div class="breadcrumb">
+      <span>内容创作</span>
+      <span class="sep">/</span>
+      <span>视频创作</span>
+      <span class="sep">/</span>
+      <span class="current">剧情视频</span>
+    </div>
+    <div class="top-actions">
+      <div class="credits-chip">
+        <span class="star">✦</span>
+        <span class="num">6,847</span>
+        <span class="total">/ 8,000 积分</span>
+        <div class="credits-bar"></div>
+      </div>
+      <button class="icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="badge"></span></button>
+      <button class="avatar-btn">林</button>
+    </div>
+  </header>
+
+  <div class="page-head">
+    <div class="page-title-row">
+      <div class="page-title">
+        <span class="platform-tag">抖音</span>
+        <h2>剧情视频</h2>
+        <span class="from">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 L13.5 8.5 L20 10 L13.5 11.5 L12 18 L10.5 11.5 L4 10 L10.5 8.5 Z"/></svg>
+          来自选题广场：<b>《老张和妻子的一通电话》</b>
+        </span>
+      </div>
+      <button class="btn-draft" onclick="saveDraft()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        <span>保存为草稿</span>
+      </button>
+    </div>
+
+    <div class="steps">
+      <div class="step done" onclick="goStep(1)"><div class="dot">✓</div><div class="label">选题与平台</div></div>
+      <div class="step active" onclick="goStep(2)"><div class="dot">2</div><div class="label">剧本与分镜</div></div>
+      <div class="step done" onclick="goStep(3)"><div class="dot">3</div><div class="label">视频预览</div></div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="content-inner">
+
+      <!-- ========= STEP 1 ========= -->
+      <div class="step-pane" id="step1">
+        <div class="section-card">
+          <div class="sc-head">
+            <h3>告诉 AI 你想拍一个什么故事</h3>
+            <span class="desc">短剧节奏紧凑 · AI 会先生成剧本，再拆解分镜，识别需要的人物和场景</span>
+          </div>
+          <div class="sc-body">
+
+            <div class="form-row">
+              <div class="label">选题主题 <span class="req">*</span></div>
+              <div class="control"><input type="text" class="text-field" value="老张和妻子的一通电话——重疾险该不该买" /></div>
+            </div>
+
+            <div class="form-row">
+              <div class="label">发布平台 <span class="req">*</span></div>
+              <div class="control">
+                <div class="platform-cards">
+                  <div class="platform-card dy selected" onclick="pickPlatform(this)">
+                    <div class="p-logo">抖</div>
+                    <div class="p-name">抖音</div>
+                    <div class="p-meta">60-90 秒 · 强冲突 · 短剧节奏</div>
+                  </div>
+                  <div class="platform-card xhs" onclick="pickPlatform(this)">
+                    <div class="p-logo">小</div>
+                    <div class="p-name">小红书</div>
+                    <div class="p-meta">60-120 秒 · 生活感 · 真实故事</div>
+                  </div>
+                  <div class="platform-card sph" onclick="pickPlatform(this)">
+                    <div class="p-logo">视</div>
+                    <div class="p-name">视频号</div>
+                    <div class="p-meta">90-180 秒 · 完整叙事 · 情感型</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="label">主要内容方向</div>
+              <div class="control">
+                <textarea class="text-field" placeholder="（选填）告诉 AI 你想强调的角度">主角是个 32 岁的男性老张，刚做完体检有些紧张。妻子接到电话后两人发生小冲突——妻子觉得社保够了，老张试图说服她考虑商保。结尾留个反转，让观众想看下一集。</textarea>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="label">参考材料</div>
+              <div class="control">
+                <div class="refs-list">
+                  <div class="ref-item">
+                    <div class="ref-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+                    <span class="ref-name">爆款短剧分析报告.pdf</span>
+                    <span class="ref-size">2.1 MB</span>
+                    <button class="ref-remove" onclick="removeRef(this)">×</button>
+                  </div>
+                </div>
+                <div class="ref-actions">
+                  <button class="btn-add-ref" onclick="alert('[演示] 添加参考材料 modal')">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span>添加参考材料</span>
+                  </button>
+                  <span class="ref-hint">支持 PDF / DOC / 图片 / 链接 · 仅本次使用</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="label">视频时长 <span class="req">*</span></div>
+              <div class="control">
+                <div class="chip-group">
+                  <span class="chip">短 60 秒以内</span>
+                  <span class="chip selected">中 60-90 秒 <span style="font-size:10px; color:var(--clay-deep); font-family:var(--mono); margin-left:3px">推荐</span></span>
+                  <span class="chip">长 90-180 秒</span>
+                </div>
+                <div style="font-size:11px; color:var(--ink-3); margin-top:8px;">短剧通常 60-90 秒最佳 · 节奏紧凑、留住观众</div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="label">剧情类型 <span class="req">*</span></div>
+              <div class="control">
+                <div class="chip-group">
+                  <span class="chip selected">故事型</span>
+                  <span class="chip selected">对话型</span>
+                  <span class="chip">反转型</span>
+                  <span class="chip">情感型</span>
+                  <span class="chip">悬疑型</span>
+                </div>
+                <div style="font-size:11px; color:var(--ink-3); margin-top:8px;">可选多个 · AI 会综合这几种调性写剧本</div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="label">险种 <span class="req">*</span></div>
+              <div class="control">
+                <div class="chip-group">
+                  <span class="chip selected">重疾险</span>
+                  <span class="chip selected">医疗险</span>
+                  <span class="chip">寿险</span>
+                  <span class="chip">意外险</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="label">目标人群 <span class="req">*</span></div>
+              <div class="control">
+                <div class="chip-group">
+                  <span class="chip selected">中产</span>
+                  <span class="chip selected">家庭主妇</span>
+                  <span class="chip">宝妈</span>
+                  <span class="chip">高净值</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="label">写作风格 <span class="req">*</span></div>
+              <div class="control">
+                <div class="style-options">
+                  <div class="style-option selected">
+                    <div class="radio"></div>
+                    <div class="info">
+                      <strong>我的个人风格 <span class="ver-tag">V3</span></strong>
+                      <span>基于 12 篇素材训练 · "温暖、克制、擅讲案例"</span>
+                    </div>
+                  </div>
+                  <div class="style-option">
+                    <div class="radio"></div>
+                    <div class="info"><strong>通用专业风格</strong><span>严谨、引经据典、数据驱动</span></div>
+                  </div>
+                  <div class="style-option">
+                    <div class="radio"></div>
+                    <div class="info"><strong>通用温暖风格</strong><span>亲切、生活化、像跟朋友聊天</span></div>
+                  </div>
+                  <div class="style-option">
+                    <div class="radio"></div>
+                    <div class="info"><strong>通用犀利风格</strong><span>痛点直击、节奏快、容易爆</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ========= STEP 2: 剧本与分镜 ========= -->
+      <div class="step-pane active" id="step2">
+
+        <div class="work-grid">
+
+          <div class="work-main">
+
+            <div class="work-toolbar">
+              <div class="l">
+                <div class="toolbar-stat"><span>分镜：</span><b>8 个</b></div>
+                <div class="toolbar-stat"><span>预估时长：</span><b>约 78 秒</b></div>
+                <div class="toolbar-stat ok"><span>符合「中 60-90 秒」目标</span></div>
+              </div>
+              <div class="work-tabs">
+                <div class="work-tab" onclick="switchWorkTab(this, 0)">
+                  <span class="tab-num">A</span><span>完整剧本</span>
+                </div>
+                <div class="work-tab active" onclick="switchWorkTab(this, 1)">
+                  <span class="tab-num">B</span><span>拆解分镜</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 剧本视图 -->
+            <div class="work-pane" id="workPaneA">
+              <div class="screenplay">
+                <div class="screenplay-body" contenteditable="true">
+
+                  <div class="scene-mark">第一场　林老师办公室</div>
+                  <div class="scene-meta">— 内景 · 下午 · 自然光 —</div>
+
+                  <span class="character">林老师 <span class="emotion">（温和地）</span></span>
+                  <span class="dialog">老张，体检报告我看了。<br>没什么大事，但有几个指标要留意。</span>
+
+                  <span class="character">老张 <span class="emotion">（松了口气）</span></span>
+                  <span class="dialog">那就好，我前几天还睡不着觉…</span>
+
+                  <span class="action">（林老师递过一张纸，神情认真。）</span>
+
+                  <span class="character">林老师</span>
+                  <span class="dialog">不过，我今天想跟你聊另一件事。<br>你之前问我，社保到底能保多少？</span>
+
+                  <div class="scene-mark">第二场　老张家中客厅</div>
+                  <div class="scene-meta">— 内景 · 傍晚 · 暖黄灯光 —</div>
+
+                  <span class="action">（老张坐沙发上看保单，妻子端着水杯走过来。）</span>
+
+                  <span class="character">老张 <span class="emotion">（认真地）</span></span>
+                  <span class="dialog">老婆，林老师让我考虑下重疾险。</span>
+
+                  <span class="character">妻子 <span class="emotion">（皱眉）</span></span>
+                  <span class="dialog">我们不是有社保吗？<br>每个月扣那么多钱，还不够？</span>
+
+                  <span class="character">老张</span>
+                  <span class="dialog">我也是这么想的。<br>但林老师给我看了一组数据——</span>
+
+                  <span class="action">（镜头切到老张手中的保单，特写。）</span>
+
+                  <span class="character">老张 <span class="emotion">（停顿）</span></span>
+                  <span class="dialog">社保平均只能报 60%。<br>剩下的 40%，要自己掏。</span>
+
+                  <span class="character">妻子 <span class="emotion">（愣住）</span></span>
+                  <span class="dialog">那要是…真的得了大病呢？</span>
+
+                  <div class="scene-mark">第三场　老张家中客厅（续）</div>
+                  <div class="scene-meta">— 内景 · 傍晚 · 灯光转暗 —</div>
+
+                  <span class="action">（两人对视。沉默几秒。）</span>
+
+                  <span class="character">老张 <span class="emotion">（轻声）</span></span>
+                  <span class="dialog">所以，我想我们应该认真考虑下…</span>
+
+                  <span class="action">（屏幕渐黑，浮现字幕："关注我，下集告诉你他们做了什么决定。"）</span>
+
+                </div>
+              </div>
+            </div>
+
+            <!-- 分镜视图 -->
+            <div class="work-pane active" id="workPaneB">
+              <div class="shot-list">
+
+                <div class="shot-card expanded" data-portion="1" onclick="toggleShot(this, event)">
+                  <div class="shot-head">
+                    <div class="shot-num">01</div>
+                    <div class="shot-head-info">
+                      <div class="shot-head-title"><span>分镜 1</span><span class="scene-tag">林老师办公室</span></div>
+                      <div class="shot-head-meta"><span>0:00 — 0:09</span><span class="time-bar"></span><span>9 秒</span></div>
+                    </div>
+                    <span class="shot-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
+                  </div>
+                  <div class="shot-body">
+                    <div class="shot-body-inner">
+                      <div class="shot-field scene-line">
+                        <span class="sf-key">— 画面</span>
+                        <div class="sf-val" contenteditable="true">中景。林老师坐在办公桌后，面前放着一份体检报告。背景是书架和柔和窗光。老张坐在对面，神情紧张。</div>
+                      </div>
+                      <div class="shot-field">
+                        <span class="sf-key">— 角色</span>
+                        <div class="sf-val"><div class="cast-tags"><span class="cast-tag"><span class="dot"></span>林老师</span><span class="cast-tag"><span class="dot"></span>老张</span></div></div>
+                      </div>
+                      <div class="shot-field dialog-line">
+                        <span class="sf-key">— 对白</span>
+                        <div class="sf-val">
+                          <div class="dialog-block">
+                            <div class="dialog-character">林老师 <span class="em">温和地</span></div>
+                            <div class="dialog-text" contenteditable="true">"老张，体检报告我看了。没什么大事，但有几个指标要留意。"</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="shot-field">
+                        <span class="sf-key">— 备注</span>
+                        <div class="sf-val" contenteditable="true">缓慢推进，建立信任感。林老师专业不冷漠。</div>
+                      </div>
+                      <div class="shot-actions">
+                        <button class="shot-action-btn" onclick="event.stopPropagation()">重新生成这段</button>
+                        <button class="shot-action-btn">在下方加段</button>
+                        <button class="shot-action-btn danger">删除</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <button class="insert-shot-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>在这里插入新分镜</span></button>
+
+                <div class="shot-card" data-portion="2" onclick="toggleShot(this, event)">
+                  <div class="shot-head">
+                    <div class="shot-num">02</div>
+                    <div class="shot-head-info">
+                      <div class="shot-head-title"><span>分镜 2</span><span class="scene-tag">林老师办公室</span></div>
+                      <div class="shot-head-meta"><span>0:09 — 0:20</span><span class="time-bar"></span><span>11 秒</span></div>
+                    </div>
+                    <span class="shot-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
+                  </div>
+                  <div class="shot-body"><div class="shot-body-inner">
+                    <div class="shot-field scene-line"><span class="sf-key">— 画面</span><div class="sf-val" contenteditable="true">近景切换到老张。老张身体放松，长出一口气。然后镜头摇回林老师，林老师递过一张纸。</div></div>
+                    <div class="shot-field"><span class="sf-key">— 角色</span><div class="sf-val"><div class="cast-tags"><span class="cast-tag"><span class="dot"></span>老张</span><span class="cast-tag"><span class="dot"></span>林老师</span></div></div></div>
+                    <div class="shot-field dialog-line"><span class="sf-key">— 对白</span><div class="sf-val">
+                      <div class="dialog-block"><div class="dialog-character">老张 <span class="em">松了口气</span></div><div class="dialog-text" contenteditable="true">"那就好，我前几天还睡不着觉…"</div></div>
+                      <div class="dialog-block"><div class="dialog-character">林老师</div><div class="dialog-text" contenteditable="true">"不过，我今天想跟你聊另一件事。你之前问我，社保到底能保多少？"</div></div>
+                    </div></div>
+                    <div class="shot-field"><span class="sf-key">— 备注</span><div class="sf-val" contenteditable="true">老张的"松了口气"是关键 beat，让观众放下警惕。然后林老师抛话题，制造预期反差。</div></div>
+                    <div class="shot-actions"><button class="shot-action-btn">重新生成这段</button><button class="shot-action-btn">在下方加段</button><button class="shot-action-btn danger">删除</button></div>
+                  </div></div>
+                </div>
+
+                <button class="insert-shot-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>在这里插入新分镜</span></button>
+
+                <div class="shot-card" data-portion="3" onclick="toggleShot(this, event)">
+                  <div class="shot-head">
+                    <div class="shot-num">03</div>
+                    <div class="shot-head-info">
+                      <div class="shot-head-title"><span>分镜 3</span><span class="scene-tag">老张家中客厅</span></div>
+                      <div class="shot-head-meta"><span>0:20 — 0:33</span><span class="time-bar"></span><span>13 秒</span></div>
+                    </div>
+                    <span class="shot-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
+                  </div>
+                  <div class="shot-body"><div class="shot-body-inner">
+                    <div class="shot-field scene-line"><span class="sf-key">— 画面</span><div class="sf-val" contenteditable="true">场景切换。老张家客厅，傍晚暖黄灯光。老张坐在沙发上，手里拿着一张保单认真在看。</div></div>
+                    <div class="shot-field"><span class="sf-key">— 角色</span><div class="sf-val"><div class="cast-tags"><span class="cast-tag"><span class="dot"></span>老张</span><span class="cast-tag"><span class="dot"></span>妻子</span></div></div></div>
+                    <div class="shot-field dialog-line"><span class="sf-key">— 对白</span><div class="sf-val">
+                      <div class="dialog-block"><div class="dialog-character">老张 <span class="em">认真地</span></div><div class="dialog-text" contenteditable="true">"老婆，林老师让我考虑下重疾险。"</div></div>
+                      <div class="dialog-block"><div class="dialog-character">妻子 <span class="em">皱眉，端着水杯走过来</span></div><div class="dialog-text" contenteditable="true">"我们不是有社保吗？每个月扣那么多钱，还不够？"</div></div>
+                    </div></div>
+                    <div class="shot-field"><span class="sf-key">— 备注</span><div class="sf-val" contenteditable="true">夫妻对话进入冲突，妻子作为质疑者代表观众的初始认知。</div></div>
+                    <div class="shot-actions"><button class="shot-action-btn">重新生成这段</button><button class="shot-action-btn">在下方加段</button><button class="shot-action-btn danger">删除</button></div>
+                  </div></div>
+                </div>
+
+                <button class="insert-shot-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>在这里插入新分镜</span></button>
+
+                <div class="shot-card" data-portion="4" onclick="toggleShot(this, event)">
+                  <div class="shot-head">
+                    <div class="shot-num">04</div>
+                    <div class="shot-head-info">
+                      <div class="shot-head-title"><span>分镜 4</span><span class="scene-tag">老张家中客厅</span></div>
+                      <div class="shot-head-meta"><span>0:33 — 0:43</span><span class="time-bar"></span><span>10 秒</span></div>
+                    </div>
+                    <span class="shot-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
+                  </div>
+                  <div class="shot-body"><div class="shot-body-inner">
+                    <div class="shot-field scene-line"><span class="sf-key">— 画面</span><div class="sf-val" contenteditable="true">特写。老张手里的保单文件，纸张细节、文字依稀可见。</div></div>
+                    <div class="shot-field"><span class="sf-key">— 角色</span><div class="sf-val"><div class="cast-tags"><span class="cast-tag"><span class="dot"></span>老张</span></div></div></div>
+                    <div class="shot-field dialog-line"><span class="sf-key">— 对白</span><div class="sf-val">
+                      <div class="dialog-block"><div class="dialog-character">老张 <span class="em">画外音</span></div><div class="dialog-text" contenteditable="true">"我也是这么想的。但林老师给我看了一组数据——"</div></div>
+                    </div></div>
+                    <div class="shot-field"><span class="sf-key">— 备注</span><div class="sf-val" contenteditable="true">画外音切入数据展示，准备引出关键 60% 数字。</div></div>
+                    <div class="shot-actions"><button class="shot-action-btn">重新生成这段</button><button class="shot-action-btn">在下方加段</button><button class="shot-action-btn danger">删除</button></div>
+                  </div></div>
+                </div>
+
+                <button class="insert-shot-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>在这里插入新分镜</span></button>
+
+                <div class="shot-card" data-portion="5" onclick="toggleShot(this, event)">
+                  <div class="shot-head">
+                    <div class="shot-num">05</div>
+                    <div class="shot-head-info">
+                      <div class="shot-head-title"><span>分镜 5</span><span class="scene-tag">老张家中客厅</span></div>
+                      <div class="shot-head-meta"><span>0:43 — 0:54</span><span class="time-bar"></span><span>11 秒</span></div>
+                    </div>
+                    <span class="shot-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
+                  </div>
+                  <div class="shot-body"><div class="shot-body-inner">
+                    <div class="shot-field scene-line"><span class="sf-key">— 画面</span><div class="sf-val" contenteditable="true">中景。老张面对镜头方向，停顿一下，然后说出关键数字。背景虚化，画面轻微变暗。</div></div>
+                    <div class="shot-field"><span class="sf-key">— 角色</span><div class="sf-val"><div class="cast-tags"><span class="cast-tag"><span class="dot"></span>老张</span></div></div></div>
+                    <div class="shot-field dialog-line"><span class="sf-key">— 对白</span><div class="sf-val">
+                      <div class="dialog-block"><div class="dialog-character">老张 <span class="em">停顿，眼神严肃</span></div><div class="dialog-text" contenteditable="true">"社保平均只能报 60%。剩下的 40%，要自己掏。"</div></div>
+                    </div></div>
+                    <div class="shot-field"><span class="sf-key">— 备注</span><div class="sf-val" contenteditable="true">关键 reveal 时刻。"60%"和"40%"两个数字配字幕动画。</div></div>
+                    <div class="shot-actions"><button class="shot-action-btn">重新生成这段</button><button class="shot-action-btn">在下方加段</button><button class="shot-action-btn danger">删除</button></div>
+                  </div></div>
+                </div>
+
+                <button class="insert-shot-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>在这里插入新分镜</span></button>
+
+                <div class="shot-card" data-portion="6" onclick="toggleShot(this, event)">
+                  <div class="shot-head">
+                    <div class="shot-num">06</div>
+                    <div class="shot-head-info">
+                      <div class="shot-head-title"><span>分镜 6</span><span class="scene-tag">老张家中客厅</span></div>
+                      <div class="shot-head-meta"><span>0:54 — 1:03</span><span class="time-bar"></span><span>9 秒</span></div>
+                    </div>
+                    <span class="shot-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
+                  </div>
+                  <div class="shot-body"><div class="shot-body-inner">
+                    <div class="shot-field scene-line"><span class="sf-key">— 画面</span><div class="sf-val" contenteditable="true">近景妻子。妻子愣住，手中的水杯悬在半空。眼神里慢慢出现担忧。</div></div>
+                    <div class="shot-field"><span class="sf-key">— 角色</span><div class="sf-val"><div class="cast-tags"><span class="cast-tag"><span class="dot"></span>妻子</span></div></div></div>
+                    <div class="shot-field dialog-line"><span class="sf-key">— 对白</span><div class="sf-val">
+                      <div class="dialog-block"><div class="dialog-character">妻子 <span class="em">愣住，声音变小</span></div><div class="dialog-text" contenteditable="true">"那要是…真的得了大病呢？"</div></div>
+                    </div></div>
+                    <div class="shot-field"><span class="sf-key">— 备注</span><div class="sf-val" contenteditable="true">妻子从质疑转向担忧，是这场对话的转折点。给她足够的特写时间让情绪转换发生。</div></div>
+                    <div class="shot-actions"><button class="shot-action-btn">重新生成这段</button><button class="shot-action-btn">在下方加段</button><button class="shot-action-btn danger">删除</button></div>
+                  </div></div>
+                </div>
+
+                <button class="insert-shot-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>在这里插入新分镜</span></button>
+
+                <div class="shot-card" data-portion="7" onclick="toggleShot(this, event)">
+                  <div class="shot-head">
+                    <div class="shot-num">07</div>
+                    <div class="shot-head-info">
+                      <div class="shot-head-title"><span>分镜 7</span><span class="scene-tag">老张家中客厅</span></div>
+                      <div class="shot-head-meta"><span>1:03 — 1:13</span><span class="time-bar"></span><span>10 秒</span></div>
+                    </div>
+                    <span class="shot-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
+                  </div>
+                  <div class="shot-body"><div class="shot-body-inner">
+                    <div class="shot-field scene-line"><span class="sf-key">— 画面</span><div class="sf-val" contenteditable="true">中景。老张和妻子对视。环境灯光转暗，两人沉默几秒。然后老张轻声开口。</div></div>
+                    <div class="shot-field"><span class="sf-key">— 角色</span><div class="sf-val"><div class="cast-tags"><span class="cast-tag"><span class="dot"></span>老张</span><span class="cast-tag"><span class="dot"></span>妻子</span></div></div></div>
+                    <div class="shot-field dialog-line"><span class="sf-key">— 对白</span><div class="sf-val">
+                      <div class="dialog-block"><div class="dialog-character">老张 <span class="em">轻声</span></div><div class="dialog-text" contenteditable="true">"所以，我想我们应该认真考虑下…"</div></div>
+                    </div></div>
+                    <div class="shot-field"><span class="sf-key">— 备注</span><div class="sf-val" contenteditable="true">不要把话说完，留白。让观众脑补"考虑下什么"。</div></div>
+                    <div class="shot-actions"><button class="shot-action-btn">重新生成这段</button><button class="shot-action-btn">在下方加段</button><button class="shot-action-btn danger">删除</button></div>
+                  </div></div>
+                </div>
+
+                <button class="insert-shot-btn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>在这里插入新分镜</span></button>
+
+                <div class="shot-card" data-portion="8" onclick="toggleShot(this, event)">
+                  <div class="shot-head">
+                    <div class="shot-num">08</div>
+                    <div class="shot-head-info">
+                      <div class="shot-head-title"><span>分镜 8</span><span class="scene-tag">老张家中客厅</span></div>
+                      <div class="shot-head-meta"><span>1:13 — 1:18</span><span class="time-bar"></span><span>5 秒</span></div>
+                    </div>
+                    <span class="shot-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></span>
+                  </div>
+                  <div class="shot-body"><div class="shot-body-inner">
+                    <div class="shot-field scene-line"><span class="sf-key">— 画面</span><div class="sf-val" contenteditable="true">屏幕渐黑。淡入字幕："关注我，下集告诉你他们做了什么决定。"</div></div>
+                    <div class="shot-field"><span class="sf-key">— 角色</span><div class="sf-val" style="color:var(--ink-3); font-style:italic; font-size:12px">无（黑屏字幕）</div></div>
+                    <div class="shot-field"><span class="sf-key">— 备注</span><div class="sf-val" contenteditable="true">引导关注，制造下集预期。这是连续剧的关键钩子。</div></div>
+                    <div class="shot-actions"><button class="shot-action-btn">重新生成这段</button><button class="shot-action-btn">在下方加段</button><button class="shot-action-btn danger">删除</button></div>
+                  </div></div>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+
+          <!-- 右辅助栏 -->
+          <div class="aux-panel">
+
+            <div class="aux-card duration-card">
+              <div class="duration-label">— Duration · 总时长</div>
+              <div class="duration-num"><span class="num">78</span><span class="unit">秒</span></div>
+              <div class="duration-target">目标 <b>60-90</b> 秒（中）· <b>8</b> 个分镜</div>
+              <div class="duration-track"><div class="duration-fill" style="width:60%"></div></div>
+              <div class="duration-status">时长符合预期</div>
+            </div>
+
+            <!-- 角色清单 -->
+            <div class="aux-card">
+              <div class="aux-head">
+                <span>— Cast · 角色（识别 3 个）</span>
+                <span class="count-badge warning">2 待办</span>
+              </div>
+              <div class="cast-list">
+
+                <div class="cast-row">
+                  <div class="cast-row-head">
+                    <div class="cast-thumb uploaded">
+                      <svg viewBox="0 0 80 80" preserveAspectRatio="xMidYMid slice">
+                        <rect width="80" height="80" fill="#1F1F1E"/>
+                        <circle cx="40" cy="40" r="32" fill="url(#gLin)"/>
+                        <defs><linearGradient id="gLin" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#CC785C"/><stop offset="100%" stop-color="#C49B5C"/></linearGradient></defs>
+                        <text x="40" y="48" text-anchor="middle" font-family="Noto Serif SC" font-size="24" fill="#fff" font-weight="700">林</text>
+                      </svg>
+                    </div>
+                    <div class="cast-info">
+                      <div class="cast-name"><span>林老师</span><span class="ok-mark">✓</span></div>
+                      <div class="cast-desc">保险顾问 · 中年男性</div>
+                    </div>
+                  </div>
+                  <div class="cast-actions">
+                    <button class="btn-cast-action replace" onclick="alert('[演示] 替换照片')">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                      替换
+                    </button>
+                  </div>
+                </div>
+
+                <div class="cast-row">
+                  <div class="cast-row-head">
+                    <div class="cast-thumb empty">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg>
+                    </div>
+                    <div class="cast-info">
+                      <div class="cast-name"><span>老张</span><span class="req-mark"></span></div>
+                      <div class="cast-desc">32 岁男性 · 工薪阶层</div>
+                    </div>
+                  </div>
+                  <div class="cast-actions">
+                    <button class="btn-cast-action upload" onclick="alert('[演示] 选择照片上传')">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/></svg>
+                      上传
+                    </button>
+                    <button class="btn-cast-action ai" onclick="alert('[演示] AI 生成中... 约 30 秒')">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 L13.5 8.5 L20 10 L13.5 11.5 L12 18 L10.5 11.5 L4 10 L10.5 8.5 Z"/></svg>
+                      AI 生成
+                    </button>
+                  </div>
+                </div>
+
+                <div class="cast-row">
+                  <div class="cast-row-head">
+                    <div class="cast-thumb empty">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg>
+                    </div>
+                    <div class="cast-info">
+                      <div class="cast-name"><span>老张妻子</span><span class="req-mark"></span></div>
+                      <div class="cast-desc">30 岁左右 · 居家女性</div>
+                    </div>
+                  </div>
+                  <div class="cast-actions">
+                    <button class="btn-cast-action upload">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/></svg>
+                      上传
+                    </button>
+                    <button class="btn-cast-action ai">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 L13.5 8.5 L20 10 L13.5 11.5 L12 18 L10.5 11.5 L4 10 L10.5 8.5 Z"/></svg>
+                      AI 生成
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
+              <div class="license-block checked" onclick="this.classList.toggle('checked')">
+                <div class="check"></div>
+                <label>我承诺所有上传的人物照片，均为<b>本人</b>或<b>已获本人书面授权</b>。</label>
+              </div>
+            </div>
+
+            <!-- 场景清单 -->
+            <div class="aux-card">
+              <div class="aux-head">
+                <span>— Scenes · 场景（识别 2 个）</span>
+                <span class="count-badge warning">2 待办</span>
+              </div>
+              <div class="cast-list">
+                <div class="cast-row scene">
+                  <div class="cast-row-head">
+                    <div class="cast-thumb empty">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    </div>
+                    <div class="cast-info">
+                      <div class="cast-name"><span>林老师办公室</span><span class="req-mark"></span></div>
+                      <div class="cast-desc">内景 · 自然光 · 专业书架</div>
+                    </div>
+                  </div>
+                  <div class="cast-actions">
+                    <button class="btn-cast-action upload">上传</button>
+                    <button class="btn-cast-action ai">AI 生成</button>
+                  </div>
+                </div>
+
+                <div class="cast-row scene">
+                  <div class="cast-row-head">
+                    <div class="cast-thumb empty">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    </div>
+                    <div class="cast-info">
+                      <div class="cast-name"><span>老张家中客厅</span><span class="req-mark"></span></div>
+                      <div class="cast-desc">内景 · 暖黄灯光 · 沙发茶几</div>
+                    </div>
+                  </div>
+                  <div class="cast-actions">
+                    <button class="btn-cast-action upload">上传</button>
+                    <button class="btn-cast-action ai">AI 生成</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 标题候选 -->
+            <div class="aux-card">
+              <div class="aux-head"><span>— Titles · 3 个标题候选</span></div>
+              <div class="aux-body" style="padding:12px">
+                <div class="title-cards">
+                  <div class="title-card" onclick="pickTitle(this)">
+                    <span class="style-label">悬念型</span>
+                    <span class="title-text">老婆，林老师让我做一个决定…</span>
+                    <div class="check">✓</div>
+                  </div>
+                  <div class="title-card selected" onclick="pickTitle(this)">
+                    <span class="style-label">冲突型</span>
+                    <span class="title-text">"社保不够吗？"妻子的一句话让我沉默了</span>
+                    <div class="check">✓</div>
+                  </div>
+                  <div class="title-card" onclick="pickTitle(this)">
+                    <span class="style-label">数字型</span>
+                    <span class="title-text">体检后我们决定买保险，60% 是关键</span>
+                    <div class="check">✓</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 信息卡 -->
+            <div class="aux-card">
+              <div class="aux-head"><span>— Info · 信息</span></div>
+              <div class="aux-body">
+                <div class="info-row"><span class="k">平台</span><span class="v">抖音</span></div>
+                <div class="info-row"><span class="k">写作风格</span><span class="v">林老师 V3</span></div>
+                <div class="info-row"><span class="k">险种</span><span class="v">重疾险, 医疗险</span></div>
+                <div class="info-row"><span class="k">剧情类型</span><span class="v">故事型, 对话型</span></div>
+              </div>
+            </div>
+
+            <button class="regen-btn" onclick="alert('[演示] 整篇重新生成')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              <span>整篇重新生成</span>
+              <span class="credits-tip">−12 积分</span>
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ========= STEP 3 ========= -->
+      <div class="step-pane" id="step3">
+
+        <div class="video-result-toolbar">
+          <div class="l">
+            <div class="check-icon">✓</div>
+            <div class="info-text">
+              <div>视频已生成 · <b>78 秒</b> · 共 <b>8 段</b>拼接</div>
+              <div class="meta">9:16 竖屏 · 1080×1920 · 抖音原生格式 · 含 3 个角色 + 2 个场景</div>
+            </div>
+          </div>
+          <button class="btn-tool primary" onclick="confirm('全部重新生成会替换当前 8 段视频，约 5-8 分钟。确定吗？')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <span>全部重新生成</span>
+          </button>
+        </div>
+
+        <div class="video-main">
+
+          <div class="video-player">
+            <div class="video-frame">
+              <svg viewBox="0 0 360 640" preserveAspectRatio="xMidYMid slice">
+                <defs>
+                  <linearGradient id="bgg" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#3A3935"/>
+                    <stop offset="100%" stop-color="#1F1F1E"/>
+                  </linearGradient>
+                  <linearGradient id="lampg" cx="50%" cy="40%" r="60%">
+                    <stop offset="0%" stop-color="#F5E2D5" stop-opacity=".4"/>
+                    <stop offset="100%" stop-color="#1F1F1E" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <rect width="360" height="640" fill="url(#bgg)"/>
+                <ellipse cx="180" cy="280" rx="180" ry="180" fill="url(#lampg)"/>
+                <!-- 客厅场景 - 沙发轮廓 -->
+                <rect x="40" y="380" width="280" height="100" rx="12" fill="#2D2A26" opacity=".7"/>
+                <rect x="50" y="395" width="60" height="40" rx="6" fill="#3A3530" opacity=".8"/>
+                <rect x="120" y="395" width="60" height="40" rx="6" fill="#3A3530" opacity=".8"/>
+                <rect x="190" y="395" width="60" height="40" rx="6" fill="#3A3530" opacity=".8"/>
+                <!-- 老张人物 -->
+                <circle cx="130" cy="320" r="38" fill="#5A4A3E"/>
+                <circle cx="130" cy="305" r="22" fill="#C49B5C"/>
+                <text x="130" y="313" text-anchor="middle" font-family="Noto Serif SC" font-size="20" fill="#1F1F1E" font-weight="700">张</text>
+                <!-- 妻子 -->
+                <circle cx="230" cy="320" r="38" fill="#3F5C52"/>
+                <circle cx="230" cy="305" r="22" fill="#E9B79E"/>
+                <text x="230" y="313" text-anchor="middle" font-family="Noto Serif SC" font-size="18" fill="#1F1F1E" font-weight="700">妻</text>
+                <!-- 字幕 -->
+                <rect x="40" y="500" width="280" height="56" rx="8" fill="#000" opacity=".5"/>
+                <text x="180" y="525" text-anchor="middle" font-family="Noto Serif SC" font-size="16" fill="#fff" font-weight="700">"那要是…</text>
+                <text x="180" y="548" text-anchor="middle" font-family="Noto Serif SC" font-size="16" fill="#E9B79E" font-weight="700">真的得了大病呢？"</text>
+                <text x="180" y="600" text-anchor="middle" font-family="Fraunces" font-style="italic" font-size="11" fill="rgba(255,255,255,.5)" letter-spacing=".06em">— 分镜 6 / 共 8 段 —</text>
+              </svg>
+            </div>
+
+            <div class="video-ui">
+              <div class="video-ui-top">
+                <div class="platform-bar">
+                  <span class="live-tag"></span>
+                  <span>抖音预览 · 9:16</span>
+                </div>
+                <div class="right-meta">1080×1920</div>
+              </div>
+              <div class="video-ui-bottom">
+                <div class="video-progress-track">
+                  <div class="video-progress-fill"></div>
+                  <div class="video-progress-segments">
+                    <div class="seg-marker" style="left:11%"></div>
+                    <div class="seg-marker" style="left:25%"></div>
+                    <div class="seg-marker" style="left:42%"></div>
+                    <div class="seg-marker" style="left:55%"></div>
+                    <div class="seg-marker" style="left:69%"></div>
+                    <div class="seg-marker" style="left:80%"></div>
+                    <div class="seg-marker" style="left:93%"></div>
+                  </div>
+                </div>
+                <div class="video-controls">
+                  <div class="play-btn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
+                  </div>
+                  <div class="video-time"><span>0:30</span> <span class="total">/ 1:18</span></div>
+                  <div class="video-controls-right">
+                    <button class="video-ctrl-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/></svg></button>
+                    <button class="video-ctrl-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="video-info-panel">
+            <div class="video-info-title">"社保不够吗？"妻子的一句话让我沉默了</div>
+
+            <div class="video-stats">
+              <div class="video-stat">
+                <div class="stat-label">— Total duration</div>
+                <div class="stat-value">78s</div>
+                <div class="stat-meta">含 8 段拼接</div>
+              </div>
+              <div class="video-stat">
+                <div class="stat-label">— Resolution</div>
+                <div class="stat-value">1080P</div>
+                <div class="stat-meta">9:16 竖屏</div>
+              </div>
+            </div>
+
+            <div>
+              <div class="video-info-row"><span class="k">发布平台</span><span class="v">抖音</span></div>
+              <div class="video-info-row"><span class="k">参演角色</span><span class="v">林老师 + 老张 + 妻子</span></div>
+              <div class="video-info-row"><span class="k">场景</span><span class="v">办公室 + 客厅</span></div>
+              <div class="video-info-row"><span class="k">剧情类型</span><span class="v">故事型 · 对话型</span></div>
+              <div class="video-info-row"><span class="k">文件大小</span><span class="v">~ 32 MB</span></div>
+              <div class="video-info-row"><span class="k">生成耗时</span><span class="v">3 分 42 秒</span></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 分段列表 -->
+        <div class="segment-section">
+          <div class="sc-head">
+            <h3>分段视频</h3>
+            <span class="desc">8 段拼接 · 每段可单独预览、重新生成、下载</span>
+          </div>
+          <div class="segment-list">
+
+            <div class="segment-card">
+              <div class="segment-thumb">
+                <svg viewBox="0 0 200 356" preserveAspectRatio="xMidYMid slice">
+                  <rect width="200" height="356" fill="#FAF9F5"/>
+                  <rect y="280" width="200" height="76" fill="#3A3530" opacity=".4"/>
+                  <circle cx="65" cy="160" r="34" fill="#5A4A3E"/>
+                  <circle cx="65" cy="150" r="20" fill="#C49B5C"/>
+                  <text x="65" y="158" text-anchor="middle" font-family="Noto Serif SC" font-size="18" fill="#fff" font-weight="700">林</text>
+                  <circle cx="135" cy="170" r="32" fill="#5A4A3E"/>
+                  <circle cx="135" cy="160" r="18" fill="#A85A40"/>
+                  <text x="135" y="168" text-anchor="middle" font-family="Noto Serif SC" font-size="16" fill="#fff" font-weight="700">张</text>
+                </svg>
+                <span class="seg-num">01</span><span class="seg-time">0:09</span>
+                <div class="play-overlay"></div>
+              </div>
+              <div class="segment-meta">
+                <div class="seg-title">分镜 1 · 林老师办公室</div>
+                <div class="seg-desc">"老张，体检报告我看了..."</div>
+              </div>
+              <div class="segment-actions">
+                <button class="seg-action-btn">重生成</button>
+                <button class="seg-action-btn">下载</button>
+              </div>
+            </div>
+
+            <div class="segment-card">
+              <div class="segment-thumb">
+                <svg viewBox="0 0 200 356" preserveAspectRatio="xMidYMid slice">
+                  <rect width="200" height="356" fill="#FAF9F5"/>
+                  <circle cx="100" cy="170" r="48" fill="#5A4A3E"/>
+                  <circle cx="100" cy="155" r="28" fill="#A85A40"/>
+                  <text x="100" y="167" text-anchor="middle" font-family="Noto Serif SC" font-size="22" fill="#fff" font-weight="700">张</text>
+                  <text x="100" y="270" text-anchor="middle" font-family="Noto Serif SC" font-size="11" fill="#3A3530">"那就好…"</text>
+                </svg>
+                <span class="seg-num">02</span><span class="seg-time">0:11</span>
+                <div class="play-overlay"></div>
+              </div>
+              <div class="segment-meta">
+                <div class="seg-title">分镜 2 · 林老师办公室</div>
+                <div class="seg-desc">老张松了口气 + 林老师抛话题</div>
+              </div>
+              <div class="segment-actions">
+                <button class="seg-action-btn">重生成</button>
+                <button class="seg-action-btn">下载</button>
+              </div>
+            </div>
+
+            <div class="segment-card">
+              <div class="segment-thumb">
+                <svg viewBox="0 0 200 356" preserveAspectRatio="xMidYMid slice">
+                  <rect width="200" height="356" fill="#3A3530"/>
+                  <ellipse cx="100" cy="180" rx="110" ry="80" fill="#F5E2D5" opacity=".15"/>
+                  <rect x="20" y="220" width="160" height="60" rx="8" fill="#2D2823"/>
+                  <circle cx="65" cy="160" r="32" fill="#5A4A3E"/>
+                  <text x="65" y="168" text-anchor="middle" font-family="Noto Serif SC" font-size="18" fill="#fff" font-weight="700">张</text>
+                  <circle cx="135" cy="170" r="30" fill="#3F5C52"/>
+                  <text x="135" y="178" text-anchor="middle" font-family="Noto Serif SC" font-size="16" fill="#fff" font-weight="700">妻</text>
+                </svg>
+                <span class="seg-num">03</span><span class="seg-time">0:13</span>
+                <div class="play-overlay"></div>
+              </div>
+              <div class="segment-meta">
+                <div class="seg-title">分镜 3 · 老张家中客厅</div>
+                <div class="seg-desc">夫妻对话 · 妻子质疑</div>
+              </div>
+              <div class="segment-actions">
+                <button class="seg-action-btn">重生成</button>
+                <button class="seg-action-btn">下载</button>
+              </div>
+            </div>
+
+            <div class="segment-card">
+              <div class="segment-thumb">
+                <svg viewBox="0 0 200 356" preserveAspectRatio="xMidYMid slice">
+                  <rect width="200" height="356" fill="#FAF9F5"/>
+                  <rect x="40" y="100" width="120" height="160" rx="6" fill="#FFF" stroke="#E4DDCE" stroke-width="2"/>
+                  <line x1="55" y1="130" x2="145" y2="130" stroke="#3A3935" stroke-width="1"/>
+                  <line x1="55" y1="150" x2="145" y2="150" stroke="#6B6862" stroke-width="0.6"/>
+                  <line x1="55" y1="165" x2="135" y2="165" stroke="#6B6862" stroke-width="0.6"/>
+                  <line x1="55" y1="180" x2="140" y2="180" stroke="#6B6862" stroke-width="0.6"/>
+                  <line x1="55" y1="195" x2="120" y2="195" stroke="#6B6862" stroke-width="0.6"/>
+                  <line x1="55" y1="220" x2="135" y2="220" stroke="#CC785C" stroke-width="1.5"/>
+                  <text x="100" y="240" text-anchor="middle" font-family="Noto Serif SC" font-size="9" fill="#6B6862">— 保单详情 —</text>
+                </svg>
+                <span class="seg-num">04</span><span class="seg-time">0:10</span>
+                <div class="play-overlay"></div>
+              </div>
+              <div class="segment-meta">
+                <div class="seg-title">分镜 4 · 保单特写</div>
+                <div class="seg-desc">"林老师给我看了一组数据——"</div>
+              </div>
+              <div class="segment-actions">
+                <button class="seg-action-btn">重生成</button>
+                <button class="seg-action-btn">下载</button>
+              </div>
+            </div>
+
+            <div class="segment-card">
+              <div class="segment-thumb">
+                <svg viewBox="0 0 200 356" preserveAspectRatio="xMidYMid slice">
+                  <rect width="200" height="356" fill="#1F1F1E"/>
+                  <text x="100" y="180" text-anchor="middle" font-family="Noto Serif SC" font-size="80" fill="#CC785C" font-weight="700" letter-spacing="-0.04em">60</text>
+                  <text x="155" y="135" font-family="Noto Serif SC" font-size="34" fill="#CC785C" font-weight="700">%</text>
+                  <text x="100" y="225" text-anchor="middle" font-family="Noto Serif SC" font-size="11" fill="#FAF9F5" opacity=".7">医保平均报销</text>
+                  <line x1="80" y1="245" x2="120" y2="245" stroke="#CC785C" stroke-width="1.5"/>
+                  <text x="100" y="280" text-anchor="middle" font-family="Noto Serif SC" font-size="14" fill="#E9B79E" font-weight="700">剩下 40% 自掏</text>
+                </svg>
+                <span class="seg-num">05</span><span class="seg-time">0:11</span>
+                <div class="play-overlay"></div>
+              </div>
+              <div class="segment-meta">
+                <div class="seg-title">分镜 5 · 关键 reveal</div>
+                <div class="seg-desc">"社保平均只能报 60%..."</div>
+              </div>
+              <div class="segment-actions">
+                <button class="seg-action-btn">重生成</button>
+                <button class="seg-action-btn">下载</button>
+              </div>
+            </div>
+
+            <div class="segment-card">
+              <div class="segment-thumb">
+                <svg viewBox="0 0 200 356" preserveAspectRatio="xMidYMid slice">
+                  <rect width="200" height="356" fill="#3A3530"/>
+                  <ellipse cx="100" cy="170" rx="100" ry="80" fill="#E9B79E" opacity=".15"/>
+                  <circle cx="100" cy="170" r="56" fill="#3F5C52"/>
+                  <circle cx="100" cy="155" r="32" fill="#E9B79E"/>
+                  <text x="100" y="167" text-anchor="middle" font-family="Noto Serif SC" font-size="24" fill="#1F1F1E" font-weight="700">妻</text>
+                  <text x="100" y="280" text-anchor="middle" font-family="Noto Serif SC" font-size="11" fill="#fff" opacity=".8">愣住，水杯悬在半空…</text>
+                </svg>
+                <span class="seg-num">06</span><span class="seg-time">0:09</span>
+                <div class="play-overlay"></div>
+              </div>
+              <div class="segment-meta">
+                <div class="seg-title">分镜 6 · 妻子转折</div>
+                <div class="seg-desc">"那要是…真的得了大病呢？"</div>
+              </div>
+              <div class="segment-actions">
+                <button class="seg-action-btn">重生成</button>
+                <button class="seg-action-btn">下载</button>
+              </div>
+            </div>
+
+            <div class="segment-card">
+              <div class="segment-thumb">
+                <svg viewBox="0 0 200 356" preserveAspectRatio="xMidYMid slice">
+                  <rect width="200" height="356" fill="#2A2620"/>
+                  <ellipse cx="100" cy="180" rx="120" ry="90" fill="#F5E2D5" opacity=".08"/>
+                  <circle cx="65" cy="170" r="28" fill="#5A4A3E"/>
+                  <text x="65" y="178" text-anchor="middle" font-family="Noto Serif SC" font-size="14" fill="#fff" font-weight="700">张</text>
+                  <circle cx="135" cy="180" r="26" fill="#3F5C52"/>
+                  <text x="135" y="187" text-anchor="middle" font-family="Noto Serif SC" font-size="13" fill="#fff" font-weight="700">妻</text>
+                  <text x="100" y="270" text-anchor="middle" font-family="Noto Serif SC" font-size="10" fill="#E9B79E" opacity=".7">两人对视，沉默几秒</text>
+                </svg>
+                <span class="seg-num">07</span><span class="seg-time">0:10</span>
+                <div class="play-overlay"></div>
+              </div>
+              <div class="segment-meta">
+                <div class="seg-title">分镜 7 · 沉默对视</div>
+                <div class="seg-desc">"所以我们应该认真考虑下…"</div>
+              </div>
+              <div class="segment-actions">
+                <button class="seg-action-btn">重生成</button>
+                <button class="seg-action-btn">下载</button>
+              </div>
+            </div>
+
+            <div class="segment-card">
+              <div class="segment-thumb">
+                <svg viewBox="0 0 200 356" preserveAspectRatio="xMidYMid slice">
+                  <rect width="200" height="356" fill="#1F1F1E"/>
+                  <text x="100" y="160" text-anchor="middle" font-family="Noto Serif SC" font-size="13" fill="#E9B79E" letter-spacing="0.1em">关注我</text>
+                  <line x1="80" y1="180" x2="120" y2="180" stroke="#CC785C" stroke-width="1"/>
+                  <text x="100" y="210" text-anchor="middle" font-family="Noto Serif SC" font-size="14" fill="#FAF9F5" font-weight="600">下集告诉你</text>
+                  <text x="100" y="232" text-anchor="middle" font-family="Noto Serif SC" font-size="14" fill="#FAF9F5" font-weight="600">他们做了什么决定</text>
+                </svg>
+                <span class="seg-num">08</span><span class="seg-time">0:05</span>
+                <div class="play-overlay"></div>
+              </div>
+              <div class="segment-meta">
+                <div class="seg-title">分镜 8 · 收尾钩子</div>
+                <div class="seg-desc">引导关注 · 制造下集预期</div>
+              </div>
+              <div class="segment-actions">
+                <button class="seg-action-btn">重生成</button>
+                <button class="seg-action-btn">下载</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="done-section">
+          <div class="l">
+            <div style="width:32px; height:32px; background:var(--leaf); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700;">✓</div>
+            <div>
+              <h4>这条剧情视频已就绪</h4>
+              <div class="desc">3 个标题 · 8 个分镜 · 78 秒成片 · 9:16 竖屏 · 32 MB</div>
+            </div>
+          </div>
+          <div class="r">
+            <button class="btn-done" onclick="alert('[演示] 即将下载完整视频\\nMP4 · 9:16 · 32 MB')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>下载完整视频</span>
+            </button>
+            <button class="btn-done" onclick="alert('[演示] 即将下载分段 ZIP\\n8 个 MP4 + 1 个分镜表 PDF')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+              <span>下载分段 ZIP</span>
+            </button>
+            <button class="btn-done primary" onclick="saveDraft()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              <span>保存为草稿</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <div class="actions-bar">
+    <div class="l">
+      <button class="btn-back" onclick="goStep(currentStep - 1)" id="backBtn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="15 18 9 12 15 6"/></svg>
+        <span id="backText">← 重做需求</span>
+      </button>
+    </div>
+    <div class="r">
+      <span class="meta" id="creditsTip">本步骤已消耗 <b>10</b> 积分</span>
+      <button class="btn-primary-large" onclick="goStep(currentStep + 1)">
+        <span id="nextText">下一步：生成视频</span>
+        <span class="arr">→</span>
+      </button>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+document.querySelectorAll('[data-collapsible] [data-toggle]').forEach(toggle => {
+  toggle.addEventListener('click', e => {
+    e.preventDefault();
+    toggle.closest('[data-collapsible]').classList.toggle('open');
+  });
+});
+
+let currentStep = 2;
+const stepConfig = {
+  1: {pane:'step1', backText:'返回选题广场', nextText:'生成剧本', credits:'本步骤将消耗 10 积分'},
+  2: {pane:'step2', backText:'重做需求', nextText:'下一步：生成视频', credits:'本步骤已消耗 10 积分'},
+  3: {pane:'step3', backText:'回到剧本与分镜', nextText:'完成 / 关闭', credits:'本步骤已消耗 120 积分'},
+};
+
+function goStep(n){
+  if(n < 1 || n > 3) return;
+  currentStep = n;
+  document.querySelectorAll('.step-pane').forEach(p => p.classList.remove('active'));
+  document.getElementById(stepConfig[n].pane).classList.add('active');
+  document.querySelectorAll('.steps .step').forEach((s, i) => {
+    s.classList.remove('active', 'done');
+    if(i + 1 < n) s.classList.add('done');
+    else if(i + 1 === n) s.classList.add('active');
+  });
+  document.getElementById('backText').innerHTML = '← ' + stepConfig[n].backText;
+  document.getElementById('nextText').textContent = stepConfig[n].nextText;
+  document.getElementById('creditsTip').innerHTML = stepConfig[n].credits.replace(/(\d+)/, '<b>$1</b>');
+  document.querySelector('.content').scrollTop = 0;
+}
+
+function pickPlatform(card){
+  card.parentElement.querySelectorAll('.platform-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+}
+
+document.querySelectorAll('.chip-group').forEach(group => {
+  group.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const text = chip.textContent;
+      if(text.includes('60 秒') || text.includes('60-90') || text.includes('90-180')){
+        chip.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+        chip.classList.add('selected');
+      } else {
+        chip.classList.toggle('selected');
+      }
+    });
+  });
+});
+
+document.querySelectorAll('.style-options').forEach(group => {
+  group.querySelectorAll('.style-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      group.querySelectorAll('.style-option').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+    });
+  });
+});
+
+function switchWorkTab(tab, idx){
+  tab.parentElement.querySelectorAll('.work-tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  document.querySelectorAll('.work-pane').forEach(p => p.classList.remove('active'));
+  if(idx === 0) document.getElementById('workPaneA').classList.add('active');
+  else document.getElementById('workPaneB').classList.add('active');
+}
+
+function toggleShot(card, e){
+  const target = e.target;
+  if(target.closest('[contenteditable]') || target.closest('button') || target.closest('.shot-actions')) return;
+  card.classList.toggle('expanded');
+}
+
+function pickTitle(card){
+  card.parentElement.querySelectorAll('.title-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+}
+
+function saveDraft(){alert('[演示] 已保存为草稿')}
+function removeRef(btn){
+  const item = btn.closest('.ref-item');
+  item.style.opacity = '0';
+  item.style.transition = 'opacity .15s';
+  setTimeout(() => item.remove(), 150);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,1093 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>承知 · 个人信息</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   Design Tokens
+   ========================================================= */
+:root{
+  --clay:#CC785C; --clay-deep:#A85A40; --clay-soft:#E9B79E; --clay-tint:#F5E2D5;
+  --pine:#3F5C52; --pine-soft:#C9D4CD; --pine-tint:#E1E8E4;
+  --sand:#C49B5C; --sand-soft:#ECDCBF; --sand-tint:#F4ECD9;
+  --paper:#FAF9F5; --ivory:#F5F1EB; --bone:#EFEAE0;
+  --line:#E4DDCE; --line-2:#D9D0BE;
+  --ink-3:#6B6862; --ink-2:#3A3935; --ink:#1F1F1E;
+  --leaf:#5C8A5C; --crimson:#B85450;
+  --serif:'Noto Serif SC','Source Han Serif SC','Songti SC',ui-serif,Georgia,serif;
+  --serif-en:'Fraunces','Noto Serif SC',ui-serif,Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sh-1:0 1px 2px rgba(31,31,30,.04),0 2px 6px rgba(31,31,30,.04);
+  --sh-2:0 4px 12px rgba(31,31,30,.06),0 8px 24px rgba(31,31,30,.05);
+  --sh-3:0 12px 32px rgba(31,31,30,.10),0 24px 60px rgba(31,31,30,.08);
+  --sh-clay:0 6px 18px rgba(204,120,92,.30);
+  --r-xs:4px; --r-sm:6px; --r-md:10px; --r-lg:16px; --r-xl:24px;
+  --sidebar-w:248px;
+  --topbar-h:56px;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+html{font-size:16px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{
+  background:var(--ivory); color:var(--ink); font-family:var(--sans);
+  font-size:14px; line-height:1.6; font-feature-settings:"palt";
+  overflow:hidden;
+}
+::selection{background:var(--clay-tint); color:var(--clay-deep)}
+a{color:inherit; text-decoration:none}
+img,svg{display:block; max-width:100%}
+button{font-family:inherit; cursor:pointer; border:none; background:transparent; color:inherit}
+input,textarea,select{font-family:inherit; color:inherit; outline:none}
+h1,h2,h3,h4,h5{font-family:var(--serif); font-weight:600; letter-spacing:-.01em;
+  color:var(--ink); line-height:1.25; margin:0}
+
+.scroll-y{overflow-y:auto}
+.scroll-y::-webkit-scrollbar{width:8px}
+.scroll-y::-webkit-scrollbar-thumb{background:var(--line); border-radius:4px}
+.scroll-y::-webkit-scrollbar-thumb:hover{background:var(--line-2)}
+
+/* =========================================================
+   App Layout (与其他页面统一)
+   ========================================================= */
+.app{display:grid; grid-template-columns:var(--sidebar-w) 1fr; height:100vh}
+
+.sidebar{
+  background:var(--paper); border-right:1px solid var(--line);
+  display:flex; flex-direction:column; height:100vh; overflow:hidden;
+}
+.sidebar-brand{
+  height:var(--topbar-h);
+  display:flex; align-items:center; gap:10px; padding:0 20px;
+  border-bottom:1px solid var(--line); flex-shrink:0;
+}
+.sidebar-brand .mark{width:26px; height:26px; flex-shrink:0}
+.sidebar-brand .name{font-family:var(--serif); font-weight:700; font-size:17px; color:var(--ink); letter-spacing:.02em}
+.sidebar-brand .name .en{
+  color:var(--ink-3); font-weight:500; font-family:var(--sans);
+  font-size:11px; margin-left:4px; letter-spacing:.08em;
+}
+.sidebar-nav{flex:1; overflow-y:auto; padding:20px 12px 12px}
+.sidebar-nav::-webkit-scrollbar{width:6px}
+.sidebar-nav::-webkit-scrollbar-thumb{background:var(--line); border-radius:3px}
+.nav-group{margin-bottom:18px}
+.nav-group-title{
+  font-family:var(--serif-en); font-style:italic;
+  font-size:11px; color:var(--ink-3);
+  letter-spacing:.08em; text-transform:uppercase;
+  padding:0 12px; margin-bottom:6px;
+}
+.nav-item{
+  display:flex; align-items:center; gap:10px;
+  padding:8px 12px; margin-bottom:1px;
+  border-radius:var(--r-sm);
+  font-size:13.5px; color:var(--ink-2);
+  cursor:pointer; transition:all .12s; position:relative;
+}
+.nav-item:hover{background:var(--bone); color:var(--ink)}
+.nav-item .icon{width:18px; height:18px; flex-shrink:0; display:flex;
+  align-items:center; justify-content:center; color:var(--ink-3)}
+.nav-item:hover .icon{color:var(--ink-2)}
+.nav-item .label{flex:1; line-height:1.2}
+.nav-item .chevron{width:14px; height:14px; flex-shrink:0; color:var(--ink-3); transition:transform .15s}
+.nav-item.active{background:var(--clay-tint); color:var(--clay-deep); font-weight:600}
+.nav-item.active .icon{color:var(--clay)}
+.nav-item.active::before{
+  content:''; position:absolute; left:-12px; top:50%;
+  width:3px; height:18px; transform:translateY(-50%);
+  background:var(--clay); border-radius:0 3px 3px 0;
+}
+.nav-collapsible.open .chevron{transform:rotate(90deg)}
+.nav-sub{max-height:0; overflow:hidden; transition:max-height .25s ease}
+.nav-collapsible.open .nav-sub{max-height:400px}
+.nav-sub-item{
+  display:block; padding:7px 12px 7px 40px;
+  font-size:13px; color:var(--ink-3);
+  border-radius:var(--r-sm); cursor:pointer;
+  transition:all .12s; position:relative;
+}
+.nav-sub-item::before{
+  content:''; position:absolute; left:26px; top:50%;
+  width:4px; height:4px; border-radius:50%;
+  background:var(--line-2); transform:translateY(-50%);
+}
+.nav-sub-item:hover{color:var(--ink); background:var(--bone)}
+.nav-sub-item:hover::before{background:var(--ink-3)}
+
+.sidebar-foot{
+  padding:14px 12px; flex-shrink:0;
+  border-top:1px solid var(--line);
+  display:flex; flex-direction:column; gap:10px;
+}
+.member-card{
+  padding:12px 14px;
+  background:linear-gradient(135deg, var(--clay-tint), var(--sand-soft));
+  border-radius:var(--r-md);
+}
+.member-card .label{
+  font-family:var(--serif-en); font-style:italic;
+  font-size:10.5px; color:var(--clay-deep);
+  letter-spacing:.04em; margin-bottom:4px;
+}
+.member-card .days{font-family:var(--serif); font-size:14px; font-weight:600; color:var(--ink); margin-bottom:6px}
+.member-card .days b{font-family:var(--serif-en); font-weight:600; font-size:18px; color:var(--clay-deep); margin:0 2px}
+.member-card .renew{display:inline-block; font-size:11.5px; color:var(--clay-deep);
+  font-weight:600; padding:2px 0; border-bottom:1px solid var(--clay); cursor:pointer}
+.user-mini{
+  display:flex; align-items:center; gap:10px;
+  padding:6px 8px; border-radius:var(--r-sm);
+  cursor:pointer; transition:background .12s;
+}
+.user-mini:hover{background:var(--bone)}
+.user-mini .avatar{
+  width:32px; height:32px; border-radius:50%;
+  background:linear-gradient(135deg,var(--clay),var(--sand));
+  color:#fff; font-family:var(--serif); font-weight:700;
+  font-size:14px; display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.user-mini .info{flex:1; min-width:0}
+.user-mini .info .name{font-size:13px; color:var(--ink); font-weight:600}
+.user-mini .info .role{font-size:11px; color:var(--ink-3)}
+.user-mini .more{color:var(--ink-3); font-size:14px}
+
+/* Main + Topbar */
+.main{display:flex; flex-direction:column; height:100vh; overflow:hidden; background:var(--ivory)}
+.topbar{
+  height:var(--topbar-h);
+  display:flex; align-items:center; padding:0 24px;
+  border-bottom:1px solid var(--line);
+  background:rgba(245,241,235,.85);
+  backdrop-filter:saturate(150%) blur(12px);
+  -webkit-backdrop-filter:saturate(150%) blur(12px);
+  flex-shrink:0; gap:16px;
+}
+.breadcrumb{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-3)}
+.breadcrumb .sep{color:var(--line-2)}
+.breadcrumb .current{color:var(--ink); font-weight:500}
+.top-actions{margin-left:auto; display:flex; align-items:center; gap:8px}
+.credits-chip{
+  display:flex; align-items:center; gap:8px;
+  padding:6px 12px; background:var(--paper);
+  border:1px solid var(--line); border-radius:999px;
+  font-size:12.5px; cursor:pointer; transition:all .15s; position:relative;
+}
+.credits-chip:hover{border-color:var(--line-2); background:var(--bone)}
+.credits-chip .star{color:var(--sand); font-size:13px}
+.credits-chip .num{font-family:var(--serif-en); font-weight:600; color:var(--ink); font-size:13px}
+.credits-chip .total{color:var(--ink-3); font-size:11.5px}
+.credits-chip .credits-bar{
+  position:absolute; left:8px; right:8px; bottom:2px;
+  height:2px; background:var(--bone); border-radius:1px; overflow:hidden;
+}
+.credits-chip .credits-bar::after{
+  content:''; display:block; height:100%; width:85%;
+  background:linear-gradient(90deg, var(--clay), var(--sand));
+}
+.icon-btn{
+  width:36px; height:36px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:var(--r-sm); color:var(--ink-2);
+  transition:all .12s; position:relative;
+}
+.icon-btn:hover{background:var(--bone); color:var(--ink)}
+.icon-btn .badge{
+  position:absolute; top:6px; right:6px;
+  width:6px; height:6px; border-radius:50%;
+  background:var(--crimson); box-shadow:0 0 0 2px var(--ivory);
+}
+.avatar-btn{
+  width:36px; height:36px; border-radius:50%;
+  background:linear-gradient(135deg,var(--clay),var(--sand));
+  color:#fff; font-family:var(--serif); font-weight:700;
+  font-size:14px; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:transform .12s; border:2px solid transparent;
+}
+.avatar-btn:hover{border-color:var(--clay)}
+
+/* =========================================================
+   Content
+   ========================================================= */
+.content{flex:1; overflow-y:auto; padding:32px 32px 60px}
+.content-inner{max-width:920px; margin:0 auto; display:flex; flex-direction:column; gap:20px}
+
+/* =========================================================
+   Profile Card —— 通用样式
+   ========================================================= */
+.profile-card{
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:var(--r-lg);
+  overflow:hidden;
+}
+.card-head{
+  padding:18px 24px;
+  display:flex; align-items:center; gap:14px;
+  border-bottom:1px solid var(--line);
+  flex-wrap:wrap;
+}
+.card-head h3{
+  font-size:16px;
+  font-weight:600;
+}
+.card-head .desc{
+  font-size:12px;
+  color:var(--ink-3);
+  flex:1; line-height:1.5;
+}
+.card-body{padding:8px 24px 18px}
+
+/* Field row */
+.field-row{
+  display:grid;
+  grid-template-columns:120px 1fr;
+  align-items:flex-start;
+  gap:24px;
+  padding:18px 0;
+  border-bottom:1px dashed var(--line);
+}
+.field-row:last-child{border-bottom:none}
+.field-row .field-label{
+  font-size:13px;
+  color:var(--ink-3);
+  font-weight:500;
+  padding-top:8px;
+  display:flex; align-items:center; gap:6px;
+}
+.field-row .field-label .req{color:var(--clay)}
+.field-row .field-control{
+  min-width:0;
+}
+
+/* Inline (for single-line fields like name, etc.) */
+.field-row.inline .field-control{
+  display:flex; align-items:center; gap:10px;
+  flex-wrap:wrap;
+}
+.field-row.inline .field-label{padding-top:10px}
+
+/* Inputs */
+.text-input{
+  height:38px; padding:0 12px;
+  background:var(--ivory);
+  border:1px solid var(--line);
+  border-radius:var(--r-sm);
+  font-size:13.5px; color:var(--ink);
+  transition:all .12s; width:100%; max-width:280px;
+}
+.text-input:focus{
+  border-color:var(--clay);
+  background:var(--paper);
+  box-shadow:0 0 0 3px rgba(204,120,92,.12);
+}
+
+select.text-input{
+  appearance:none; -webkit-appearance:none;
+  padding-right:32px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%236B6862' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 12px center;
+  cursor:pointer;
+  max-width:200px;
+}
+
+/* Read-only value display (for phone/password) */
+.readonly-val{
+  display:inline-flex; align-items:center; gap:14px;
+  padding:9px 14px;
+  background:var(--ivory);
+  border:1px dashed var(--line-2);
+  border-radius:var(--r-sm);
+  color:var(--ink-2);
+  font-size:13.5px;
+  font-family:var(--mono);
+  letter-spacing:.04em;
+}
+
+.btn-text-link{
+  font-size:12.5px; color:var(--clay-deep);
+  font-weight:500;
+  padding:0; cursor:pointer;
+  border-bottom:1px solid var(--clay);
+  transition:opacity .12s;
+}
+.btn-text-link:hover{opacity:.7}
+
+.field-hint{
+  font-size:11.5px; color:var(--ink-3);
+  margin-top:6px; line-height:1.5;
+}
+.field-hint b{color:var(--ink-2); font-weight:500}
+
+/* =========================================================
+   ① 基本信息 —— 头像 + 字段布局
+   ========================================================= */
+.basic-grid{
+  display:grid;
+  grid-template-columns: 168px 1fr;
+  gap:32px;
+  align-items:flex-start;
+  padding:22px 0 8px;
+}
+
+/* Avatar area */
+.avatar-area{
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+  padding-top:6px;
+}
+.big-avatar{
+  width:96px; height:96px; border-radius:50%;
+  background:linear-gradient(135deg,var(--clay),var(--sand));
+  color:#fff; font-family:var(--serif); font-weight:700;
+  font-size:40px; display:flex; align-items:center; justify-content:center;
+  position:relative;
+  cursor:pointer;
+  transition:transform .12s;
+  border:2px solid var(--paper);
+  box-shadow:0 0 0 1px var(--line), var(--sh-1);
+}
+.big-avatar:hover{transform:scale(1.02)}
+.big-avatar .upload-overlay{
+  position:absolute; inset:0; border-radius:50%;
+  background:rgba(31,31,30,.5);
+  display:flex; align-items:center; justify-content:center;
+  color:#fff; opacity:0;
+  transition:opacity .12s;
+}
+.big-avatar:hover .upload-overlay{opacity:1}
+.avatar-area .change-text{
+  font-size:11.5px; color:var(--ink-3);
+  font-family:var(--serif-en); font-style:italic;
+  letter-spacing:.04em;
+}
+
+/* Basic fields stacked */
+.basic-fields{
+  display:flex; flex-direction:column; gap:0;
+}
+.basic-fields .field-row{
+  grid-template-columns:90px 1fr;
+  padding:14px 0;
+  gap:18px;
+}
+.basic-fields .field-row:first-child{padding-top:0}
+
+/* =========================================================
+   ② 业务画像 —— Chip 选择
+   ========================================================= */
+.chip-group{
+  display:flex; flex-wrap:wrap; gap:8px;
+  max-width:560px;
+}
+.chip{
+  padding:7px 14px;
+  background:var(--ivory);
+  border:1px solid var(--line);
+  border-radius:99px;
+  font-size:12.5px; color:var(--ink-2);
+  cursor:pointer;
+  transition:all .12s;
+  user-select:none;
+}
+.chip:hover{
+  background:var(--bone);
+  border-color:var(--line-2);
+}
+.chip.selected{
+  background:var(--clay-tint);
+  border-color:var(--clay-soft);
+  color:var(--clay-deep);
+  font-weight:500;
+}
+.chip.selected:hover{
+  background:var(--clay-soft);
+  border-color:var(--clay);
+}
+.chip.disabled{
+  opacity:.4; cursor:not-allowed;
+}
+.chip.disabled:hover{
+  background:var(--ivory);
+  border-color:var(--line);
+}
+
+.chip-group + .field-hint{margin-top:10px}
+.chip-counter{
+  display:inline-block;
+  font-size:11px;
+  color:var(--ink-3);
+  font-family:var(--mono);
+  margin-left:6px;
+}
+.chip-counter b{color:var(--clay-deep); font-weight:500}
+
+/* =========================================================
+   ③ 平台账号绑定
+   ========================================================= */
+.platform-list{
+  display:flex; flex-direction:column;
+}
+.platform-row{
+  display:flex; align-items:center; gap:16px;
+  padding:18px 0;
+  border-bottom:1px dashed var(--line);
+}
+.platform-row:last-child{border-bottom:none}
+.platform-row:first-child{padding-top:8px}
+
+.platform-icon{
+  width:42px; height:42px;
+  border-radius:11px;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+  color:#fff;
+  font-family:var(--serif);
+  font-weight:700; font-size:16px;
+}
+.platform-icon.dy{background:#1F1F1E}
+.platform-icon.xhs{background:#FF2442}
+.platform-icon.sph{background:linear-gradient(135deg,#FA9D3B,#FF6A38)}
+.platform-icon.gzh{background:#07C160}
+
+.platform-info{flex:1; min-width:0}
+.platform-info strong{
+  display:block;
+  font-size:14.5px;
+  font-weight:600;
+  color:var(--ink);
+  margin-bottom:3px;
+}
+.platform-info .platform-status{
+  font-size:12.5px;
+  color:var(--ink-2);
+  display:flex; align-items:center; gap:6px;
+}
+.platform-info .platform-status.bound::before{
+  content:''; width:6px; height:6px; border-radius:50%;
+  background:var(--leaf); flex-shrink:0;
+}
+.platform-info .platform-status.bound .acct{
+  color:var(--ink); font-weight:500;
+}
+.platform-info .platform-status.unbound{
+  color:var(--ink-3);
+}
+.platform-info .platform-status.unbound::before{
+  content:''; width:6px; height:6px; border-radius:50%;
+  background:var(--line-2); flex-shrink:0;
+}
+
+.btn-bind{
+  flex-shrink:0;
+  padding:8px 16px;
+  background:var(--clay); color:#fff;
+  border-radius:var(--r-sm);
+  font-size:12.5px; font-weight:500;
+  cursor:pointer; transition:all .12s;
+  box-shadow:var(--sh-clay);
+}
+.btn-bind:hover{background:var(--clay-deep); transform:translateY(-1px)}
+
+.btn-unbind{
+  flex-shrink:0;
+  padding:8px 14px;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:var(--r-sm);
+  font-size:12.5px; color:var(--ink-2);
+  cursor:pointer; transition:all .12s;
+}
+.btn-unbind:hover{background:#FFF0EE; border-color:#E7B5AC; color:var(--crimson)}
+
+/* =========================================================
+   Toast —— 自动保存提示
+   ========================================================= */
+.toast-saved{
+  position:fixed;
+  top:74px; right:32px;
+  display:flex; align-items:center; gap:8px;
+  padding:9px 16px;
+  background:var(--ink); color:var(--paper);
+  border-radius:99px;
+  font-size:12.5px; font-weight:500;
+  box-shadow:var(--sh-2);
+  pointer-events:none;
+  opacity:0; transform:translateY(-6px);
+  transition:opacity .2s, transform .2s;
+  z-index:200;
+}
+.toast-saved.show{opacity:1; transform:translateY(0)}
+.toast-saved .ck{
+  width:14px; height:14px; border-radius:50%;
+  background:var(--leaf); color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  font-size:9px; font-weight:700;
+}
+
+/* =========================================================
+   响应式
+   ========================================================= */
+@media (max-width:780px){
+  .basic-grid{grid-template-columns:1fr; gap:24px}
+  .avatar-area{flex-direction:row; align-items:center; gap:18px}
+  .field-row{grid-template-columns:1fr; gap:8px; padding:14px 0}
+  .field-row .field-label{padding-top:0}
+  .basic-fields .field-row{grid-template-columns:1fr}
+  .toast-saved{top:auto; bottom:24px; right:24px}
+}
+@media (max-width:640px){
+  .content{padding:20px 16px 40px}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+<!-- ========= SIDEBAR ========= -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <span class="mark">
+      <svg viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="13" stroke="#1F1F1E" stroke-width="1.4"/>
+        <circle cx="14" cy="9" r="2.2" fill="#CC785C"/>
+        <circle cx="9" cy="17" r="2.2" fill="#3F5C52"/>
+        <circle cx="19" cy="17" r="2.2" fill="#1F1F1E"/>
+        <path d="M14 11.2 L9.8 15.6 M14 11.2 L18.2 15.6 M11 17.5 L17 17.5" stroke="#1F1F1E" stroke-width="1.1" stroke-linecap="round"/>
+      </svg>
+    </span>
+    <span class="name">承知<span class="en">CHENGZHI</span></span>
+  </div>
+
+  <nav class="sidebar-nav scroll-y">
+    <div class="nav-group">
+      <div class="nav-group-title">— Workflow · 主工作流</div>
+      <a class="nav-item" href="#">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L13.5 8.5 L20 10 L13.5 11.5 L12 18 L10.5 11.5 L4 10 L10.5 8.5 Z"/><circle cx="19" cy="5" r="1.2"/><circle cx="5" cy="19" r="1.2"/></svg></span>
+        <span class="label">选题广场</span>
+      </a>
+      <div class="nav-collapsible" data-collapsible>
+        <a class="nav-item" data-toggle>
+          <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/><path d="M8 13h8M8 17h5"/></svg></span>
+          <span class="label">内容创作</span>
+          <span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </a>
+        <div class="nav-sub">
+          <a class="nav-sub-item">小红书创作</a>
+          <a class="nav-sub-item">视频号创作</a>
+          <a class="nav-sub-item">公众号创作</a>
+          <a class="nav-sub-item">小红书仿写</a>
+          <a class="nav-sub-item">公众号仿写</a>
+          <a class="nav-sub-item">视频仿做</a>
+        </div>
+      </div>
+      <div class="nav-collapsible" data-collapsible>
+        <a class="nav-item" data-toggle>
+          <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>
+          <span class="label">爆款拆解</span>
+          <span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </a>
+        <div class="nav-sub">
+          <a class="nav-sub-item">拆解小红书爆款</a>
+          <a class="nav-sub-item">拆解抖音爆款</a>
+        </div>
+      </div>
+      <a class="nav-item" href="#">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span>
+        <span class="label">答疑逼单</span>
+      </a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">— Settings · 我的设置</div>
+      <a class="nav-item active" href="#">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><line x1="14" y1="9" x2="18" y2="9"/><line x1="14" y1="13" x2="18" y2="13"/><line x1="14" y1="17" x2="18" y2="17"/></svg></span>
+        <span class="label">个人信息</span>
+      </a>
+      <a class="nav-item" href="#">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg></span>
+        <span class="label">个人风格</span>
+      </a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">— Knowledge · 知识库</div>
+      <div class="nav-collapsible" data-collapsible>
+        <a class="nav-item" data-toggle>
+          <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
+          <span class="label">保险知识库</span>
+          <span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </a>
+        <div class="nav-sub">
+          <a class="nav-sub-item">常见 FAQ</a>
+          <a class="nav-sub-item">理赔案例库</a>
+          <a class="nav-sub-item">险种大全</a>
+          <a class="nav-sub-item">投保注意事项</a>
+          <a class="nav-sub-item">保障责任</a>
+          <a class="nav-sub-item">合规词库</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="sidebar-foot">
+    <div class="member-card">
+      <div class="label">— ANNUAL MEMBER</div>
+      <div class="days">还剩 <b>327</b> 天到期</div>
+      <span class="renew">续费 / 加购积分</span>
+    </div>
+    <div class="user-mini">
+      <div class="avatar">林</div>
+      <div class="info">
+        <div class="name">林老师</div>
+        <div class="role">中产家庭保障顾问</div>
+      </div>
+      <span class="more">⋯</span>
+    </div>
+  </div>
+</aside>
+
+<!-- ========= MAIN ========= -->
+<div class="main">
+  <header class="topbar">
+    <div class="breadcrumb">
+      <span>我的设置</span>
+      <span class="sep">/</span>
+      <span class="current">个人信息</span>
+    </div>
+    <div class="top-actions">
+      <div class="credits-chip">
+        <span class="star">✦</span>
+        <span class="num">6,847</span>
+        <span class="total">/ 8,000 积分</span>
+        <div class="credits-bar"></div>
+      </div>
+      <button class="icon-btn" aria-label="通知">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="badge"></span>
+      </button>
+      <button class="avatar-btn" aria-label="个人信息">林</button>
+    </div>
+  </header>
+
+  <div class="content">
+    <div class="content-inner">
+
+      <!-- ========= ① 基本信息 ========= -->
+      <section class="profile-card">
+        <div class="card-head">
+          <h3>基本信息</h3>
+        </div>
+        <div class="card-body">
+          <div class="basic-grid">
+
+            <div class="avatar-area">
+              <div class="big-avatar" id="bigAvatar" onclick="changeAvatar()">
+                <span id="avatarText">林</span>
+                <div class="upload-overlay">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                </div>
+              </div>
+              <div class="change-text">— Click to change</div>
+            </div>
+
+            <div class="basic-fields">
+              <div class="field-row inline">
+                <span class="field-label">称呼 <span class="req">*</span></span>
+                <div class="field-control">
+                  <input type="text" class="text-input" value="林老师" id="nameInput" />
+                </div>
+              </div>
+              <div class="field-row inline">
+                <span class="field-label">手机号</span>
+                <div class="field-control">
+                  <span class="readonly-val">+86 138 **** 1234</span>
+                  <button class="btn-text-link" onclick="changePhone()">更换</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- ========= ② 业务画像 ========= -->
+      <section class="profile-card">
+        <div class="card-head">
+          <h3>业务画像</h3>
+          <span class="desc">这部分会用于「选题广场」的默认筛选 · 让 AI 给你推荐更精准的爆款选题</span>
+        </div>
+        <div class="card-body">
+
+          <div class="field-row">
+            <span class="field-label">擅长险种</span>
+            <div class="field-control">
+              <div class="chip-group" data-max="4" id="insuranceChips">
+                <span class="chip selected">重疾险</span>
+                <span class="chip selected">医疗险</span>
+                <span class="chip selected">年金险</span>
+                <span class="chip">寿险</span>
+                <span class="chip">意外险</span>
+                <span class="chip">储蓄险</span>
+                <span class="chip">少儿险</span>
+                <span class="chip">团险</span>
+              </div>
+              <div class="field-hint">
+                最多选 4 项 · 已选 <span class="chip-counter"><b id="insuranceCount">3</b> / 4</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <span class="field-label">目标客户群</span>
+            <div class="field-control">
+              <div class="chip-group" id="audienceChips">
+                <span class="chip selected">中产</span>
+                <span class="chip selected">宝妈</span>
+                <span class="chip">高净值</span>
+                <span class="chip">银发族</span>
+                <span class="chip">单身青年</span>
+                <span class="chip">创业者</span>
+                <span class="chip">全职主妇</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="field-row inline">
+            <span class="field-label">从业年限</span>
+            <div class="field-control">
+              <select class="text-input" id="yearsSelect">
+                <option>1 年内</option>
+                <option>1-3 年</option>
+                <option>3-5 年</option>
+                <option selected>5-10 年</option>
+                <option>10 年以上</option>
+              </select>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ========= ③ 平台账号绑定 ========= -->
+      <section class="profile-card">
+        <div class="card-head">
+          <h3>平台账号绑定</h3>
+          <span class="desc">每个平台只支持绑定一个账号 · 用于一键发布和数据回流</span>
+        </div>
+        <div class="card-body">
+          <div class="platform-list">
+
+            <div class="platform-row" data-platform="dy">
+              <div class="platform-icon dy">抖</div>
+              <div class="platform-info">
+                <strong>抖音</strong>
+                <div class="platform-status unbound"><span>未绑定</span></div>
+              </div>
+              <button class="btn-bind" onclick="bindPlatform('dy','抖音')">立即绑定</button>
+            </div>
+
+            <div class="platform-row" data-platform="xhs">
+              <div class="platform-icon xhs">小</div>
+              <div class="platform-info">
+                <strong>小红书</strong>
+                <div class="platform-status unbound"><span>未绑定</span></div>
+              </div>
+              <button class="btn-bind" onclick="bindPlatform('xhs','小红书')">立即绑定</button>
+            </div>
+
+            <div class="platform-row" data-platform="sph">
+              <div class="platform-icon sph">视</div>
+              <div class="platform-info">
+                <strong>视频号</strong>
+                <div class="platform-status unbound"><span>未绑定</span></div>
+              </div>
+              <button class="btn-bind" onclick="bindPlatform('sph','视频号')">立即绑定</button>
+            </div>
+
+            <div class="platform-row" data-platform="gzh">
+              <div class="platform-icon gzh">公</div>
+              <div class="platform-info">
+                <strong>公众号</strong>
+                <div class="platform-status unbound"><span>未绑定</span></div>
+              </div>
+              <button class="btn-bind" onclick="bindPlatform('gzh','公众号')">立即绑定</button>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+</div>
+</div><!-- /app -->
+
+
+<!-- ========= 自动保存 Toast ========= -->
+<div class="toast-saved" id="toastSaved">
+  <span class="ck">✓</span>
+  <span>已保存</span>
+</div>
+
+
+<input type="file" id="avatarFileInput" accept="image/*" style="display:none">
+
+<script>
+const API = 'http://localhost:8888';
+
+/* =========================================================
+   Sidebar 折叠
+   ========================================================= */
+document.querySelectorAll('[data-collapsible] [data-toggle]').forEach(toggle => {
+  toggle.addEventListener('click', e => {
+    e.preventDefault();
+    toggle.closest('[data-collapsible]').classList.toggle('open');
+  });
+});
+
+/* =========================================================
+   Toast
+   ========================================================= */
+const toast = document.getElementById('toastSaved');
+let toastTimer = null;
+function showSaved(msg = '已保存'){
+  toast.querySelector('span:last-child').textContent = msg;
+  toast.style.background = '';
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+}
+function showError(msg = '保存失败'){
+  toast.querySelector('span:last-child').textContent = msg;
+  toast.style.background = '#B85450';
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+/* =========================================================
+   Chip 多选
+   ========================================================= */
+function setupChipGroup(groupId, counterId){
+  const group = document.getElementById(groupId);
+  if(!group) return;
+  const max = parseInt(group.dataset.max || '99', 10);
+  const counter = counterId ? document.getElementById(counterId) : null;
+
+  const updateCounter = () => {
+    if(counter) counter.textContent = group.querySelectorAll('.chip.selected').length;
+  };
+  const updateDisabled = () => {
+    if(max >= 99) return;
+    const n = group.querySelectorAll('.chip.selected').length;
+    group.querySelectorAll('.chip').forEach(c => {
+      if(!c.classList.contains('selected')) c.classList.toggle('disabled', n >= max);
+    });
+  };
+
+  group.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      if(chip.classList.contains('disabled')) return;
+      chip.classList.toggle('selected');
+      updateCounter();
+      updateDisabled();
+      saveProfile();
+    });
+  });
+  updateCounter();
+  updateDisabled();
+}
+setupChipGroup('insuranceChips', 'insuranceCount');
+setupChipGroup('audienceChips');
+
+/* =========================================================
+   采集表单数据
+   ========================================================= */
+let currentAvatarUrl = null;
+
+function collectForm(){
+  const chips = id => [...document.getElementById(id).querySelectorAll('.chip.selected')]
+    .map(c => c.textContent.trim());
+  return {
+    name:             document.getElementById('nameInput').value.trim(),
+    years:            document.getElementById('yearsSelect').value,
+    primaryProducts:  chips('insuranceChips'),
+    targetAudiences:  chips('audienceChips'),
+    avatarUrl:        currentAvatarUrl,
+  };
+}
+
+/* =========================================================
+   保存到后端
+   ========================================================= */
+async function saveProfile(){
+  try {
+    const res = await fetch(`${API}/api/profile`, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(collectForm()),
+    });
+    if(res.ok) showSaved();
+    else showError('保存失败');
+  } catch(e){
+    showError('网络错误');
+  }
+}
+
+/* =========================================================
+   字段失焦自动保存
+   ========================================================= */
+document.getElementById('nameInput').addEventListener('blur', saveProfile);
+document.getElementById('yearsSelect').addEventListener('change', saveProfile);
+
+/* =========================================================
+   头像上传
+   ========================================================= */
+function changeAvatar(){
+  document.getElementById('avatarFileInput').click();
+}
+
+document.getElementById('avatarFileInput').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch(`${API}/api/avatar/upload`, { method: 'POST', body: fd });
+    const data = await res.json();
+    if(data.url){
+      currentAvatarUrl = data.url;
+      renderAvatar(data.url, document.getElementById('nameInput').value);
+      await saveProfile();
+    }
+  } catch(e){
+    showError('头像上传失败');
+  }
+  e.target.value = '';
+});
+
+function renderAvatar(url, name){
+  const el = document.getElementById('bigAvatar');
+  const span = document.getElementById('avatarText');
+  if(url){
+    span.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+  } else {
+    span.textContent = (name || '?')[0];
+  }
+}
+
+/* =========================================================
+   平台绑定渲染
+   ========================================================= */
+function renderPlatforms(platforms){
+  const bound = {};
+  (platforms || []).forEach(p => bound[p.platform] = p);
+
+  document.querySelectorAll('.platform-row[data-platform]').forEach(row => {
+    const key = row.dataset.platform;
+    const statusEl = row.querySelector('.platform-status');
+    const btn = row.querySelector('button');
+    const info = bound[key];
+
+    if(info){
+      statusEl.className = 'platform-status bound';
+      statusEl.innerHTML = `<span>已绑定</span><span class="acct">${info.accountName || ''}</span>`;
+      btn.className = 'btn-unbind';
+      btn.textContent = '解绑';
+      const label = row.querySelector('.platform-info strong').textContent;
+      btn.onclick = () => unbindPlatform(key, label);
+    } else {
+      statusEl.className = 'platform-status unbound';
+      statusEl.innerHTML = '<span>未绑定</span>';
+      btn.className = 'btn-bind';
+      btn.textContent = '立即绑定';
+      const label = row.querySelector('.platform-info strong').textContent;
+      btn.onclick = () => bindPlatform(key, label);
+    }
+  });
+}
+
+async function bindPlatform(key, label){
+  const acct = prompt(`绑定${label}\n\n请输入账号名称（如 @xxx）：`);
+  if(acct === null) return;
+  try {
+    await fetch(`${API}/api/profile/platform`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ platform: key, accountName: acct }),
+    });
+    await loadProfile();
+    showSaved(`${label} 已绑定`);
+  } catch(e){
+    showError('绑定失败');
+  }
+}
+
+async function unbindPlatform(key, label){
+  if(!confirm(`确认解绑 ${label} 账号吗？`)) return;
+  try {
+    await fetch(`${API}/api/profile/platform/${key}`, { method: 'DELETE' });
+    await loadProfile();
+    showSaved(`${label} 已解绑`);
+  } catch(e){
+    showError('解绑失败');
+  }
+}
+
+/* =========================================================
+   加载个人信息
+   ========================================================= */
+async function loadProfile(){
+  try {
+    const data = await fetch(`${API}/api/profile`).then(r => r.json());
+
+    // 基本信息
+    const nameInput = document.getElementById('nameInput');
+    nameInput.value = data.name || '';
+    currentAvatarUrl = data.avatarUrl || null;
+    renderAvatar(data.avatarUrl, data.name);
+
+    // 从业年限
+    const yearsSelect = document.getElementById('yearsSelect');
+    if(data.years){
+      [...yearsSelect.options].forEach(o => {
+        o.selected = o.value === data.years || o.text === data.years;
+      });
+    }
+
+    // 险种 chips
+    const insurance = new Set(data.primaryProducts || []);
+    document.getElementById('insuranceChips').querySelectorAll('.chip').forEach(c => {
+      c.classList.toggle('selected', insurance.has(c.textContent.trim()));
+    });
+
+    // 客群 chips
+    const audience = new Set(data.targetAudiences || []);
+    document.getElementById('audienceChips').querySelectorAll('.chip').forEach(c => {
+      c.classList.toggle('selected', audience.has(c.textContent.trim()));
+    });
+
+    // 重新计算 chip 计数 & disabled
+    setupChipGroup('insuranceChips', 'insuranceCount');
+    setupChipGroup('audienceChips');
+
+    // 平台绑定
+    renderPlatforms(data.platforms);
+
+  } catch(e){
+    console.error('[Profile] 加载失败', e);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadProfile);
+</script>
+</body>
+</html>

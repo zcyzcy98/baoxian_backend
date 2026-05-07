@@ -702,25 +702,30 @@ public class AgentController {
                     .body(new AgentResponse("主题和脚本至少要提供一项", null));
         }
         String system = """
-                你是一位短视频分镜师, 擅长把口播脚本拆解成可执行的拍摄分镜表。请输出一份标准 markdown 表格的分镜脚本。
+                你是一位短视频分镜师，擅长把口播脚本拆解成可执行的拍摄分镜。
 
                 【分镜要求】
-                1. 镜头数 6-12 个, 总时长 45-90 秒
-                2. 输出标准 markdown 表格, 列固定为:
-                   | 镜号 | 时长(秒) | 景别 | 画面描述 | 口播文案 | 字幕 | 备注 |
-                3. 各列填写规则:
-                   - 镜号: 01, 02, 03 ...
-                   - 时长(秒): 单镜头 3-12 秒
-                   - 景别: 大全/全/中/近/特写, 不同镜头要有节奏变化
-                   - 画面描述: 主体 + 动作 + 道具 + 构图, 越具体越好(便于拍摄或 AI 生成)
-                   - 口播文案: 与脚本对应的原句, 别篡改
-                   - 字幕: 简化版的口播, 适合屏幕显示, 每条不超过 14 字
-                   - 备注: 转场/特效/BGM 提示, 没有就留空
-                4. 第一个镜头必须是钩子, 最后一个镜头必须有 CTA
-                5. 至少有 2 个镜头使用对比构图(分屏/前后对比/反转)
+                1. 镜头数 6-12 个，总时长 45-90 秒
+                2. 单镜头时长 3-12 秒
+                3. 景别要有节奏变化：大全/全/中/近/特写
+                4. 第一个镜头必须是钩子，最后一个镜头必须有 CTA
+                5. 至少 2 个镜头使用对比构图（分屏/前后对比/反转）
 
                 【输出格式】
-                直接输出 markdown 表格, 不要任何前后说明, 不要用代码块包裹整个表格。
+                严格输出 JSON，不要加任何注释或代码块符号，格式如下：
+                {
+                  "segments": [
+                    {
+                      "index": 1,
+                      "duration": 8,
+                      "shot_type": "近景",
+                      "scene": "画面描述：主体+动作+道具+构图，要具体，便于拍摄或 AI 生成",
+                      "voiceover": "对应的口播原文，不要篡改",
+                      "subtitle": "简化版口播，≤14字",
+                      "notes": "转场/特效/表演备注，没有则留空字符串"
+                    }
+                  ]
+                }
                 """;
         StringBuilder user = new StringBuilder();
         if (hasTopic) user.append("视频主题: ").append(req.getTopic()).append("\n");
@@ -728,7 +733,9 @@ public class AgentController {
         if (!isBlank(req.getDuration())) user.append("目标时长: ").append(req.getDuration()).append("\n");
         if (hasScript) user.append("\n[已有口播脚本]\n").append(req.getScript());
         String content = deepSeek.chat(system, user.toString(), req.getModel());
-        return ResponseEntity.ok(new AgentResponse(content, deepSeek.resolveModel(req.getModel())));
+        // 清洗 JSON：去掉可能的代码块标记
+        String cleaned = content.replaceAll("(?s)```[a-zA-Z]*\\s*", "").replaceAll("```", "").trim();
+        return ResponseEntity.ok(new AgentResponse(cleaned, deepSeek.resolveModel(req.getModel())));
     }
 
     @PostMapping("/video-title")
@@ -840,19 +847,31 @@ public class AgentController {
      */
     @PostMapping("/video-generate-seedance")
     public ResponseEntity<?> generateVideoSeedance(@RequestBody AgentRequest req) {
-        if (isBlank(req.getScript()) && isBlank(req.getTopic())) {
+        boolean hasSegments = req.getStoryboardSegments() != null && !req.getStoryboardSegments().isEmpty();
+        if (!hasSegments && isBlank(req.getScript()) && isBlank(req.getTopic())) {
             return ResponseEntity.badRequest().body(Map.of("error", "口播脚本不能为空"));
         }
-        if (isBlank(req.getCharacterImageUrl())) {
-            return ResponseEntity.badRequest().body(Map.of("error", "人物参考图不能为空，请先上传人物照片"));
-        }
-        String script = !isBlank(req.getScript()) ? req.getScript().trim() : req.getTopic().trim();
+        String script = !isBlank(req.getScript()) ? req.getScript().trim() : (req.getTopic() != null ? req.getTopic().trim() : "");
         try {
-            List<SeedanceService.SegmentResult> results = seedance.generateSegments(
-                    script,
-                    req.getCharacterImageUrl(),
-                    req.getBackgroundImageUrl(),
-                    req.getStyle());
+            List<SeedanceService.SegmentResult> results;
+            java.util.List<java.util.Map<String, Object>> sbSegs = req.getStoryboardSegments();
+            if (sbSegs != null && !sbSegs.isEmpty()) {
+                // 前端已编辑好的分镜段，直接使用，跳过 DeepSeek 拆分
+                List<SeedanceService.Segment> segs = new ArrayList<>();
+                for (java.util.Map<String, Object> m : sbSegs) {
+                    String voiceover = String.valueOf(m.getOrDefault("voiceover", ""));
+                    int dur = ((Number) m.getOrDefault("duration", 8)).intValue();
+                    String prompt = String.valueOf(m.getOrDefault("prompt", "A professional insurance advisor talking to camera, close-up, natural expression"));
+                    segs.add(new SeedanceService.Segment(voiceover, prompt, Math.max(3, Math.min(10, dur))));
+                }
+                results = seedance.generateSegmentsDirect(segs, req.getCharacterImageUrl(), req.getBackgroundImageUrl());
+            } else {
+                results = seedance.generateSegments(
+                        script,
+                        req.getCharacterImageUrl(),
+                        req.getBackgroundImageUrl(),
+                        req.getStyle());
+            }
             List<Map<String, Object>> segments = new ArrayList<>();
             for (SeedanceService.SegmentResult r : results) {
                 Map<String, Object> m = new LinkedHashMap<>();

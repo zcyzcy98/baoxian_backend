@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { callAgent, generateSeedanceVideo } from '../api'
+import { callAgent, generateSeedanceVideo, mergeVideos } from '../api'
 import { copyToClipboard, stripMarkdown } from '../utils/markdown'
 import './DramaPage.css'
 
@@ -19,6 +19,14 @@ const PLATFORMS = [
   { id: 'xhs', label: '小红书' },
   { id: 'video', label: '视频号' },
 ]
+
+function parseStoryboardJson(raw) {
+  try {
+    const json = JSON.parse(raw)
+    if (Array.isArray(json?.segments)) return json.segments
+  } catch { /* fall through */ }
+  return []
+}
 
 // 从文本中提取链接
 function extractUrlFromText(text) {
@@ -69,11 +77,12 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
   // 通用
   const [scriptTab, setScriptTab] = useState('full')
   const [script, setScript] = useState('')
-  const [storyboard, setStoryboard] = useState('')
+  const [storyboardSegs, setStoryboardSegs] = useState([]) // parsed JSON segments
   const [genLoading, setGenLoading] = useState(false)
   const [genError, setGenError] = useState('')
 
   const [videoLoading, setVideoLoading] = useState(false)
+  const [videoError, setVideoError] = useState('')
   const [seedanceSegments, setSeedanceSegments] = useState([])
   const [characterImageUrl, setCharacterImageUrl] = useState('')
   const [characterPreview, setCharacterPreview] = useState(null)
@@ -81,6 +90,7 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
   const [backgroundImageUrl, setBackgroundImageUrl] = useState('')
   const [backgroundPreview, setBackgroundPreview] = useState(null)
   const [backgroundUploading, setBackgroundUploading] = useState(false)
+  const [licenseChecked, setLicenseChecked] = useState(false)
   const charFileRef = useRef(null)
   const bgFileRef = useRef(null)
 
@@ -138,7 +148,7 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
         }),
       ])
       setScript(sc?.content || '')
-      setStoryboard(sb?.content || '')
+      setStoryboardSegs(parseStoryboardJson(sb?.content || ''))
       setStep(3)
     } catch (err) {
       setGenError(err.message)
@@ -157,7 +167,7 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
         callAgent('video-storyboard', { topic, style: direction, duration }),
       ])
       setScript(sc?.content || '')
-      setStoryboard(sb?.content || '')
+      setStoryboardSegs(parseStoryboardJson(sb?.content || ''))
       setStep(2)
     } catch (err) {
       setGenError(err.message)
@@ -172,13 +182,61 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
     setGenError('')
     try {
       const r = await callAgent('video-storyboard', { topic, style: direction, duration, script })
-      setStoryboard(r?.content || '')
+      setStoryboardSegs(parseStoryboardJson(r?.content || ''))
       setScriptTab('storyboard')
     } catch (err) {
       setGenError(err.message)
     } finally {
       setGenLoading(false)
     }
+  }
+
+  const handleRegenSegment = async (segIndex) => {
+    const seg = storyboardSegs[segIndex]
+    if (!seg) return
+    setGenLoading(true)
+    try {
+      const r = await callAgent('video-storyboard', {
+        topic,
+        style: `只重新生成第 ${seg.index} 个镜头，口播原文为："${seg.voiceover}"，景别建议 ${seg.shot_type}，请保持其他镜头不变，只输出这一个镜头的 JSON segment 对象（不含外层 segments 数组）`,
+        duration,
+        script,
+      })
+      try {
+        const raw = (r?.content || '').replace(/```[a-z]*/gi, '').replace(/```/g, '').trim()
+        const parsed = JSON.parse(raw)
+        const newSeg = parsed?.segments?.[0] ?? parsed
+        if (newSeg?.voiceover) {
+          setStoryboardSegs(prev => prev.map((s, i) => i === segIndex ? { ...newSeg, index: seg.index } : s))
+        }
+      } catch { /* keep old */ }
+    } catch (err) {
+      setGenError(err.message)
+    } finally {
+      setGenLoading(false)
+    }
+  }
+
+  const handleDeleteSegment = (segIndex) => {
+    setStoryboardSegs(prev => prev.filter((_, i) => i !== segIndex).map((s, i) => ({ ...s, index: i + 1 })))
+  }
+
+  const handleAddSegmentAfter = (segIndex) => {
+    const newSeg = { index: 0, duration: 6, shot_type: '中景', scene: '（待填写）', voiceover: '（待填写）', subtitle: '', notes: '' }
+    setStoryboardSegs(prev => {
+      const next = [...prev]
+      next.splice(segIndex + 1, 0, newSeg)
+      return next.map((s, i) => ({ ...s, index: i + 1 }))
+    })
+  }
+
+  const handleInsertSegmentAt = (insertIndex) => {
+    const newSeg = { index: 0, duration: 6, shot_type: '中景', scene: '（待填写）', voiceover: '（待填写）', subtitle: '', notes: '' }
+    setStoryboardSegs(prev => {
+      const next = [...prev]
+      next.splice(insertIndex, 0, newSeg)
+      return next.map((s, i) => ({ ...s, index: i + 1 }))
+    })
   }
 
   const handleUploadImage = async (type, file) => {
@@ -213,25 +271,40 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
     }
   }
 
-  const handleGenVideo = async () => {
-    if (!script.trim()) return
-    if (!characterImageUrl) {
-      setGenError('请先上传人物照片（必须）')
-      return
-    }
-    setVideoLoading(true)
+  // Step 2 右侧面板：点「生成视频」验证后跳 Step 3 并开始生成
+  const goGenerate = () => {
+    if (characterImageUrl && !licenseChecked) { setGenError('请勾选人物授权声明'); return }
     setGenError('')
+    setVideoError('')
+    setSeedanceSegments([])
+    setStep(3)
+    startGeneration()
+  }
+
+  const startGeneration = async () => {
+    setVideoLoading(true)
+    setVideoError('')
     setSeedanceSegments([])
     try {
-      const r = await generateSeedanceVideo({
-        script,
-        characterImageUrl,
+      const payload = {
+        characterImageUrl: characterImageUrl || null,
         backgroundImageUrl: backgroundImageUrl || null,
         style: direction,
-      })
+      }
+      // 如果有已编辑的分镜段，直接传给后端，跳过 DeepSeek 重新拆分
+      if (storyboardSegs.length > 0) {
+        payload.storyboardSegments = storyboardSegs.map(s => ({
+          voiceover: s.voiceover,
+          duration: s.duration,
+          prompt: s.scene || '',  // 用画面描述作为 prompt 参考
+        }))
+      } else {
+        payload.script = script
+      }
+      const r = await generateSeedanceVideo(payload)
       setSeedanceSegments(r?.segments || [])
     } catch (err) {
-      setGenError(err.message)
+      setVideoError(err.message)
     } finally {
       setVideoLoading(false)
     }
@@ -331,38 +404,57 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
           )}
 
           {step === 2 && (
-            <section className="drama-card">
-              <div className="result-head">
-                <div className="script-tabs">
-                  <button className={'tab' + (scriptTab === 'full' ? ' is-active' : '')}
-                    onClick={() => setScriptTab('full')}>完整剧本</button>
-                  <button className={'tab' + (scriptTab === 'storyboard' ? ' is-active' : '')}
-                    onClick={() => setScriptTab('storyboard')}>拆解分镜</button>
+            <div className="sb-grid">
+              {/* 左：脚本内容 */}
+              <section className="drama-card sb-main">
+                <div className="result-head">
+                  <div className="script-tabs">
+                    <button className={'tab' + (scriptTab === 'full' ? ' is-active' : '')}
+                      onClick={() => setScriptTab('full')}>完整剧本</button>
+                    <button className={'tab' + (scriptTab === 'storyboard' ? ' is-active' : '')}
+                      onClick={() => setScriptTab('storyboard')}>拆解分镜</button>
+                  </div>
+                  <div className="result-actions">
+                    <button className="btn-ghost" onClick={() => setStep(1)}>← 返回</button>
+                    <button className="btn-ghost" onClick={() => copyToClipboard(stripMarkdown(script))}>复制</button>
+                    {scriptTab === 'full' && (
+                      <button className="btn-ghost" onClick={handleGenStoryboard} disabled={genLoading}>
+                        {genLoading ? '拆解中…' : '拆分镜'}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="result-actions">
-                  <button className="btn-ghost" onClick={() => setStep(1)}>← 返回</button>
-                  <button className="btn-ghost" onClick={() => copyToClipboard(stripMarkdown(scriptTab === 'full' ? script : storyboard))}>复制</button>
-                  {scriptTab === 'full' && !storyboard && (
-                    <button className="btn-ghost" onClick={handleGenStoryboard} disabled={genLoading}>
-                      {genLoading ? '拆解中…' : '拆分镜'}
-                    </button>
-                  )}
-                  <button className="btn-primary" onClick={() => setStep(3)} disabled={!script}>
-                    下一步：配置视频 →
-                  </button>
-                </div>
-              </div>
-
-              {genError && <div className="kb-error">{genError}</div>}
-
-              <div className="script-content">
+                {genError && <div className="kb-error">{genError}</div>}
                 {scriptTab === 'full' ? (
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{script || '(空)'}</ReactMarkdown>
+                  <div className="script-content">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{script || '(空)'}</ReactMarkdown>
+                  </div>
                 ) : (
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{storyboard || '点上方"拆分镜"先生成分镜表'}</ReactMarkdown>
+                  <StoryboardView
+                    segments={storyboardSegs}
+                    genLoading={genLoading}
+                    onRegen={handleRegenSegment}
+                    onDelete={handleDeleteSegment}
+                    onAddAfter={handleAddSegmentAfter}
+                    onInsertAt={handleInsertSegmentAt}
+                  />
                 )}
-              </div>
-            </section>
+              </section>
+
+              {/* 右：上传 + 生成 */}
+              <aside className="sb-aside">
+                <UploadPanel
+                  characterPreview={characterPreview} characterUploading={characterUploading}
+                  backgroundPreview={backgroundPreview} backgroundUploading={backgroundUploading}
+                  charFileRef={charFileRef} bgFileRef={bgFileRef}
+                  onUpload={handleUploadImage}
+                  onClearChar={() => { setCharacterPreview(null); setCharacterImageUrl(''); if (charFileRef.current) charFileRef.current.value = '' }}
+                  onClearBg={() => { setBackgroundPreview(null); setBackgroundImageUrl(''); if (bgFileRef.current) bgFileRef.current.value = '' }}
+                  licenseChecked={licenseChecked} onLicenseToggle={() => setLicenseChecked(v => !v)}
+                  onGenerate={goGenerate} genError={genError}
+                />
+              </aside>
+            </div>
           )}
 
           {step === 3 && (
@@ -370,22 +462,9 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
               <div className="result-head">
                 <h3>视频生成</h3>
                 <div className="result-actions">
-                  <button className="btn-ghost" onClick={() => setStep(2)}>← 返回</button>
+                  <button className="btn-ghost" onClick={() => { setStep(2); setSeedanceSegments([]); setVideoError('') }}>← 返回</button>
                 </div>
               </div>
-
-              {!seedanceSegments.length && !videoLoading && (
-                <VideoGenConfig
-                  characterPreview={characterPreview} characterUploading={characterUploading}
-                  backgroundPreview={backgroundPreview} backgroundUploading={backgroundUploading}
-                  charFileRef={charFileRef} bgFileRef={bgFileRef}
-                  onUpload={handleUploadImage}
-                  onClearChar={() => { setCharacterPreview(null); setCharacterImageUrl(''); if (charFileRef.current) charFileRef.current.value = '' }}
-                  onClearBg={() => { setBackgroundPreview(null); setBackgroundImageUrl(''); if (bgFileRef.current) bgFileRef.current.value = '' }}
-                  onGenerate={handleGenVideo} videoLoading={videoLoading}
-                  genError={genError}
-                />
-              )}
 
               {videoLoading && (
                 <div className="video-loading">
@@ -395,9 +474,17 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
                 </div>
               )}
 
+              {videoError && !videoLoading && (
+                <div className="video-error-panel">
+                  <div className="video-error-title">生成失败</div>
+                  <div className="video-error-msg">{videoError}</div>
+                  <button className="btn-ghost" onClick={() => { setStep(2); setVideoError('') }}>返回重试</button>
+                </div>
+              )}
+
               {seedanceSegments.length > 0 && (
                 <SeedanceResults segments={seedanceSegments}
-                  onReset={() => { setSeedanceSegments([]); setGenError('') }} />
+                  onReset={() => { setSeedanceSegments([]); setStep(2) }} />
               )}
             </section>
           )}
@@ -474,38 +561,54 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
           )}
 
           {step === 3 && (
-            <section className="drama-card">
-              <div className="result-head">
-                <div className="script-tabs">
-                  <button className={'tab' + (scriptTab === 'full' ? ' is-active' : '')}
-                    onClick={() => setScriptTab('full')}>完整剧本</button>
-                  <button className={'tab' + (scriptTab === 'storyboard' ? ' is-active' : '')}
-                    onClick={() => setScriptTab('storyboard')}>拆解分镜</button>
+            <div className="sb-grid">
+              <section className="drama-card sb-main">
+                <div className="result-head">
+                  <div className="script-tabs">
+                    <button className={'tab' + (scriptTab === 'full' ? ' is-active' : '')}
+                      onClick={() => setScriptTab('full')}>完整剧本</button>
+                    <button className={'tab' + (scriptTab === 'storyboard' ? ' is-active' : '')}
+                      onClick={() => setScriptTab('storyboard')}>拆解分镜</button>
+                  </div>
+                  <div className="result-actions">
+                    <button className="btn-ghost" onClick={() => setStep(2)}>← 返回</button>
+                    <button className="btn-ghost" onClick={() => copyToClipboard(stripMarkdown(script))}>复制</button>
+                    {scriptTab === 'full' && (
+                      <button className="btn-ghost" onClick={handleGenStoryboard} disabled={genLoading}>
+                        {genLoading ? '拆解中…' : '拆分镜'}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="result-actions">
-                  <button className="btn-ghost" onClick={() => setStep(2)}>← 返回</button>
-                  <button className="btn-ghost" onClick={() => copyToClipboard(stripMarkdown(scriptTab === 'full' ? script : storyboard))}>复制</button>
-                  {scriptTab === 'full' && !storyboard && (
-                    <button className="btn-ghost" onClick={handleGenStoryboard} disabled={genLoading}>
-                      {genLoading ? '拆解中…' : '拆分镜'}
-                    </button>
-                  )}
-                  <button className="btn-primary" onClick={() => setStep(4)} disabled={!script}>
-                    下一步：配置视频 →
-                  </button>
-                </div>
-              </div>
-
-              {genError && <div className="kb-error">{genError}</div>}
-
-              <div className="script-content">
+                {genError && <div className="kb-error">{genError}</div>}
                 {scriptTab === 'full' ? (
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{script || '(空)'}</ReactMarkdown>
+                  <div className="script-content">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{script || '(空)'}</ReactMarkdown>
+                  </div>
                 ) : (
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{storyboard || '点上方"拆分镜"先生成分镜表'}</ReactMarkdown>
+                  <StoryboardView
+                    segments={storyboardSegs}
+                    genLoading={genLoading}
+                    onRegen={handleRegenSegment}
+                    onDelete={handleDeleteSegment}
+                    onAddAfter={handleAddSegmentAfter}
+                    onInsertAt={handleInsertSegmentAt}
+                  />
                 )}
-              </div>
-            </section>
+              </section>
+              <aside className="sb-aside">
+                <UploadPanel
+                  characterPreview={characterPreview} characterUploading={characterUploading}
+                  backgroundPreview={backgroundPreview} backgroundUploading={backgroundUploading}
+                  charFileRef={charFileRef} bgFileRef={bgFileRef}
+                  onUpload={handleUploadImage}
+                  onClearChar={() => { setCharacterPreview(null); setCharacterImageUrl(''); if (charFileRef.current) charFileRef.current.value = '' }}
+                  onClearBg={() => { setBackgroundPreview(null); setBackgroundImageUrl(''); if (bgFileRef.current) bgFileRef.current.value = '' }}
+                  licenseChecked={licenseChecked} onLicenseToggle={() => setLicenseChecked(v => !v)}
+                  onGenerate={goGenerate} genError={genError}
+                />
+              </aside>
+            </div>
           )}
 
           {step === 4 && (
@@ -513,23 +616,9 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
               <div className="result-head">
                 <h3>视频生成</h3>
                 <div className="result-actions">
-                  <button className="btn-ghost" onClick={() => setStep(3)}>← 返回</button>
+                  <button className="btn-ghost" onClick={() => { setStep(3); setSeedanceSegments([]); setVideoError('') }}>← 返回</button>
                 </div>
               </div>
-
-              {!seedanceSegments.length && !videoLoading && (
-                <VideoGenConfig
-                  characterPreview={characterPreview} characterUploading={characterUploading}
-                  backgroundPreview={backgroundPreview} backgroundUploading={backgroundUploading}
-                  charFileRef={charFileRef} bgFileRef={bgFileRef}
-                  onUpload={handleUploadImage}
-                  onClearChar={() => { setCharacterPreview(null); setCharacterImageUrl(''); if (charFileRef.current) charFileRef.current.value = '' }}
-                  onClearBg={() => { setBackgroundPreview(null); setBackgroundImageUrl(''); if (bgFileRef.current) bgFileRef.current.value = '' }}
-                  onGenerate={handleGenVideo} videoLoading={videoLoading}
-                  genError={genError}
-                />
-              )}
-
               {videoLoading && (
                 <div className="video-loading">
                   <div className="spinner" />
@@ -537,15 +626,107 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
                   <p>DeepSeek 拆分脚本 → 逐段调用 AtlasCloud，可能需要 3-10 分钟</p>
                 </div>
               )}
-
+              {videoError && !videoLoading && (
+                <div className="video-error-panel">
+                  <div className="video-error-title">生成失败</div>
+                  <div className="video-error-msg">{videoError}</div>
+                  <button className="btn-ghost" onClick={() => { setStep(3); setVideoError('') }}>返回重试</button>
+                </div>
+              )}
               {seedanceSegments.length > 0 && (
                 <SeedanceResults segments={seedanceSegments}
-                  onReset={() => { setSeedanceSegments([]); setGenError('') }} />
+                  onReset={() => { setSeedanceSegments([]); setStep(3) }} />
               )}
             </section>
           )}
         </>
       )}
+    </div>
+  )
+}
+
+function UploadPanel({
+  characterPreview, characterUploading,
+  backgroundPreview, backgroundUploading,
+  charFileRef, bgFileRef,
+  onUpload, onClearChar, onClearBg,
+  licenseChecked, onLicenseToggle,
+  onGenerate, genError,
+}) {
+  return (
+    <div className="upload-panel">
+      <div className="upload-panel-title">出镜人物 <span className="required">*</span></div>
+
+      <input ref={charFileRef} type="file" accept="image/*" style={{ display: 'none' }}
+        disabled={characterUploading}
+        onChange={(e) => onUpload('character', e.target.files?.[0])} />
+
+      {characterPreview ? (
+        <div className="up-preview">
+          <img src={characterPreview} alt="出镜人物" className="up-thumb" />
+          <div className="up-preview-info">
+            {characterUploading
+              ? <span className="up-status">上传中…</span>
+              : <span className="up-status up-ok">✓ 已上传</span>}
+            <button type="button" className="btn-ghost up-btn"
+              onClick={() => charFileRef.current?.click()} disabled={characterUploading}>
+              重新选择
+            </button>
+            <button type="button" className="up-remove" onClick={onClearChar} disabled={characterUploading}>
+              移除
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" className="up-zone" onClick={() => charFileRef.current?.click()}
+          disabled={characterUploading}>
+          <span className="up-zone-icon">📷</span>
+          <span>点击上传人物照片</span>
+          <span className="up-zone-hint">JPG / PNG，建议正脸清晰照</span>
+        </button>
+      )}
+
+      <label className="up-license">
+        <input type="checkbox" checked={licenseChecked} onChange={onLicenseToggle} />
+        <span>本人已获得出镜人物肖像授权，可用于 AI 视频生成</span>
+      </label>
+
+      <div className="upload-panel-divider" />
+
+      <div className="upload-panel-subtitle">背景场景 <span className="up-optional">可选</span></div>
+
+      <input ref={bgFileRef} type="file" accept="image/*" style={{ display: 'none' }}
+        disabled={backgroundUploading}
+        onChange={(e) => onUpload('background', e.target.files?.[0])} />
+
+      {backgroundPreview ? (
+        <div className="up-preview">
+          <img src={backgroundPreview} alt="背景场景" className="up-thumb" />
+          <div className="up-preview-info">
+            {backgroundUploading
+              ? <span className="up-status">上传中…</span>
+              : <span className="up-status up-ok">✓ 已上传</span>}
+            <button type="button" className="btn-ghost up-btn"
+              onClick={() => bgFileRef.current?.click()} disabled={backgroundUploading}>
+              重新选择
+            </button>
+            <button type="button" className="up-remove" onClick={onClearBg} disabled={backgroundUploading}>
+              移除
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" className="up-zone up-zone-sm" onClick={() => bgFileRef.current?.click()}
+          disabled={backgroundUploading}>
+          <span>+ 上传背景图（可选）</span>
+        </button>
+      )}
+
+      {genError && <div className="kb-error" style={{fontSize:12}}>{genError}</div>}
+
+      <button className="btn-primary up-generate" onClick={onGenerate}>
+        生成视频
+      </button>
     </div>
   )
 }
@@ -637,13 +818,147 @@ function UploadArea({ label, required, hint, preview, uploading, fileRef, onFile
   )
 }
 
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+function StoryboardView({ segments, genLoading, onRegen, onDelete, onAddAfter, onInsertAt }) {
+  if (!segments || segments.length === 0) {
+    return (
+      <div className="sb-empty">
+        <p>点上方"拆分镜"先生成分镜表</p>
+      </div>
+    )
+  }
+
+  // calculate cumulative start times
+  let cumulative = 0
+  const withTime = segments.map((seg) => {
+    const start = cumulative
+    cumulative += seg.duration || 0
+    return { ...seg, startTime: start }
+  })
+
+  return (
+    <div className="sbv-list">
+      {withTime.map((seg, i) => (
+        <div key={i}>
+          <div className="sbv-card">
+            <div className="sbv-card-header">
+              <div className="sbv-badge">{String(seg.index ?? i + 1).padStart(2, '0')}</div>
+              <div className="sbv-card-title">
+                <span className="sbv-title-text">分镜 {seg.index ?? i + 1}</span>
+                <span className="sbv-timing">
+                  {formatTime(seg.startTime)} – {formatTime(seg.startTime + (seg.duration || 0))}
+                  <span className="sbv-dot">•</span>
+                  {seg.duration || 0} 秒
+                  {seg.voiceover && <><span className="sbv-dot">·</span>{seg.voiceover.length} 字</>}
+                </span>
+              </div>
+              <button className="sbv-collapse-btn" onClick={(e) => {
+                const card = e.currentTarget.closest('.sbv-card')
+                card.classList.toggle('is-collapsed')
+              }}>∧</button>
+            </div>
+
+            <div className="sbv-card-body">
+              <div className="sbv-row">
+                <div className="sbv-row-label">— 画面</div>
+                <div className="sbv-row-value sbv-scene">{seg.scene}</div>
+              </div>
+              <div className="sbv-divider" />
+              <div className="sbv-row">
+                <div className="sbv-row-label">— 口播</div>
+                <div className="sbv-row-value sbv-voiceover">{seg.voiceover}</div>
+              </div>
+              {seg.notes && (
+                <>
+                  <div className="sbv-divider" />
+                  <div className="sbv-row">
+                    <div className="sbv-row-label">— 备注</div>
+                    <div className="sbv-row-value sbv-notes">{seg.notes}</div>
+                  </div>
+                </>
+              )}
+
+              <div className="sbv-actions">
+                <button className="sbv-btn" onClick={() => onRegen(i)} disabled={genLoading}>
+                  ↻ 重新生成这段
+                </button>
+                <button className="sbv-btn" onClick={() => onAddAfter(i)}>
+                  + 在下方加段
+                </button>
+                <button className="sbv-btn sbv-btn-danger" onClick={() => onDelete(i)}>
+                  删除
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <button className="sbv-insert" onClick={() => onInsertAt(i + 1)}>
+            + 在这里插入新分镜
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function SeedanceResults({ segments, onReset }) {
+  const [merging, setMerging] = useState(false)
+  const [mergeError, setMergeError] = useState('')
+  const [mergedUrl, setMergedUrl] = useState('')
+
+  const handleMerge = async () => {
+    setMerging(true)
+    setMergeError('')
+    setMergedUrl('')
+    try {
+      const urls = segments.map(s => s.videoUrl).filter(Boolean)
+      const r = await mergeVideos(urls)
+      setMergedUrl(r?.url || '')
+    } catch (err) {
+      setMergeError(err.message)
+    } finally {
+      setMerging(false)
+    }
+  }
+
   return (
     <div className="seedance-results">
       <div className="seedance-header">
         <h4>口播视频片段（共 {segments.length} 段）</h4>
-        <button className="btn-ghost" onClick={onReset}>重新生成</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {segments.length > 1 && (
+            <button className="btn-primary" onClick={handleMerge} disabled={merging}>
+              {merging ? '拼接中…' : '▶ 合并成一个视频'}
+            </button>
+          )}
+          <button className="btn-ghost" onClick={onReset}>重新生成</button>
+        </div>
       </div>
+
+      {/* 合并结果 */}
+      {merging && (
+        <div className="video-loading" style={{ padding: '20px' }}>
+          <div className="spinner" />
+          <div>正在下载并拼接片段，请稍候…</div>
+        </div>
+      )}
+      {mergeError && <div className="kb-error">{mergeError}</div>}
+      {mergedUrl && (
+        <div className="seedance-merged">
+          <div className="seedance-merged-title">✓ 合并完成</div>
+          <video src={mergedUrl} controls playsInline className="seedance-video" />
+          <div className="seedance-actions">
+            <a className="btn-primary" href={mergedUrl} download="merged.mp4">⬇ 下载合并视频</a>
+          </div>
+        </div>
+      )}
+
+      {/* 各段详情 */}
       {segments.map((seg) => (
         <div key={seg.index} className="seedance-segment">
           <div className="seedance-meta">

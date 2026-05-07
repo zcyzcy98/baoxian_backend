@@ -161,3 +161,7 @@ export async function generateXhsBatchImages(content, imageCount, imageRatio, im
 export async function generateSeedanceVideo(payload) {
   return postJson('/api/agents/video-generate-seedance', payload)
 }
+
+export async function mergeVideos(urls) {
+  return postJson('/api/video/merge', { urls })
+}

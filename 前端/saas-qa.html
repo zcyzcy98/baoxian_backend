@@ -1,0 +1,1854 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>承知 · 答疑逼单</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   Design Tokens —— 与 V1 一致
+   ========================================================= */
+:root{
+  --clay:#CC785C; --clay-deep:#A85A40; --clay-soft:#E9B79E; --clay-tint:#F5E2D5;
+  --pine:#3F5C52; --pine-soft:#C9D4CD; --pine-tint:#E1E8E4;
+  --sand:#C49B5C; --sand-soft:#ECDCBF; --sand-tint:#F4ECD9;
+  --paper:#FAF9F5; --ivory:#F5F1EB; --bone:#EFEAE0;
+  --line:#E4DDCE; --line-2:#D9D0BE;
+  --ink-3:#6B6862; --ink-2:#3A3935; --ink:#1F1F1E;
+  --leaf:#5C8A5C; --crimson:#B85450;
+  --serif:'Noto Serif SC','Source Han Serif SC','Songti SC',ui-serif,Georgia,serif;
+  --serif-en:'Fraunces','Noto Serif SC',ui-serif,Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sh-1:0 1px 2px rgba(31,31,30,.04),0 2px 6px rgba(31,31,30,.04);
+  --sh-2:0 4px 12px rgba(31,31,30,.06),0 8px 24px rgba(31,31,30,.05);
+  --sh-3:0 12px 32px rgba(31,31,30,.10),0 24px 60px rgba(31,31,30,.08);
+  --sh-clay:0 6px 18px rgba(204,120,92,.30);
+  --r-xs:4px; --r-sm:6px; --r-md:10px; --r-lg:16px; --r-xl:24px;
+  --sidebar-w:248px;
+  --topbar-h:56px;
+  --client-list-w:240px;
+  --drawer-w:400px;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+html{font-size:16px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{
+  background:var(--ivory); color:var(--ink); font-family:var(--sans);
+  font-size:14px; line-height:1.6; font-feature-settings:"palt";
+  overflow:hidden;
+}
+::selection{background:var(--clay-tint); color:var(--clay-deep)}
+a{color:inherit; text-decoration:none}
+img,svg{display:block; max-width:100%}
+button{font-family:inherit; cursor:pointer; border:none; background:transparent; color:inherit}
+input,textarea{font-family:inherit; color:inherit; outline:none}
+h1,h2,h3,h4,h5{font-family:var(--serif); font-weight:600; letter-spacing:-.01em;
+  color:var(--ink); line-height:1.25; margin:0}
+
+/* 通用滚动条 */
+.scroll-y{overflow-y:auto}
+.scroll-y::-webkit-scrollbar{width:6px}
+.scroll-y::-webkit-scrollbar-thumb{background:var(--line); border-radius:3px}
+.scroll-y::-webkit-scrollbar-thumb:hover{background:var(--line-2)}
+.scroll-y::-webkit-scrollbar-track{background:transparent}
+
+/* =========================================================
+   App Layout
+   ========================================================= */
+.app{
+  display:grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  height:100vh;
+}
+
+/* =========================================================
+   Sidebar (主导航 - 和 saas-topics 一致)
+   ========================================================= */
+.sidebar{
+  background:var(--paper);
+  border-right:1px solid var(--line);
+  display:flex; flex-direction:column;
+  height:100vh; overflow:hidden;
+}
+.sidebar-brand{
+  height:var(--topbar-h);
+  display:flex; align-items:center; gap:10px;
+  padding:0 20px;
+  border-bottom:1px solid var(--line);
+  flex-shrink:0;
+}
+.sidebar-brand .mark{width:26px; height:26px; flex-shrink:0}
+.sidebar-brand .name{font-family:var(--serif); font-weight:700;
+  font-size:17px; color:var(--ink); letter-spacing:.02em}
+.sidebar-brand .name .en{
+  color:var(--ink-3); font-weight:500; font-family:var(--sans);
+  font-size:11px; margin-left:4px; letter-spacing:.08em;
+}
+
+.sidebar-nav{flex:1; overflow-y:auto; padding:20px 12px 12px}
+.sidebar-nav::-webkit-scrollbar{width:6px}
+.sidebar-nav::-webkit-scrollbar-thumb{background:var(--line); border-radius:3px}
+.nav-group{margin-bottom:18px}
+.nav-group-title{
+  font-family:var(--serif-en); font-style:italic;
+  font-size:11px; color:var(--ink-3);
+  letter-spacing:.08em; text-transform:uppercase;
+  padding:0 12px; margin-bottom:6px;
+}
+.nav-item{
+  display:flex; align-items:center; gap:10px;
+  padding:8px 12px; margin-bottom:1px;
+  border-radius:var(--r-sm);
+  font-size:13.5px; color:var(--ink-2);
+  cursor:pointer; transition:all .12s;
+  position:relative;
+}
+.nav-item:hover{background:var(--bone); color:var(--ink)}
+.nav-item .icon{width:18px; height:18px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; color:var(--ink-3)}
+.nav-item:hover .icon{color:var(--ink-2)}
+.nav-item .label{flex:1; line-height:1.2}
+.nav-item .chevron{width:14px; height:14px; flex-shrink:0; color:var(--ink-3); transition:transform .15s}
+.nav-item.active{background:var(--clay-tint); color:var(--clay-deep); font-weight:600}
+.nav-item.active .icon{color:var(--clay)}
+.nav-item.active::before{
+  content:''; position:absolute; left:-12px; top:50%;
+  width:3px; height:18px; transform:translateY(-50%);
+  background:var(--clay); border-radius:0 3px 3px 0;
+}
+.nav-collapsible.open .chevron{transform:rotate(90deg)}
+.nav-sub{max-height:0; overflow:hidden; transition:max-height .25s ease}
+.nav-collapsible.open .nav-sub{max-height:400px}
+.nav-sub-item{
+  display:block; padding:7px 12px 7px 40px;
+  font-size:13px; color:var(--ink-3);
+  border-radius:var(--r-sm); cursor:pointer;
+  transition:all .12s; position:relative;
+}
+.nav-sub-item::before{
+  content:''; position:absolute; left:26px; top:50%;
+  width:4px; height:4px; border-radius:50%;
+  background:var(--line-2); transform:translateY(-50%);
+}
+.nav-sub-item:hover{color:var(--ink); background:var(--bone)}
+.nav-sub-item:hover::before{background:var(--ink-3)}
+
+/* Sidebar Footer */
+.sidebar-foot{
+  padding:14px 12px; flex-shrink:0;
+  border-top:1px solid var(--line);
+  display:flex; flex-direction:column; gap:10px;
+}
+.member-card{
+  padding:12px 14px;
+  background:linear-gradient(135deg, var(--clay-tint), var(--sand-soft));
+  border-radius:var(--r-md);
+}
+.member-card .label{
+  font-family:var(--serif-en); font-style:italic;
+  font-size:10.5px; color:var(--clay-deep);
+  letter-spacing:.04em; margin-bottom:4px;
+}
+.member-card .days{font-family:var(--serif); font-size:14px; font-weight:600; color:var(--ink); margin-bottom:6px}
+.member-card .days b{font-family:var(--serif-en); font-weight:600; font-size:18px; color:var(--clay-deep); margin:0 2px}
+.member-card .renew{
+  display:inline-block; font-size:11.5px; color:var(--clay-deep);
+  font-weight:600; padding:2px 0; border-bottom:1px solid var(--clay); cursor:pointer;
+}
+.user-mini{
+  display:flex; align-items:center; gap:10px;
+  padding:6px 8px; border-radius:var(--r-sm);
+  cursor:pointer; transition:background .12s;
+}
+.user-mini:hover{background:var(--bone)}
+.user-mini .avatar{
+  width:32px; height:32px; border-radius:50%;
+  background:linear-gradient(135deg,var(--clay),var(--sand));
+  color:#fff; font-family:var(--serif); font-weight:700;
+  font-size:14px; display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.user-mini .info{flex:1; min-width:0}
+.user-mini .info .name{font-size:13px; color:var(--ink); font-weight:600}
+.user-mini .info .role{font-size:11px; color:var(--ink-3)}
+.user-mini .more{color:var(--ink-3); font-size:14px}
+
+/* =========================================================
+   Main + Topbar
+   ========================================================= */
+.main{
+  display:flex; flex-direction:column;
+  height:100vh; overflow:hidden;
+  background:var(--ivory);
+}
+.topbar{
+  height:var(--topbar-h);
+  display:flex; align-items:center;
+  padding:0 24px;
+  border-bottom:1px solid var(--line);
+  background:rgba(245,241,235,.85);
+  backdrop-filter:saturate(150%) blur(12px);
+  -webkit-backdrop-filter:saturate(150%) blur(12px);
+  flex-shrink:0; gap:16px;
+}
+.breadcrumb{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-3)}
+.breadcrumb .sep{color:var(--line-2)}
+.breadcrumb .current{color:var(--ink); font-weight:500}
+.top-actions{margin-left:auto; display:flex; align-items:center; gap:8px}
+
+.credits-chip{
+  display:flex; align-items:center; gap:8px;
+  padding:6px 12px; background:var(--paper);
+  border:1px solid var(--line); border-radius:999px;
+  font-size:12.5px; cursor:pointer;
+  transition:all .15s; position:relative;
+}
+.credits-chip:hover{border-color:var(--line-2); background:var(--bone)}
+.credits-chip .star{color:var(--sand); font-size:13px}
+.credits-chip .num{font-family:var(--serif-en); font-weight:600; color:var(--ink); font-size:13px}
+.credits-chip .total{color:var(--ink-3); font-size:11.5px}
+.credits-chip .credits-bar{
+  position:absolute; left:8px; right:8px; bottom:2px;
+  height:2px; background:var(--bone); border-radius:1px; overflow:hidden;
+}
+.credits-chip .credits-bar::after{
+  content:''; display:block; height:100%; width:85%;
+  background:linear-gradient(90deg, var(--clay), var(--sand));
+}
+
+.icon-btn{
+  width:36px; height:36px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:var(--r-sm); color:var(--ink-2);
+  transition:all .12s; position:relative;
+}
+.icon-btn:hover{background:var(--bone); color:var(--ink)}
+.icon-btn .badge{
+  position:absolute; top:6px; right:6px;
+  width:6px; height:6px; border-radius:50%;
+  background:var(--crimson);
+  box-shadow:0 0 0 2px var(--ivory);
+}
+.avatar-btn{
+  width:36px; height:36px; border-radius:50%;
+  background:linear-gradient(135deg,var(--clay),var(--sand));
+  color:#fff; font-family:var(--serif); font-weight:700;
+  font-size:14px; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:transform .12s;
+  border:2px solid transparent;
+}
+.avatar-btn:hover{border-color:var(--clay)}
+
+/* =========================================================
+   QA Layout —— 3 栏：客户列表 / 对话区 / 分析抽屉
+   ========================================================= */
+.qa-layout{
+  flex:1; min-height:0;
+  display:grid;
+  grid-template-columns: var(--client-list-w) 1fr 0fr;
+  transition:grid-template-columns .25s ease;
+  position:relative; overflow:hidden;
+}
+.qa-layout.drawer-open{
+  grid-template-columns: var(--client-list-w) 1fr var(--drawer-w);
+}
+
+/* =========================================================
+   Client List (左)
+   ========================================================= */
+.client-list{
+  background:var(--paper);
+  border-right:1px solid var(--line);
+  display:flex; flex-direction:column;
+  height:100%; overflow:hidden;
+}
+.cl-head{
+  padding:16px 14px 12px;
+  border-bottom:1px solid var(--line);
+  flex-shrink:0;
+  display:flex; flex-direction:column; gap:10px;
+}
+.cl-title{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:2px;
+}
+.cl-title h4{
+  font-family:var(--serif); font-size:14px;
+  font-weight:600; color:var(--ink);
+}
+.cl-title .count{
+  font-size:11px; color:var(--ink-3);
+  font-family:var(--mono);
+  background:var(--bone); padding:2px 7px; border-radius:99px;
+}
+.btn-newclient{
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  padding:9px 12px;
+  background:var(--ink); color:var(--paper);
+  border-radius:var(--r-sm);
+  font-size:12.5px; font-weight:500;
+  cursor:pointer; transition:all .12s;
+}
+.btn-newclient:hover{background:#000}
+.btn-newclient .plus{font-size:14px; line-height:1}
+
+.cl-search{
+  position:relative;
+}
+.cl-search input{
+  width:100%; height:34px;
+  padding:0 12px 0 32px;
+  background:var(--ivory);
+  border:1px solid var(--line);
+  border-radius:var(--r-sm);
+  font-size:12.5px; color:var(--ink);
+  transition:all .12s;
+}
+.cl-search input:focus{border-color:var(--clay); box-shadow:0 0 0 3px rgba(204,120,92,.12)}
+.cl-search input::placeholder{color:var(--ink-3)}
+.cl-search .si{
+  position:absolute; left:10px; top:50%;
+  transform:translateY(-50%);
+  color:var(--ink-3);
+}
+
+.clients{
+  flex:1; overflow-y:auto;
+  padding:6px;
+}
+.client-item{
+  display:flex; align-items:flex-start; gap:10px;
+  padding:11px 10px;
+  border-radius:var(--r-sm);
+  cursor:pointer; transition:all .12s;
+  position:relative;
+  margin-bottom:1px;
+}
+.client-item:hover{background:var(--bone)}
+.client-item.active{background:var(--clay-tint)}
+.client-item.active::before{
+  content:''; position:absolute; left:-6px; top:50%;
+  width:3px; height:24px; transform:translateY(-50%);
+  background:var(--clay); border-radius:0 3px 3px 0;
+}
+
+.client-item .avatar{
+  width:34px; height:34px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  color:#fff; font-family:var(--serif); font-weight:700; font-size:13px;
+  flex-shrink:0;
+}
+.client-item .avatar.c1{background:linear-gradient(135deg,var(--clay),var(--sand))}
+.client-item .avatar.c2{background:linear-gradient(135deg,var(--pine),#5C8A5C)}
+.client-item .avatar.c3{background:linear-gradient(135deg,var(--ink-2),var(--ink-3))}
+.client-item .avatar.c4{background:linear-gradient(135deg,var(--sand),var(--clay-soft))}
+
+.client-item .info{flex:1; min-width:0}
+.client-item .info .name{
+  font-size:13px; font-weight:600; color:var(--ink);
+  margin-bottom:2px; line-height:1.2;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.client-item.active .info .name{color:var(--clay-deep)}
+.client-item .info .desc{
+  font-size:11.5px; color:var(--ink-3);
+  line-height:1.4;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.client-item .info .time{
+  font-size:10.5px; color:var(--ink-3);
+  font-family:var(--mono);
+  margin-top:3px;
+  letter-spacing:.02em;
+}
+
+/* =========================================================
+   Conversation (中)
+   ========================================================= */
+.conversation{
+  display:flex; flex-direction:column;
+  height:100%; overflow:hidden;
+  background:var(--ivory);
+  background-image:
+    radial-gradient(rgba(204,120,92,.018) 1px, transparent 1px),
+    radial-gradient(rgba(63,92,82,.014) 1px, transparent 1px);
+  background-size: 28px 28px, 44px 44px;
+  background-position: 0 0, 14px 22px;
+  min-width:0;
+}
+
+.conv-head{
+  padding:14px 24px;
+  border-bottom:1px solid var(--line);
+  display:flex; align-items:center; gap:14px;
+  flex-shrink:0;
+  background:rgba(245,241,235,.6);
+  backdrop-filter:saturate(150%) blur(12px);
+}
+.conv-head .avatar{
+  width:40px; height:40px; border-radius:50%;
+  background:linear-gradient(135deg,var(--clay),var(--sand));
+  color:#fff; font-family:var(--serif); font-weight:700;
+  font-size:16px; display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.conv-head .info{flex:1; min-width:0}
+.conv-head .info h3{font-size:16px; line-height:1.25; margin-bottom:2px}
+.conv-head .info .desc{
+  font-size:12px; color:var(--ink-3);
+  line-height:1.4;
+}
+.conv-head .info .desc b{color:var(--ink-2); font-weight:500}
+.conv-head .head-actions{
+  display:flex; gap:6px;
+}
+.head-action-btn{
+  display:flex; align-items:center; gap:6px;
+  padding:7px 11px;
+  font-size:12px; color:var(--ink-2);
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:var(--r-sm);
+  cursor:pointer; transition:all .12s;
+}
+.head-action-btn:hover{border-color:var(--line-2); background:var(--bone)}
+
+.conv-body{
+  flex:1; overflow-y:auto;
+  padding:24px 24px 12px;
+}
+.conv-inner{
+  max-width:780px;
+  margin:0 auto;
+  display:flex; flex-direction:column;
+  gap:20px;
+}
+
+/* 对话气泡 —— 经纪人提问 */
+.msg-user{
+  align-self:flex-end;
+  max-width:84%;
+  display:flex; flex-direction:column; gap:6px;
+}
+.msg-user-bubble{
+  background:var(--ink); color:var(--paper);
+  border-radius:var(--r-lg) var(--r-lg) 4px var(--r-lg);
+  padding:14px 16px;
+  font-size:13.5px; line-height:1.65;
+  position:relative;
+}
+.msg-user-bubble .field{margin-top:8px}
+.msg-user-bubble .field:first-child{margin-top:0}
+.msg-user-bubble .field-label{
+  font-family:var(--serif-en); font-style:italic;
+  font-size:10.5px; color:var(--clay-soft);
+  letter-spacing:.04em; margin-bottom:4px;
+  text-transform:uppercase;
+}
+.msg-user-bubble .field-text{
+  color:rgba(245,249,245,.95);
+  font-size:13.5px; line-height:1.65;
+}
+.msg-user-bubble .field-text strong{color:#fff; font-weight:500}
+
+.msg-user-bubble .img-attach{
+  margin-top:10px; padding-top:10px;
+  border-top:1px dashed rgba(255,255,255,.15);
+  display:flex; gap:8px; align-items:center;
+  font-size:12px; color:rgba(245,249,245,.7);
+}
+.msg-user-bubble .img-thumb{
+  width:64px; height:48px; border-radius:4px;
+  background:var(--ink-2);
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; color:var(--clay-soft);
+  font-size:18px;
+}
+.msg-user-bubble .channel-badge{
+  display:inline-flex; align-items:center; gap:4px;
+  padding:2px 8px;
+  background:rgba(204,120,92,.25);
+  color:var(--clay-soft);
+  font-size:11px; font-weight:500;
+  border-radius:99px;
+  margin-bottom:10px;
+}
+.msg-user-time{
+  font-size:11px; color:var(--ink-3);
+  font-family:var(--mono);
+  text-align:right;
+  padding-right:6px;
+}
+
+/* 对话气泡 —— AI 回复 */
+.msg-ai{
+  align-self:flex-start;
+  max-width:88%;
+  display:flex; gap:12px;
+}
+.msg-ai-avatar{
+  width:32px; height:32px; border-radius:50%;
+  background:var(--paper);
+  border:1px solid var(--line);
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+  color:var(--clay);
+}
+.msg-ai-content{flex:1; min-width:0}
+.msg-ai-bubble{
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-left:3px solid var(--clay);
+  border-radius:4px var(--r-lg) var(--r-lg) var(--r-lg);
+  padding:14px 18px;
+  font-size:13.5px; line-height:1.7;
+  color:var(--ink);
+}
+.msg-ai-bubble .ai-tag{
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:10.5px; color:var(--leaf);
+  font-weight:600; letter-spacing:.04em;
+  margin-bottom:8px;
+  text-transform:uppercase;
+  font-family:var(--serif-en); font-style:italic;
+}
+.msg-ai-bubble .ai-tag .leaf-icon{
+  width:14px; height:14px;
+  background:var(--leaf); color:#fff;
+  border-radius:50%; font-size:8px;
+  display:flex; align-items:center; justify-content:center;
+  font-style:normal;
+}
+.msg-ai-bubble .ai-summary{
+  font-family:var(--serif); font-size:14px;
+  color:var(--ink); line-height:1.7;
+  margin-bottom:12px;
+}
+.msg-ai-bubble .ai-summary b{color:var(--clay-deep); font-weight:600}
+
+.msg-ai-actions{
+  display:flex; gap:8px; align-items:center;
+  margin-top:10px; padding-top:12px;
+  border-top:1px dashed var(--line);
+}
+.btn-view-analysis{
+  display:flex; align-items:center; gap:6px;
+  padding:7px 14px;
+  background:var(--clay); color:#fff;
+  border-radius:var(--r-sm);
+  font-size:12.5px; font-weight:500;
+  cursor:pointer; transition:all .12s;
+  box-shadow:var(--sh-clay);
+}
+.btn-view-analysis:hover{background:var(--clay-deep); transform:translateY(-1px)}
+.btn-view-analysis.active{background:var(--clay-deep)}
+.btn-view-analysis .arr{transition:transform .15s}
+.msg-ai-actions .meta{
+  margin-left:auto;
+  font-size:11px; color:var(--ink-3);
+  display:flex; align-items:center; gap:10px;
+}
+.msg-ai-actions .meta .credits-used{
+  font-family:var(--mono);
+  background:var(--bone); padding:2px 7px; border-radius:3px;
+}
+.msg-ai-time{
+  font-size:11px; color:var(--ink-3);
+  font-family:var(--mono);
+  margin-top:6px; padding-left:6px;
+}
+
+/* 系统消息（如"今日"分割） */
+.msg-divider{
+  display:flex; align-items:center; gap:14px;
+  margin:8px 0;
+  font-size:11px; color:var(--ink-3);
+  font-family:var(--serif-en); font-style:italic;
+  letter-spacing:.04em;
+}
+.msg-divider::before, .msg-divider::after{
+  content:''; flex:1; height:1px;
+  background:linear-gradient(90deg,transparent,var(--line),transparent);
+}
+
+/* =========================================================
+   Conv Input —— 底部结构化输入区
+   ========================================================= */
+.conv-input{
+  flex-shrink:0;
+  border-top:1px solid var(--line);
+  background:var(--paper);
+  padding:14px 24px 16px;
+}
+.input-inner{
+  max-width:780px;
+  margin:0 auto;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:var(--r-lg);
+  overflow:hidden;
+  transition:border-color .15s;
+}
+.input-inner:focus-within{border-color:var(--clay); box-shadow:0 0 0 3px rgba(204,120,92,.08)}
+
+.input-fields{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:0;
+}
+.input-field{
+  padding:10px 14px;
+  position:relative;
+}
+.input-field + .input-field{
+  border-left:1px solid var(--line);
+}
+.input-field label{
+  display:flex; align-items:center; gap:5px;
+  font-family:var(--serif-en); font-style:italic;
+  font-size:10.5px; color:var(--ink-3);
+  letter-spacing:.04em;
+  margin-bottom:5px;
+  text-transform:uppercase;
+}
+.input-field label .req{color:var(--clay)}
+.input-field textarea{
+  width:100%;
+  min-height:62px;
+  max-height:140px;
+  resize:none;
+  border:none;
+  font-size:13px;
+  line-height:1.6;
+  background:transparent;
+  color:var(--ink);
+  font-family:var(--sans);
+}
+.input-field textarea::placeholder{color:var(--ink-3); font-size:12.5px}
+
+.input-toolbar{
+  display:flex; align-items:center; gap:10px;
+  padding:10px 14px;
+  border-top:1px solid var(--line);
+  background:var(--ivory);
+  flex-wrap:wrap;
+}
+
+.tool-group{
+  display:flex; align-items:center; gap:6px;
+}
+.tool-group .tg-label{
+  font-size:11px; color:var(--ink-3);
+  margin-right:2px;
+}
+.channel-chip{
+  padding:4px 10px; border-radius:99px;
+  font-size:11.5px; color:var(--ink-2);
+  background:var(--paper);
+  border:1px solid var(--line);
+  cursor:pointer; transition:all .12s;
+}
+.channel-chip:hover{background:var(--bone); border-color:var(--line-2)}
+.channel-chip.active{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+
+.tool-icon-btn{
+  width:32px; height:32px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:var(--r-sm);
+  color:var(--ink-3);
+  transition:all .12s;
+  cursor:pointer;
+  background:var(--paper);
+  border:1px solid var(--line);
+}
+.tool-icon-btn:hover{background:var(--bone); color:var(--ink); border-color:var(--line-2)}
+
+.input-actions{
+  margin-left:auto;
+  display:flex; align-items:center; gap:10px;
+}
+.input-actions .credits-tip{
+  font-size:11px; color:var(--ink-3);
+  font-family:var(--mono);
+}
+.btn-generate{
+  display:flex; align-items:center; gap:8px;
+  padding:9px 18px;
+  background:var(--clay); color:#fff;
+  border-radius:var(--r-sm);
+  font-size:13px; font-weight:600;
+  cursor:pointer; transition:all .12s;
+  box-shadow:var(--sh-clay);
+}
+.btn-generate:hover{background:var(--clay-deep); transform:translateY(-1px)}
+.btn-generate .icon{font-size:13px}
+
+/* =========================================================
+   Analysis Drawer (右)
+   ========================================================= */
+.analysis-drawer{
+  background:var(--paper);
+  border-left:1px solid var(--line);
+  display:flex; flex-direction:column;
+  height:100%; overflow:hidden;
+  min-width:0;
+}
+.qa-layout:not(.drawer-open) .analysis-drawer{
+  visibility:hidden;
+}
+
+.drawer-head{
+  padding:14px 20px;
+  border-bottom:1px solid var(--line);
+  display:flex; align-items:center; justify-content:space-between;
+  flex-shrink:0;
+  background:var(--paper);
+}
+.drawer-head h4{
+  font-size:14px; font-weight:600;
+  display:flex; align-items:center; gap:8px;
+}
+.drawer-head h4 .em{
+  display:inline-block;
+  width:6px; height:6px; border-radius:50%;
+  background:var(--clay);
+}
+.drawer-head .close-btn{
+  width:30px; height:30px; border-radius:var(--r-xs);
+  display:flex; align-items:center; justify-content:center;
+  color:var(--ink-3); transition:all .12s;
+}
+.drawer-head .close-btn:hover{background:var(--bone); color:var(--ink)}
+
+.drawer-body{
+  flex:1; overflow-y:auto;
+  padding:20px;
+  display:flex; flex-direction:column;
+  gap:16px;
+}
+
+/* Analysis Card 通用 */
+.acard{
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:var(--r-lg);
+  overflow:hidden;
+  transition:all .15s;
+}
+.acard-head{
+  padding:14px 18px 10px;
+  display:flex; align-items:center; gap:10px;
+  border-bottom:1px solid var(--line);
+}
+.acard-head .acard-icon{
+  width:30px; height:30px; border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.acard-head h5{
+  font-size:14.5px; font-weight:600;
+  flex:1;
+}
+.acard-head .acard-meta{
+  font-size:10.5px; color:var(--ink-3);
+  font-family:var(--serif-en); font-style:italic;
+}
+.acard-body{
+  padding:14px 18px 18px;
+}
+
+/* Card 1: Intent */
+.acard.intent{ }
+.acard.intent .acard-icon{
+  background:var(--pine-tint); color:var(--pine);
+}
+.acard.intent .acard-head{border-bottom-color:var(--pine-soft)}
+
+.intent-row{
+  padding:10px 0;
+  border-top:1px dashed var(--line);
+  display:flex; gap:12px;
+}
+.intent-row:first-child{border-top:none; padding-top:0}
+.intent-row .key{
+  flex-shrink:0; min-width:74px;
+  font-family:var(--serif-en); font-style:italic;
+  font-size:10.5px; color:var(--ink-3);
+  letter-spacing:.04em;
+  padding-top:2px;
+  text-transform:uppercase;
+}
+.intent-row .val{
+  flex:1;
+  font-size:13px;
+  color:var(--ink);
+  line-height:1.6;
+}
+.intent-row .val .surface{
+  display:block;
+  color:var(--ink-3);
+  font-size:12.5px;
+  margin-bottom:4px;
+}
+.intent-row .val .real{
+  display:block;
+  font-family:var(--serif);
+  font-size:14px;
+  font-weight:600;
+  color:var(--pine);
+  line-height:1.45;
+}
+
+/* Emotion meter */
+.emotion-row{
+  display:flex; flex-direction:column; gap:8px;
+}
+.emotion-bar-row{
+  display:flex; align-items:center; gap:8px;
+  font-size:12px;
+}
+.emotion-bar-row .name{
+  width:46px; flex-shrink:0;
+  color:var(--ink-2);
+}
+.emotion-dots{
+  display:flex; gap:3px;
+}
+.emotion-dot{
+  width:9px; height:9px; border-radius:50%;
+  background:var(--bone);
+}
+.emotion-dot.on.high{background:var(--crimson)}
+.emotion-dot.on.mid{background:var(--sand)}
+.emotion-dot.on.low{background:var(--leaf)}
+.emotion-bar-row .val-text{
+  font-size:11px; color:var(--ink-3);
+  margin-left:auto;
+  font-family:var(--mono);
+}
+
+/* Stage indicator */
+.stage-track{
+  display:flex; align-items:center;
+  margin-top:4px;
+}
+.stage-step{
+  flex:1;
+  text-align:center;
+  position:relative;
+  padding:6px 4px;
+  font-size:10px;
+  color:var(--ink-3);
+  font-family:var(--serif-en); font-style:italic;
+  letter-spacing:.02em;
+}
+.stage-step::before{
+  content:''; position:absolute;
+  top:0; left:50%; transform:translateX(-50%);
+  width:8px; height:8px; border-radius:50%;
+  background:var(--bone);
+  border:1.5px solid var(--line);
+  z-index:2;
+}
+.stage-step:not(:last-child)::after{
+  content:''; position:absolute;
+  top:3px; left:50%; right:-50%;
+  height:2px; background:var(--line);
+}
+.stage-step.done::before{background:var(--pine); border-color:var(--pine)}
+.stage-step.done::after{background:var(--pine)}
+.stage-step.current::before{
+  background:var(--clay); border-color:var(--clay);
+  box-shadow:0 0 0 4px rgba(204,120,92,.18);
+}
+.stage-step.current{color:var(--clay-deep); font-weight:600}
+
+.intent-judgment{
+  margin-top:14px; padding:12px 14px;
+  background:var(--pine-tint);
+  border-left:3px solid var(--pine);
+  border-radius:0 var(--r-sm) var(--r-sm) 0;
+  font-size:13px; line-height:1.7;
+  color:var(--ink);
+}
+.intent-judgment .label{
+  display:block;
+  font-family:var(--serif-en); font-style:italic;
+  font-size:10.5px; color:var(--pine);
+  letter-spacing:.04em; margin-bottom:5px;
+  text-transform:uppercase;
+  font-weight:600;
+}
+.intent-judgment b{color:var(--pine); font-weight:600}
+
+/* Card 2: Response */
+.acard.response{ }
+.acard.response .acard-icon{
+  background:var(--clay-tint); color:var(--clay-deep);
+}
+.acard.response .acard-head{border-bottom-color:var(--clay-soft)}
+
+.response-tabs{
+  display:flex; gap:0;
+  background:var(--ivory);
+  border-bottom:1px solid var(--line);
+}
+.response-tab{
+  flex:1; padding:11px 8px;
+  text-align:center;
+  font-size:12px;
+  color:var(--ink-3);
+  cursor:pointer; transition:all .12s;
+  position:relative;
+  font-weight:500;
+}
+.response-tab .tab-name{display:block; margin-bottom:2px}
+.response-tab .tab-tip{
+  display:block;
+  font-size:10px;
+  color:var(--ink-3);
+  font-family:var(--serif-en); font-style:italic;
+  letter-spacing:.02em;
+}
+.response-tab:hover{color:var(--ink)}
+.response-tab.active{color:var(--clay-deep); background:var(--paper)}
+.response-tab.active::after{
+  content:''; position:absolute;
+  bottom:-1px; left:20%; right:20%;
+  height:2px; background:var(--clay);
+}
+.response-tab.active .tab-tip{color:var(--clay)}
+.response-tab.recommend::before{
+  content:'推荐';
+  position:absolute; top:-6px; right:8px;
+  background:var(--clay); color:#fff;
+  font-size:9px; padding:1px 6px; border-radius:99px;
+  font-style:normal; font-weight:600; letter-spacing:.04em;
+}
+
+.response-content{padding:16px 18px}
+.response-strategy{
+  font-size:12.5px; color:var(--ink-2);
+  line-height:1.65;
+  padding:10px 12px;
+  background:var(--clay-tint);
+  border-radius:var(--r-sm);
+  margin-bottom:14px;
+  border-left:2px solid var(--clay);
+}
+.response-strategy b{color:var(--clay-deep); font-weight:600}
+
+.response-script{
+  font-family:var(--serif);
+  font-size:14px;
+  line-height:1.85;
+  color:var(--ink);
+  padding:14px 16px;
+  background:var(--ivory);
+  border-radius:var(--r-sm);
+  border:1px dashed var(--line-2);
+  margin-bottom:14px;
+}
+.response-script p{margin:0 0 10px}
+.response-script p:last-child{margin-bottom:0}
+.response-script .cite-mark{
+  display:inline-block;
+  vertical-align:super;
+  font-size:9.5px;
+  font-family:var(--mono);
+  color:var(--clay-deep);
+  background:var(--clay-tint);
+  padding:0 4px; border-radius:3px;
+  margin:0 1px;
+  cursor:pointer;
+  font-weight:600;
+}
+.response-script .key-phrase{
+  background:linear-gradient(180deg, transparent 60%, var(--sand-soft) 60%);
+  padding:0 2px;
+}
+
+.response-cites{
+  display:flex; flex-direction:column; gap:5px;
+  padding:10px 12px;
+  background:var(--ivory);
+  border-radius:var(--r-sm);
+  border:1px dashed var(--line-2);
+  margin-bottom:14px;
+  font-size:11.5px;
+  color:var(--ink-2);
+  line-height:1.5;
+}
+.response-cites .cites-title{
+  font-family:var(--serif-en); font-style:italic;
+  font-size:10.5px; color:var(--ink-3);
+  letter-spacing:.04em;
+  margin-bottom:5px;
+  text-transform:uppercase;
+  font-weight:600;
+}
+.response-cites .cite-row{
+  display:flex; gap:8px;
+  align-items:flex-start;
+}
+.response-cites .cite-row .num{
+  flex-shrink:0;
+  font-family:var(--mono);
+  color:var(--clay-deep);
+  font-weight:600;
+}
+.response-cites .cite-row a{color:var(--ink-2); border-bottom:1px dashed transparent}
+.response-cites .cite-row a:hover{color:var(--clay-deep); border-bottom-color:var(--clay)}
+
+.response-actions{
+  display:flex; gap:6px;
+}
+.response-action-btn{
+  flex:1;
+  display:flex; align-items:center; justify-content:center; gap:5px;
+  padding:9px 8px;
+  font-size:12px;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:var(--r-sm);
+  color:var(--ink-2);
+  cursor:pointer; transition:all .12s;
+}
+.response-action-btn:hover{
+  background:var(--bone); border-color:var(--line-2);
+  color:var(--ink);
+}
+.response-action-btn.primary{
+  background:var(--ink); color:var(--paper);
+  border-color:var(--ink);
+}
+.response-action-btn.primary:hover{background:#000}
+
+/* Card 3: Next actions */
+.acard.next{ }
+.acard.next .acard-icon{
+  background:var(--sand-tint); color:#8a6a3a;
+}
+.acard.next .acard-head{border-bottom-color:var(--sand-soft)}
+
+.next-step{
+  display:flex; gap:12px;
+  padding:12px 0;
+  border-top:1px dashed var(--line);
+}
+.next-step:first-child{border-top:none; padding-top:0}
+.next-step .step-marker{
+  flex-shrink:0;
+  width:26px; height:26px;
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--serif-en); font-size:11px;
+  font-weight:600;
+  margin-top:1px;
+}
+.next-step.now .step-marker{
+  background:var(--clay); color:#fff;
+}
+.next-step.branch .step-marker{
+  background:var(--bone); color:var(--ink-2);
+  border:1px dashed var(--line-2);
+}
+.next-step .step-content{flex:1; min-width:0}
+.next-step .step-trigger{
+  font-size:12px; color:var(--ink-3);
+  margin-bottom:4px;
+  line-height:1.45;
+}
+.next-step .step-trigger b{color:var(--ink-2); font-weight:500}
+.next-step .step-trigger .quote{
+  font-family:var(--serif);
+  font-size:13px;
+  color:var(--ink-2);
+  font-style:italic;
+}
+.next-step .step-action{
+  font-size:13px; color:var(--ink);
+  line-height:1.55;
+  font-weight:500;
+}
+.next-step.now .step-action{color:var(--clay-deep)}
+.next-step .step-tag{
+  display:inline-block;
+  font-size:10px; font-weight:600;
+  padding:2px 7px; border-radius:99px;
+  margin-right:6px;
+  vertical-align:1px;
+}
+.next-step .step-tag.hot{background:var(--crimson); color:#fff}
+.next-step .step-tag.warn{background:var(--sand); color:#fff}
+.next-step .step-tag.opp{background:var(--leaf); color:#fff}
+
+/* =========================================================
+   Modal —— 新建客户
+   ========================================================= */
+.modal-bg{
+  position:fixed; inset:0;
+  background:rgba(31,31,30,.55);
+  backdrop-filter:blur(4px);
+  z-index:100; display:none;
+  align-items:center; justify-content:center; padding:24px;
+}
+.modal-bg.active{display:flex; animation:fadeIn .15s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+.modal{
+  background:var(--paper);
+  border-radius:var(--r-xl);
+  padding:32px 36px 28px;
+  max-width:480px; width:100%;
+  box-shadow:var(--sh-3);
+  animation:slideUp .2s cubic-bezier(.2,.8,.2,1);
+  position:relative;
+}
+@keyframes slideUp{from{opacity:0; transform:translateY(8px)}to{opacity:1; transform:translateY(0)}}
+.modal-close{
+  position:absolute; top:14px; right:14px;
+  width:30px; height:30px;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--ink-3); border-radius:var(--r-xs);
+  font-size:20px; line-height:1;
+  transition:all .12s;
+}
+.modal-close:hover{background:var(--bone); color:var(--ink)}
+
+.modal h3{font-size:20px; margin-bottom:6px}
+.modal-sub{
+  font-size:13px; color:var(--ink-3);
+  line-height:1.65; margin-bottom:24px;
+}
+.modal-field{margin-bottom:14px}
+.modal-field label{
+  display:flex; align-items:center; gap:5px;
+  font-family:var(--serif-en); font-style:italic;
+  font-size:11px; color:var(--ink-3);
+  letter-spacing:.04em; margin-bottom:6px;
+  text-transform:uppercase;
+}
+.modal-field label .req{color:var(--clay)}
+.modal-field input,
+.modal-field textarea{
+  width:100%;
+  padding:10px 14px;
+  background:var(--ivory);
+  border:1px solid var(--line);
+  border-radius:var(--r-sm);
+  font-size:13.5px;
+  color:var(--ink);
+  font-family:inherit;
+  resize:vertical;
+  transition:all .12s;
+}
+.modal-field input:focus,
+.modal-field textarea:focus{
+  border-color:var(--clay);
+  box-shadow:0 0 0 3px rgba(204,120,92,.12);
+}
+.modal-field textarea{min-height:80px}
+.modal-field .hint{
+  font-size:11.5px; color:var(--ink-3);
+  margin-top:5px; line-height:1.5;
+}
+.modal-actions{
+  display:flex; justify-content:flex-end; gap:10px;
+  margin-top:20px;
+}
+.modal-actions .btn-cancel{
+  padding:9px 18px;
+  background:transparent;
+  color:var(--ink-2);
+  border:1px solid var(--line);
+  border-radius:var(--r-sm);
+  font-size:13px;
+  cursor:pointer; transition:all .12s;
+}
+.modal-actions .btn-cancel:hover{background:var(--bone); border-color:var(--line-2)}
+.modal-actions .btn-create{
+  padding:9px 22px;
+  background:var(--ink); color:var(--paper);
+  border-radius:var(--r-sm);
+  font-size:13px; font-weight:500;
+  cursor:pointer; transition:all .12s;
+}
+.modal-actions .btn-create:hover{background:#000}
+
+/* =========================================================
+   响应式
+   ========================================================= */
+@media (max-width: 1280px){
+  :root{--client-list-w:220px; --drawer-w:360px}
+}
+@media (max-width: 1100px){
+  /* 抽屉打开时，对话区会被挤压到 < 400px，给一个浮层方案 */
+  .qa-layout.drawer-open .analysis-drawer{
+    position:absolute; right:0; top:0; bottom:0;
+    width:380px; z-index:5;
+    box-shadow:var(--sh-3);
+  }
+  .qa-layout.drawer-open{
+    grid-template-columns:var(--client-list-w) 1fr 0fr;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+<!-- ========= MAIN SIDEBAR ========= -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <span class="mark">
+      <svg viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="13" stroke="#1F1F1E" stroke-width="1.4"/>
+        <circle cx="14" cy="9" r="2.2" fill="#CC785C"/>
+        <circle cx="9" cy="17" r="2.2" fill="#3F5C52"/>
+        <circle cx="19" cy="17" r="2.2" fill="#1F1F1E"/>
+        <path d="M14 11.2 L9.8 15.6 M14 11.2 L18.2 15.6 M11 17.5 L17 17.5" stroke="#1F1F1E" stroke-width="1.1" stroke-linecap="round"/>
+      </svg>
+    </span>
+    <span class="name">承知<span class="en">CHENGZHI</span></span>
+  </div>
+
+  <nav class="sidebar-nav scroll-y">
+    <div class="nav-group">
+      <div class="nav-group-title">— Workflow · 主工作流</div>
+      <a class="nav-item" href="#">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L13.5 8.5 L20 10 L13.5 11.5 L12 18 L10.5 11.5 L4 10 L10.5 8.5 Z"/><circle cx="19" cy="5" r="1.2"/><circle cx="5" cy="19" r="1.2"/></svg></span>
+        <span class="label">选题广场</span>
+      </a>
+      <div class="nav-collapsible" data-collapsible>
+        <a class="nav-item" data-toggle>
+          <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/><path d="M8 13h8M8 17h5"/></svg></span>
+          <span class="label">内容创作</span>
+          <span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </a>
+        <div class="nav-sub">
+          <a class="nav-sub-item">小红书创作</a>
+          <a class="nav-sub-item">视频号创作</a>
+          <a class="nav-sub-item">公众号创作</a>
+          <a class="nav-sub-item">小红书仿写</a>
+          <a class="nav-sub-item">公众号仿写</a>
+          <a class="nav-sub-item">视频仿做</a>
+        </div>
+      </div>
+      <div class="nav-collapsible" data-collapsible>
+        <a class="nav-item" data-toggle>
+          <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>
+          <span class="label">爆款拆解</span>
+          <span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </a>
+        <div class="nav-sub">
+          <a class="nav-sub-item">拆解小红书爆款</a>
+          <a class="nav-sub-item">拆解抖音爆款</a>
+        </div>
+      </div>
+      <a class="nav-item active" href="#">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span>
+        <span class="label">答疑逼单</span>
+      </a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">— Settings · 我的设置</div>
+      <a class="nav-item" href="#" onclick="goProfile(); return false;">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><line x1="14" y1="9" x2="18" y2="9"/><line x1="14" y1="13" x2="18" y2="13"/><line x1="14" y1="17" x2="18" y2="17"/></svg></span>
+        <span class="label">个人信息</span>
+      </a>
+      <a class="nav-item" href="#">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg></span>
+        <span class="label">个人风格</span>
+      </a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">— Knowledge · 知识库</div>
+      <div class="nav-collapsible" data-collapsible>
+        <a class="nav-item" data-toggle>
+          <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
+          <span class="label">保险知识库</span>
+          <span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </a>
+        <div class="nav-sub">
+          <a class="nav-sub-item">常见 FAQ</a>
+          <a class="nav-sub-item">理赔案例库</a>
+          <a class="nav-sub-item">险种大全</a>
+          <a class="nav-sub-item">投保注意事项</a>
+          <a class="nav-sub-item">保障责任</a>
+          <a class="nav-sub-item">合规词库</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="sidebar-foot">
+    <div class="member-card">
+      <div class="label">— ANNUAL MEMBER</div>
+      <div class="days">还剩 <b>327</b> 天到期</div>
+      <span class="renew">续费 / 加购积分</span>
+    </div>
+    <div class="user-mini" onclick="goProfile()">
+      <div class="avatar">林</div>
+      <div class="info">
+        <div class="name">林老师</div>
+        <div class="role">中产家庭保障顾问</div>
+      </div>
+      <span class="more">⋯</span>
+    </div>
+  </div>
+</aside>
+
+<!-- ========= MAIN ========= -->
+<div class="main">
+
+  <header class="topbar">
+    <div class="breadcrumb">
+      <span>答疑逼单</span>
+      <span class="sep">/</span>
+      <span class="current">王女士</span>
+    </div>
+    <div class="top-actions">
+      <div class="credits-chip">
+        <span class="star">✦</span>
+        <span class="num">6,847</span>
+        <span class="total">/ 8,000 积分</span>
+        <div class="credits-bar"></div>
+      </div>
+      <button class="icon-btn" aria-label="通知">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="badge"></span>
+      </button>
+      <button class="avatar-btn" aria-label="个人信息" onclick="goProfile()">林</button>
+    </div>
+  </header>
+
+  <!-- ===== QA Layout ===== -->
+  <div class="qa-layout drawer-open" id="qaLayout">
+
+    <!-- ----- 客户列表 (左) ----- -->
+    <aside class="client-list">
+      <div class="cl-head">
+        <div class="cl-title">
+          <h4>客户对话</h4>
+          <span class="count">3</span>
+        </div>
+        <button class="btn-newclient" onclick="openNewClient()">
+          <span class="plus">+</span>
+          <span>新建客户对话</span>
+        </button>
+        <div class="cl-search">
+          <span class="si"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>
+          <input type="text" placeholder="搜索客户" />
+        </div>
+      </div>
+      <div class="clients scroll-y">
+
+        <div class="client-item active" onclick="selectClient(this)">
+          <div class="avatar c1">王</div>
+          <div class="info">
+            <div class="name">王女士</div>
+            <div class="desc">32 岁宝妈·中产</div>
+            <div class="time">2 分钟前</div>
+          </div>
+        </div>
+
+        <div class="client-item" onclick="selectClient(this)">
+          <div class="avatar c2">陈</div>
+          <div class="info">
+            <div class="name">陈先生</div>
+            <div class="desc">38 岁中产·企业主管</div>
+            <div class="time">昨天 15:42</div>
+          </div>
+        </div>
+
+        <div class="client-item" onclick="selectClient(this)">
+          <div class="avatar c3">李</div>
+          <div class="info">
+            <div class="name">李先生</div>
+            <div class="desc">52 岁高净值·企业主</div>
+            <div class="time">3 天前</div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- ----- 对话区 (中) ----- -->
+    <main class="conversation">
+
+      <!-- 客户档案头 -->
+      <div class="conv-head">
+        <div class="avatar">王</div>
+        <div class="info">
+          <h3>王女士</h3>
+          <div class="desc">
+            <b>32 岁</b> · 宝妈（二胎）· 互联网行业 · 年收入约 <b>80 万</b> · 已购百万医疗险（产品待确认）
+          </div>
+        </div>
+        <div class="head-actions">
+          <button class="head-action-btn" title="查看完整档案">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span>客户档案</span>
+          </button>
+          <button class="head-action-btn" title="清空对话">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 对话流 -->
+      <div class="conv-body scroll-y">
+        <div class="conv-inner">
+
+          <div class="msg-divider">— Today · 5 月 4 日 —</div>
+
+          <!-- 经纪人提问 -->
+          <div class="msg-user">
+            <div class="msg-user-bubble">
+              <div class="channel-badge">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+                抖音私信
+              </div>
+
+              <div class="field">
+                <div class="field-label">— 客户基本情况</div>
+                <div class="field-text">王女士，<strong>32 岁</strong>，宝妈，二胎，互联网行业，年收入约 80 万，去年买过百万医疗险（具体产品记不清）。</div>
+              </div>
+
+              <div class="field">
+                <div class="field-label">— 客户的问题</div>
+                <div class="field-text"><strong>"百万医疗险等待期是 30 天还是 90 天啊？我之前买的不太懂"</strong></div>
+              </div>
+
+              <div class="img-attach">
+                <div class="img-thumb">📷</div>
+                <span>客户发来的保单截图.jpg · 已交给 AI 识别</span>
+              </div>
+            </div>
+            <div class="msg-user-time">14:23</div>
+          </div>
+
+          <!-- AI 回复 -->
+          <div class="msg-ai">
+            <div class="msg-ai-avatar">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 L13.5 8.5 L20 10 L13.5 11.5 L12 18 L10.5 11.5 L4 10 L10.5 8.5 Z"/></svg>
+            </div>
+            <div class="msg-ai-content">
+              <div class="msg-ai-bubble">
+                <div class="ai-tag">
+                  <span class="leaf-icon">✓</span>
+                  <span>分析完成 · 已生成应对方案</span>
+                </div>
+                <div class="ai-summary">
+                  这是一个<b>已购客户的反悔信号</b>——表面问等待期，实际是对当初购买决策的不放心。建议先稳定情绪，再给事实数据，避免直接推续保。
+                </div>
+                <div class="msg-ai-actions">
+                  <button class="btn-view-analysis active" onclick="toggleDrawer(this)">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                    <span>查看完整分析</span>
+                    <span class="arr">→</span>
+                  </button>
+                  <div class="meta">
+                    <span class="credits-used">-3 积分</span>
+                  </div>
+                </div>
+              </div>
+              <div class="msg-ai-time">14:23</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 底部输入区 -->
+      <div class="conv-input">
+        <div class="input-inner">
+          <div class="input-fields">
+            <div class="input-field">
+              <label>— 客户基本情况 <span class="req">*</span></label>
+              <textarea placeholder="如：32 岁宝妈、二胎、互联网行业、年收入 80 万、已购百万医疗险…"></textarea>
+            </div>
+            <div class="input-field">
+              <label>— 客户的问题 <span class="req">*</span></label>
+              <textarea placeholder="直接粘贴客户的原话最好"></textarea>
+            </div>
+          </div>
+          <div class="input-toolbar">
+            <div class="tool-group">
+              <span class="tg-label">渠道：</span>
+              <span class="channel-chip active">抖音私信</span>
+              <span class="channel-chip">小红书评论</span>
+              <span class="channel-chip">微信</span>
+              <span class="channel-chip">视频号</span>
+              <span class="channel-chip">公众号</span>
+              <span class="channel-chip">线下</span>
+            </div>
+            <button class="tool-icon-btn" title="上传图片（保单/聊天截图）">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </button>
+            <div class="input-actions">
+              <span class="credits-tip">本次约消耗 <b style="color:var(--ink); font-weight:600">3</b> 积分</span>
+              <button class="btn-generate">
+                <span>生成应对</span>
+                <span class="icon">→</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- ----- 分析抽屉 (右) ----- -->
+    <aside class="analysis-drawer">
+      <div class="drawer-head">
+        <h4>
+          <span class="em"></span>
+          <span>当前应对方案分析</span>
+        </h4>
+        <button class="close-btn" onclick="closeDrawer()" aria-label="关闭">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="drawer-body scroll-y">
+
+        <!-- ============= 卡片 ① 意图分析 ============= -->
+        <div class="acard intent">
+          <div class="acard-head">
+            <div class="acard-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
+            </div>
+            <h5>客户意图分析</h5>
+            <span class="acard-meta">— Intent</span>
+          </div>
+          <div class="acard-body">
+
+            <div class="intent-row">
+              <div class="key">— 意图判断</div>
+              <div class="val">
+                <span class="surface">表面问题：百万医疗险等待期</span>
+                <span class="real">真实意图：在已购保单上反悔，担心被坑</span>
+              </div>
+            </div>
+
+            <div class="intent-row">
+              <div class="key">— 情绪状态</div>
+              <div class="val">
+                <div class="emotion-row">
+                  <div class="emotion-bar-row">
+                    <span class="name">焦虑度</span>
+                    <div class="emotion-dots">
+                      <span class="emotion-dot on high"></span>
+                      <span class="emotion-dot on high"></span>
+                      <span class="emotion-dot on high"></span>
+                      <span class="emotion-dot on mid"></span>
+                      <span class="emotion-dot"></span>
+                    </div>
+                    <span class="val-text">4 / 5</span>
+                  </div>
+                  <div class="emotion-bar-row">
+                    <span class="name">信任度</span>
+                    <div class="emotion-dots">
+                      <span class="emotion-dot on low"></span>
+                      <span class="emotion-dot on mid"></span>
+                      <span class="emotion-dot"></span>
+                      <span class="emotion-dot"></span>
+                      <span class="emotion-dot"></span>
+                    </div>
+                    <span class="val-text">2 / 5</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="intent-row">
+              <div class="key">— 购买阶段</div>
+              <div class="val">
+                <div class="stage-track">
+                  <div class="stage-step done">了解</div>
+                  <div class="stage-step done">比较</div>
+                  <div class="stage-step done">购买</div>
+                  <div class="stage-step current">反悔</div>
+                  <div class="stage-step">续保</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="intent-judgment">
+              <span class="label">— Key insight · 关键判断</span>
+              这不是"想买"的客户，是<b>"已买后悔"</b>的客户。应对重点：先稳定情绪、消解被骗感，再说事实数据，<b>最后才提续保或加保</b>，强推会反弹。
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ============= 卡片 ② 应对方案 ============= -->
+        <div class="acard response">
+          <div class="acard-head">
+            <div class="acard-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <h5>应对方案</h5>
+            <span class="acard-meta">— Response</span>
+          </div>
+
+          <div class="response-tabs">
+            <div class="response-tab active recommend" onclick="switchTab(this, 0)">
+              <span class="tab-name">稳妥版</span>
+              <span class="tab-tip">先建立信任</span>
+            </div>
+            <div class="response-tab" onclick="switchTab(this, 1)">
+              <span class="tab-name">深度版</span>
+              <span class="tab-tip">展示专业</span>
+            </div>
+            <div class="response-tab" onclick="switchTab(this, 2)">
+              <span class="tab-name">促单版</span>
+              <span class="tab-tip">引导成交</span>
+            </div>
+          </div>
+
+          <div class="response-content">
+            <div class="response-strategy">
+              <b>策略：</b>这位客户处于"已购反悔"阶段，焦虑高、信任低。先<b>承认她问得好</b>建立信任，再用事实数据给安心，<b>不主动提换/加保</b>。
+            </div>
+
+            <div class="response-script">
+              <p>"您这个问题问得特别好，等待期确实是大家容易忽略的环节<span class="cite-mark">[1]</span>。</p>
+              <p>大多数百万医疗险一般疾病等待期是 <span class="key-phrase">30 天</span>，但重大疾病会延长到 <span class="key-phrase">90-180 天</span><span class="cite-mark">[2]</span>。每家产品略有差异——比如某些产品对住院类等待期是 30 天，但对器官移植、特定恶性肿瘤会单独标注更长时间。</p>
+              <p>您方便发我一下您当初买的那款产品具体名称吗？我帮您看看条款里写的是多少<span class="cite-mark">[3]</span>。"</p>
+            </div>
+
+            <div class="response-cites">
+              <div class="cites-title">— Citations · 引用来源</div>
+              <div class="cite-row">
+                <span class="num">[1]</span>
+                <a>FAQ #047 · 等待期高频问题</a>
+              </div>
+              <div class="cite-row">
+                <span class="num">[2]</span>
+                <a>条款解读 §4.2 · 通用等待期约定</a>
+              </div>
+              <div class="cite-row">
+                <span class="num">[3]</span>
+                <a>理赔案例 #C-0091 · 等待期争议</a>
+              </div>
+            </div>
+
+            <div class="response-actions">
+              <button class="response-action-btn primary">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <span>复制话术</span>
+              </button>
+              <button class="response-action-btn">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                <span>存到话术库</span>
+              </button>
+              <button class="response-action-btn">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+                <span>让 AI 微调</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============= 卡片 ③ 后续动作预案 ============= -->
+        <div class="acard next">
+          <div class="acard-head">
+            <div class="acard-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="14 7 21 7 21 14"/></svg>
+            </div>
+            <h5>接下来该怎么走</h5>
+            <span class="acard-meta">— Next steps</span>
+          </div>
+          <div class="acard-body">
+
+            <div class="next-step now">
+              <div class="step-marker">现</div>
+              <div class="step-content">
+                <div class="step-trigger"><b>第一步</b></div>
+                <div class="step-action">先发上面的稳妥版话术，建立信任</div>
+              </div>
+            </div>
+
+            <div class="next-step branch">
+              <div class="step-marker">A</div>
+              <div class="step-content">
+                <div class="step-trigger">如果客户回 <span class="quote">"好的，我发产品名给你"</span></div>
+                <div class="step-action">
+                  <span class="step-tag opp">机会</span>
+                  进入产品分析阶段，准备对比表
+                </div>
+              </div>
+            </div>
+
+            <div class="next-step branch">
+              <div class="step-marker">B</div>
+              <div class="step-content">
+                <div class="step-trigger">如果客户回 <span class="quote">"那算了我不买了"</span></div>
+                <div class="step-action">
+                  <span class="step-tag warn">挽回</span>
+                  触发挽回话术（不要否定她的决定）
+                </div>
+              </div>
+            </div>
+
+            <div class="next-step branch">
+              <div class="step-marker">C</div>
+              <div class="step-content">
+                <div class="step-trigger">如果客户回 <span class="quote">"你能帮我看看怎么换吗？"</span></div>
+                <div class="step-action">
+                  <span class="step-tag hot">高意向</span>
+                  立即邀约视频沟通，避免在文字里展开
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+  </div>
+</div>
+</div><!-- /app -->
+
+
+<!-- ========= 新建客户 Modal ========= -->
+<div class="modal-bg" id="newClientModal" onclick="if(event.target===this)closeNewClient()">
+  <div class="modal" role="dialog" aria-modal="true">
+    <button class="modal-close" onclick="closeNewClient()" aria-label="关闭">×</button>
+    <h3>新建客户对话</h3>
+    <p class="modal-sub">先建一个客户档案，AI 会在后续对话中持续记住这位客户的上下文。详细资料可以在每次提问时补充，不用一次填完。</p>
+
+    <div class="modal-field">
+      <label>— 客户称呼 <span class="req">*</span></label>
+      <input type="text" placeholder="如：王女士、李工程师、张总" autocomplete="off" />
+      <div class="hint">用于在对话中识别，可以用化名</div>
+    </div>
+
+    <div class="modal-field">
+      <label>— 基本画像 <span class="req">*</span></label>
+      <textarea placeholder="如：32 岁宝妈、二胎、互联网行业、年收入 80 万、已购百万医疗险…"></textarea>
+      <div class="hint">用一两句话描述这位客户最关键的特征 · 越具体 AI 给出的应对方案越精准</div>
+    </div>
+
+    <div class="modal-field">
+      <label>— 备注（选填）</label>
+      <textarea placeholder="如：从抖音私信来的、对家庭保障关注度高、首次咨询…" style="min-height:60px"></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeNewClient()">取消</button>
+      <button class="btn-create" onclick="createNewClient()">创建对话</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+/* =========================================================
+   抽屉开关
+   ========================================================= */
+const qaLayout = document.getElementById('qaLayout');
+function toggleDrawer(btn){
+  const isOpen = qaLayout.classList.contains('drawer-open');
+  if(isOpen){
+    qaLayout.classList.remove('drawer-open');
+    btn.classList.remove('active');
+  } else {
+    qaLayout.classList.add('drawer-open');
+    btn.classList.add('active');
+  }
+}
+function closeDrawer(){
+  qaLayout.classList.remove('drawer-open');
+  document.querySelectorAll('.btn-view-analysis').forEach(b => b.classList.remove('active'));
+}
+
+/* =========================================================
+   客户列表选择
+   ========================================================= */
+function selectClient(item){
+  document.querySelectorAll('.client-item').forEach(i => i.classList.remove('active'));
+  item.classList.add('active');
+  // 演示中只切换 active 态；实际产品会切换右侧对话历史和分析卡片
+}
+
+/* =========================================================
+   应对方案 Tab 切换
+   ========================================================= */
+function switchTab(tab, idx){
+  const tabs = tab.parentElement.querySelectorAll('.response-tab');
+  tabs.forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  // 演示中不切换内容，只切换激活态。实际产品会换 .response-content
+}
+
+/* =========================================================
+   新建客户 Modal
+   ========================================================= */
+const newClientModal = document.getElementById('newClientModal');
+function openNewClient(){
+  newClientModal.classList.add('active');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => {
+    const firstInput = newClientModal.querySelector('input');
+    if(firstInput) firstInput.focus();
+  }, 50);
+}
+function closeNewClient(){
+  newClientModal.classList.remove('active');
+  document.body.style.overflow = '';
+}
+function createNewClient(){
+  // 演示：实际会调后端创建客户档案
+  alert('[演示] 客户档案已创建。实际环境下，左栏会插入新客户项并自动选中。');
+  closeNewClient();
+}
+
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape'){
+    if(newClientModal.classList.contains('active')) closeNewClient();
+  }
+});
+
+/* =========================================================
+   主侧栏折叠
+   ========================================================= */
+document.querySelectorAll('[data-collapsible] [data-toggle]').forEach(toggle => {
+  toggle.addEventListener('click', e => {
+    e.preventDefault();
+    toggle.closest('[data-collapsible]').classList.toggle('open');
+  });
+});
+
+/* =========================================================
+   渠道 chip 切换
+   ========================================================= */
+document.querySelectorAll('.channel-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    chip.parentElement.querySelectorAll('.channel-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+  });
+});
+
+/* =========================================================
+   个人信息（沿用 saas-topics 的逻辑）
+   ========================================================= */
+function goProfile(){
+  alert('即将跳转：/app/profile\n\n[演示提示] 进入个人信息页：账户基本资料 / 头像 / 密码 / 绑定的社媒账号 / 通知偏好');
+}
+</script>
+</body>
+</html>

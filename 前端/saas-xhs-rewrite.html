@@ -1,0 +1,1344 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>承知 · 小红书仿写</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700;900&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --clay:#CC785C; --clay-deep:#A85A40; --clay-soft:#E9B79E; --clay-tint:#F5E2D5;
+  --pine:#3F5C52; --pine-soft:#C9D4CD; --pine-tint:#E1E8E4;
+  --sand:#C49B5C; --sand-soft:#ECDCBF; --sand-tint:#F4ECD9;
+  --paper:#FAF9F5; --ivory:#F5F1EB; --bone:#EFEAE0;
+  --line:#E4DDCE; --line-2:#D9D0BE;
+  --ink-3:#6B6862; --ink-2:#3A3935; --ink:#1F1F1E;
+  --leaf:#5C8A5C; --crimson:#B85450;
+  --serif:'Noto Serif SC','Source Han Serif SC','Songti SC',ui-serif,Georgia,serif;
+  --serif-en:'Fraunces','Noto Serif SC',ui-serif,Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sh-1:0 1px 2px rgba(31,31,30,.04),0 2px 6px rgba(31,31,30,.04);
+  --sh-2:0 4px 12px rgba(31,31,30,.06),0 8px 24px rgba(31,31,30,.05);
+  --sh-3:0 12px 32px rgba(31,31,30,.10),0 24px 60px rgba(31,31,30,.08);
+  --sh-clay:0 6px 18px rgba(204,120,92,.30);
+  --r-xs:4px; --r-sm:6px; --r-md:10px; --r-lg:16px; --r-xl:24px;
+  --sidebar-w:248px; --topbar-h:56px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+html{font-size:16px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{background:var(--ivory); color:var(--ink); font-family:var(--sans);
+  font-size:14px; line-height:1.6; font-feature-settings:"palt"; overflow:hidden}
+::selection{background:var(--clay-tint); color:var(--clay-deep)}
+a{color:inherit; text-decoration:none}
+img,svg{display:block; max-width:100%}
+button{font-family:inherit; cursor:pointer; border:none; background:transparent; color:inherit}
+input,textarea,select{font-family:inherit; color:inherit; outline:none}
+h1,h2,h3,h4,h5{font-family:var(--serif); font-weight:600; letter-spacing:-.01em; color:var(--ink); line-height:1.25; margin:0}
+
+.app{display:grid; grid-template-columns:var(--sidebar-w) 1fr; height:100vh}
+
+/* Sidebar */
+.sidebar{background:var(--paper); border-right:1px solid var(--line);
+  display:flex; flex-direction:column; height:100vh; overflow:hidden}
+.sidebar-brand{height:var(--topbar-h); display:flex; align-items:center; gap:10px; padding:0 20px;
+  border-bottom:1px solid var(--line); flex-shrink:0}
+.sidebar-brand .mark{width:26px; height:26px; flex-shrink:0}
+.sidebar-brand .name{font-family:var(--serif); font-weight:700; font-size:17px; color:var(--ink)}
+.sidebar-brand .name .en{color:var(--ink-3); font-weight:500; font-family:var(--sans);
+  font-size:11px; margin-left:4px; letter-spacing:.08em}
+.sidebar-nav{flex:1; overflow-y:auto; padding:20px 12px 12px}
+.sidebar-nav::-webkit-scrollbar{width:6px}
+.sidebar-nav::-webkit-scrollbar-thumb{background:var(--line); border-radius:3px}
+.nav-group{margin-bottom:18px}
+.nav-group-title{font-family:var(--serif-en); font-style:italic;
+  font-size:11px; color:var(--ink-3); letter-spacing:.08em; text-transform:uppercase;
+  padding:0 12px; margin-bottom:6px}
+.nav-item{display:flex; align-items:center; gap:10px; padding:8px 12px; margin-bottom:1px;
+  border-radius:var(--r-sm); font-size:13.5px; color:var(--ink-2);
+  cursor:pointer; transition:all .12s; position:relative}
+.nav-item:hover{background:var(--bone); color:var(--ink)}
+.nav-item .icon{width:18px; height:18px; flex-shrink:0; display:flex;
+  align-items:center; justify-content:center; color:var(--ink-3)}
+.nav-item .label{flex:1; line-height:1.2}
+.nav-item .chevron{width:14px; height:14px; flex-shrink:0; color:var(--ink-3); transition:transform .15s}
+.nav-collapsible.open .chevron{transform:rotate(90deg)}
+.nav-sub{max-height:0; overflow:hidden; transition:max-height .25s ease}
+.nav-collapsible.open > .nav-sub{max-height:600px}
+.nav-sub-item{display:block; padding:7px 12px 7px 40px; font-size:13px; color:var(--ink-3);
+  border-radius:var(--r-sm); cursor:pointer; transition:all .12s; position:relative}
+.nav-sub-item::before{content:''; position:absolute; left:26px; top:50%;
+  width:4px; height:4px; border-radius:50%; background:var(--line-2); transform:translateY(-50%)}
+.nav-sub-item:hover{color:var(--ink); background:var(--bone)}
+.nav-sub-item:hover::before{background:var(--ink-3)}
+.nav-sub-item.active{background:var(--clay-tint); color:var(--clay-deep); font-weight:500}
+.nav-sub-item.active::before{background:var(--clay)}
+.nav-collapsible.nested{margin:1px 0}
+.nav-sub-item.with-chevron{display:flex; align-items:center; justify-content:space-between; padding:7px 12px 7px 40px}
+.nav-sub-item.with-chevron::before{content:''; position:absolute; left:26px; top:50%;
+  width:4px; height:4px; border-radius:50%; background:var(--line-2); transform:translateY(-50%)}
+.nav-sub-item.with-chevron .chevron{color:var(--ink-3); transition:transform .15s; flex-shrink:0}
+.nav-collapsible.nested.open .nav-sub-item.with-chevron .chevron{transform:rotate(90deg)}
+.nav-sub-2{max-height:0; overflow:hidden; transition:max-height .25s ease}
+.nav-collapsible.nested.open .nav-sub-2{max-height:200px}
+.nav-sub-item-2{display:block; padding:6px 12px 6px 56px;
+  font-size:12.5px; color:var(--ink-3); border-radius:var(--r-sm);
+  cursor:pointer; transition:all .12s; position:relative; margin-bottom:1px}
+.nav-sub-item-2::before{content:''; position:absolute; left:42px; top:50%;
+  width:3px; height:3px; border-radius:50%; background:var(--line-2); transform:translateY(-50%)}
+.nav-sub-item-2:hover{color:var(--ink-2); background:var(--bone)}
+.nav-sub-item-2.active{background:var(--clay-tint); color:var(--clay-deep); font-weight:500}
+.nav-sub-item-2.active::before{background:var(--clay)}
+
+.sidebar-foot{padding:14px 12px; flex-shrink:0; border-top:1px solid var(--line);
+  display:flex; flex-direction:column; gap:10px}
+.member-card{padding:12px 14px; background:linear-gradient(135deg, var(--clay-tint), var(--sand-soft));
+  border-radius:var(--r-md)}
+.member-card .label{font-family:var(--serif-en); font-style:italic;
+  font-size:10.5px; color:var(--clay-deep); letter-spacing:.04em; margin-bottom:4px}
+.member-card .days{font-family:var(--serif); font-size:14px; font-weight:600; color:var(--ink); margin-bottom:6px}
+.member-card .days b{font-family:var(--serif-en); font-weight:600; font-size:18px; color:var(--clay-deep); margin:0 2px}
+.member-card .renew{display:inline-block; font-size:11.5px; color:var(--clay-deep);
+  font-weight:600; padding:2px 0; border-bottom:1px solid var(--clay); cursor:pointer}
+.user-mini{display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:var(--r-sm);
+  cursor:pointer; transition:background .12s}
+.user-mini:hover{background:var(--bone)}
+.user-mini .avatar{width:32px; height:32px; border-radius:50%;
+  background:linear-gradient(135deg,var(--clay),var(--sand));
+  color:#fff; font-family:var(--serif); font-weight:700;
+  font-size:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0}
+.user-mini .info{flex:1; min-width:0}
+.user-mini .info .name{font-size:13px; color:var(--ink); font-weight:600}
+.user-mini .info .role{font-size:11px; color:var(--ink-3)}
+.user-mini .more{color:var(--ink-3); font-size:14px}
+
+/* Main */
+.main{display:flex; flex-direction:column; height:100vh; overflow:hidden; background:var(--ivory)}
+.topbar{height:var(--topbar-h); display:flex; align-items:center; padding:0 24px;
+  border-bottom:1px solid var(--line); background:rgba(245,241,235,.85);
+  backdrop-filter:saturate(150%) blur(12px); flex-shrink:0; gap:16px}
+.breadcrumb{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-3)}
+.breadcrumb .sep{color:var(--line-2)}
+.breadcrumb .current{color:var(--ink); font-weight:500}
+.top-actions{margin-left:auto; display:flex; align-items:center; gap:8px}
+.credits-chip{display:flex; align-items:center; gap:8px; padding:6px 12px; background:var(--paper);
+  border:1px solid var(--line); border-radius:999px;
+  font-size:12.5px; cursor:pointer; transition:all .15s; position:relative}
+.credits-chip:hover{border-color:var(--line-2); background:var(--bone)}
+.credits-chip .star{color:var(--sand); font-size:13px}
+.credits-chip .num{font-family:var(--serif-en); font-weight:600; color:var(--ink); font-size:13px}
+.credits-chip .total{color:var(--ink-3); font-size:11.5px}
+.credits-chip .credits-bar{position:absolute; left:8px; right:8px; bottom:2px;
+  height:2px; background:var(--bone); border-radius:1px; overflow:hidden}
+.credits-chip .credits-bar::after{content:''; display:block; height:100%; width:85%;
+  background:linear-gradient(90deg, var(--clay), var(--sand))}
+.icon-btn{width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+  border-radius:var(--r-sm); color:var(--ink-2); transition:all .12s; position:relative}
+.icon-btn:hover{background:var(--bone); color:var(--ink)}
+.icon-btn .badge{position:absolute; top:6px; right:6px;
+  width:6px; height:6px; border-radius:50%; background:var(--crimson); box-shadow:0 0 0 2px var(--ivory)}
+.avatar-btn{width:36px; height:36px; border-radius:50%;
+  background:linear-gradient(135deg,var(--clay),var(--sand));
+  color:#fff; font-family:var(--serif); font-weight:700;
+  font-size:14px; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:transform .12s; border:2px solid transparent}
+
+/* Page Header */
+.page-head{flex-shrink:0; background:var(--paper); border-bottom:1px solid var(--line); padding:18px 32px 22px}
+.page-title-row{display:flex; align-items:center; justify-content:space-between; margin-bottom:18px}
+.page-title{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.page-title .platform-tag{
+  background:#FF2442; color:#fff;
+  padding:3px 10px; border-radius:99px;
+  font-size:11px; font-weight:600; letter-spacing:.04em;
+}
+.page-title h2{font-size:18px}
+.btn-draft{display:flex; align-items:center; gap:6px; padding:7px 14px;
+  font-size:12.5px; color:var(--ink-2); background:var(--paper);
+  border:1px solid var(--line); border-radius:var(--r-sm); cursor:pointer; transition:all .12s}
+.btn-draft:hover{background:var(--bone); border-color:var(--line-2); color:var(--ink)}
+
+/* 2-step progress */
+.steps{display:flex; align-items:center; max-width:480px; margin:0 auto}
+.step{flex:1; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px;
+  position:relative; padding:0 8px}
+.step .dot{width:32px; height:32px; border-radius:50%; background:var(--bone);
+  color:var(--ink-3); display:flex; align-items:center; justify-content:center;
+  font-family:var(--serif-en); font-weight:600; font-size:14px;
+  border:2px solid var(--bone); transition:all .2s; position:relative; z-index:2}
+.step .label{font-size:13px; color:var(--ink-3); font-weight:500; white-space:nowrap}
+.step.done .dot{background:var(--leaf); border-color:var(--leaf); color:#fff}
+.step.done .label{color:var(--ink-2)}
+.step.active .dot{background:var(--clay); border-color:var(--clay); color:#fff;
+  box-shadow:0 0 0 4px rgba(204,120,92,.18)}
+.step.active .label{color:var(--clay-deep); font-weight:600}
+.step:not(:last-child)::after{content:''; position:absolute;
+  left:calc(50% + 16px); right:calc(-50% + 16px);
+  top:16px; height:2px; background:var(--bone); z-index:1}
+.step.done:not(:last-child)::after{background:var(--leaf)}
+
+.content{flex:1; overflow-y:auto; padding:24px 24px 100px}
+.content-inner{max-width:1080px; margin:0 auto}
+.step-pane{display:none}
+.step-pane.active{display:block}
+
+.section-card{background:var(--paper); border:1px solid var(--line);
+  border-radius:var(--r-lg); margin-bottom:16px; overflow:hidden}
+.sc-head{padding:16px 22px; display:flex; align-items:center; justify-content:space-between;
+  border-bottom:1px solid var(--line); flex-wrap:wrap; gap:10px}
+.sc-head h3{font-size:15px; display:flex; align-items:center; gap:8px}
+.sc-head h3 .num-tag{
+  font-family:var(--serif-en); font-weight:600;
+  background:var(--clay); color:#fff;
+  width:22px; height:22px; border-radius:50%;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-size:11px;
+}
+.sc-head .desc{font-size:12px; color:var(--ink-3)}
+.sc-body{padding:20px 22px}
+
+/* Form */
+.form-row{display:grid; grid-template-columns:140px 1fr; gap:24px;
+  padding:18px 0; border-bottom:1px dashed var(--line); align-items:flex-start}
+.form-row:first-child{padding-top:0}
+.form-row:last-child{border-bottom:none; padding-bottom:0}
+.form-row .label{font-size:13px; color:var(--ink-2); font-weight:500; padding-top:8px;
+  display:flex; align-items:center; gap:5px}
+.form-row .label .req{color:var(--clay)}
+
+.text-field{width:100%; padding:10px 14px; background:var(--ivory);
+  border:1px solid var(--line); border-radius:var(--r-sm);
+  font-size:13.5px; color:var(--ink); transition:all .12s}
+.text-field:focus{border-color:var(--clay); background:var(--paper);
+  box-shadow:0 0 0 3px rgba(204,120,92,.12)}
+textarea.text-field{min-height:80px; resize:vertical; font-family:inherit; line-height:1.65}
+
+/* 链接抓取行 */
+.link-row{display:flex; gap:8px}
+.link-row .text-field{flex:1}
+.btn-fetch{
+  flex-shrink:0;
+  padding:10px 18px;
+  background:var(--ink); color:var(--paper);
+  border-radius:var(--r-sm);
+  font-size:13px; font-weight:500;
+  cursor:pointer; transition:all .12s;
+  display:flex; align-items:center; gap:6px;
+}
+.btn-fetch:hover{background:#000}
+.btn-fetch.success{background:var(--leaf)}
+.btn-fetch.success:hover{background:#4A7A4A}
+
+.fetch-status{
+  margin-top:10px;
+  padding:10px 14px;
+  background:#EFF5EF;
+  border:1px solid #C4DEC4;
+  border-radius:var(--r-sm);
+  font-size:12px;
+  color:var(--leaf);
+  display:flex; align-items:center; gap:8px;
+}
+.fetch-status .check-circle{
+  width:16px; height:16px; border-radius:50%;
+  background:var(--leaf); color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  font-size:10px; font-weight:700;
+  flex-shrink:0;
+}
+
+/* 原文预览 */
+.source-preview{
+  background:var(--ivory);
+  border:1px solid var(--line);
+  border-radius:var(--r-md);
+  margin-top:14px;
+  padding:18px 20px;
+}
+.source-preview-head{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:14px;
+  padding-bottom:10px;
+  border-bottom:1px dashed var(--line-2);
+}
+.source-preview-head .label{
+  font-family:var(--serif-en); font-style:italic;
+  font-size:11px; color:var(--ink-3);
+  letter-spacing:.06em; text-transform:uppercase;
+}
+.source-preview-head .author{
+  font-size:11.5px; color:var(--ink-3);
+  display:flex; align-items:center; gap:6px;
+}
+.source-preview-head .author .av{
+  width:18px; height:18px; border-radius:50%;
+  background:linear-gradient(135deg, #FF2442, #FF8B6B);
+  display:flex; align-items:center; justify-content:center;
+  color:#fff; font-size:10px; font-weight:700;
+}
+.source-preview-head .stats{
+  font-size:11.5px; color:var(--ink-3);
+  font-family:var(--mono);
+}
+.source-preview-head .stats span + span{margin-left:8px}
+.source-preview-head .stats b{color:var(--clay-deep); font-weight:600}
+
+.source-cover-row{
+  display:flex; gap:12px;
+  margin-bottom:16px;
+}
+.source-cover{
+  flex-shrink:0;
+  width:140px;
+  aspect-ratio: 3/4;
+  border-radius:var(--r-sm);
+  overflow:hidden;
+  background:var(--bone);
+  position:relative;
+}
+.source-cover svg{width:100%; height:100%}
+.source-cover .cover-tag{
+  position:absolute; top:6px; left:6px;
+  background:#FF2442; color:#fff;
+  font-size:9.5px; font-weight:700;
+  padding:2px 7px; border-radius:99px;
+  letter-spacing:.04em;
+}
+.source-title-block{flex:1; min-width:0}
+.source-title{
+  font-family:var(--serif);
+  font-size:17px; font-weight:700;
+  color:var(--ink); line-height:1.4;
+  margin-bottom:8px;
+}
+.source-tags{
+  display:flex; flex-wrap:wrap; gap:5px;
+  margin-bottom:12px;
+}
+.source-tag{
+  font-size:11px; color:#FF2442;
+  padding:2px 8px;
+  background:rgba(255,36,66,.08);
+  border-radius:99px;
+  font-weight:500;
+}
+.source-body{
+  font-family:var(--serif);
+  font-size:13.5px; line-height:1.85;
+  color:var(--ink-2);
+  padding:14px 16px;
+  background:var(--paper);
+  border-radius:var(--r-sm);
+  border-left:3px solid var(--line-2);
+}
+.source-body p{margin:0 0 8px}
+.source-body p:last-child{margin-bottom:0}
+
+.source-images{
+  margin-top:14px;
+  display:grid;
+  grid-template-columns:repeat(5, 1fr);
+  gap:8px;
+}
+.source-img-thumb{
+  aspect-ratio:3/4;
+  border-radius:var(--r-xs);
+  overflow:hidden;
+  background:var(--bone);
+}
+.source-img-thumb svg{width:100%; height:100%}
+
+/* Toggle */
+.toggle-row{display:flex; align-items:center; gap:14px}
+.toggle{
+  width:42px; height:24px;
+  background:var(--bone);
+  border-radius:99px;
+  position:relative;
+  cursor:pointer;
+  transition:background .15s;
+  flex-shrink:0;
+}
+.toggle::after{
+  content:''; position:absolute;
+  top:3px; left:3px;
+  width:18px; height:18px; border-radius:50%;
+  background:var(--paper);
+  transition:left .15s;
+  box-shadow:0 1px 3px rgba(31,31,30,.2);
+}
+.toggle.on{background:var(--clay)}
+.toggle.on::after{left:21px}
+.toggle-row .toggle-label{
+  font-size:13px; color:var(--ink); font-weight:500;
+}
+.toggle-row .toggle-meta{
+  font-size:11.5px; color:var(--ink-3);
+  margin-top:2px;
+}
+
+.chip-group{display:flex; flex-wrap:wrap; gap:7px}
+.chip{padding:6px 13px; background:var(--ivory);
+  border:1px solid var(--line); border-radius:99px;
+  font-size:12.5px; color:var(--ink-2); cursor:pointer; transition:all .12s; user-select:none}
+.chip:hover{background:var(--bone); border-color:var(--line-2)}
+.chip.selected{background:var(--clay-tint); border-color:var(--clay-soft);
+  color:var(--clay-deep); font-weight:500}
+
+/* ============ Step 2: 改写结果 ============ */
+
+/* 顶部状态条 */
+.rewrite-summary{
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-left:3px solid var(--clay);
+  border-radius:var(--r-md);
+  padding:14px 22px;
+  margin-bottom:16px;
+  display:flex; align-items:center; gap:14px;
+  flex-wrap:wrap;
+}
+.rewrite-summary .l{display:flex; align-items:center; gap:14px; flex-wrap:wrap; flex:1}
+.rewrite-summary .ico{
+  width:32px; height:32px;
+  background:var(--clay-tint); color:var(--clay-deep);
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.rewrite-summary .info{font-size:13px; color:var(--ink-2)}
+.rewrite-summary .info b{color:var(--ink); font-weight:600}
+.rewrite-summary .meta{font-size:11.5px; color:var(--ink-3); margin-top:2px; line-height:1.4}
+.btn-tool{display:flex; align-items:center; gap:6px;
+  padding:8px 14px; background:var(--ivory);
+  border:1px solid var(--line); border-radius:var(--r-sm);
+  font-size:12.5px; color:var(--ink-2); cursor:pointer; transition:all .12s; flex-shrink:0}
+.btn-tool:hover{background:var(--bone); border-color:var(--line-2); color:var(--ink)}
+
+/* 标题候选 */
+.title-cards{display:flex; flex-direction:column; gap:10px}
+.title-card{
+  display:flex; gap:14px; align-items:center;
+  padding:14px 18px;
+  background:var(--ivory);
+  border:1.5px solid var(--line);
+  border-radius:var(--r-md);
+  cursor:pointer; transition:all .12s;
+}
+.title-card:hover{border-color:var(--line-2)}
+.title-card.selected{
+  background:var(--paper);
+  border-color:var(--clay);
+  box-shadow:0 0 0 3px rgba(204,120,92,.08);
+}
+.title-card .style-label{
+  flex-shrink:0;
+  font-family:var(--serif-en); font-style:italic;
+  font-size:10.5px;
+  padding:3px 9px;
+  background:var(--paper); border:1px solid var(--line);
+  border-radius:99px; color:var(--ink-3);
+  letter-spacing:.04em; font-weight:500;
+}
+.title-card.selected .style-label{
+  background:var(--clay-tint); border-color:var(--clay-soft); color:var(--clay-deep);
+}
+.title-card .title-text{
+  flex:1; min-width:0;
+  font-family:var(--serif);
+  font-size:15px; font-weight:600; color:var(--ink); line-height:1.4;
+}
+.title-card .check{
+  flex-shrink:0; width:22px; height:22px; border-radius:50%;
+  border:1.5px solid var(--line-2); background:var(--paper);
+  display:flex; align-items:center; justify-content:center;
+  color:transparent; font-size:11px; font-weight:700;
+  transition:all .12s;
+}
+.title-card.selected .check{background:var(--clay); border-color:var(--clay); color:#fff}
+
+/* 正文 */
+.body-editor{
+  background:var(--ivory); border:1px solid var(--line);
+  border-radius:var(--r-md); padding:18px 22px;
+  font-family:var(--serif); font-size:15px; line-height:1.95;
+  color:var(--ink); min-height:300px;
+  outline:none; white-space:pre-wrap;
+}
+.body-editor:focus{
+  background:var(--paper); border-color:var(--clay-soft);
+  box-shadow:0 0 0 3px rgba(204,120,92,.06);
+}
+.body-editor strong{font-weight:600; color:var(--ink)}
+
+/* 首图独立大区 */
+.cover-section{
+  background:linear-gradient(135deg, var(--paper), var(--clay-tint));
+  border:1px solid var(--clay-soft);
+  border-radius:var(--r-lg);
+  margin-bottom:16px;
+  overflow:hidden;
+}
+.cover-section .cover-head{
+  padding:16px 22px;
+  display:flex; align-items:center; justify-content:space-between;
+  border-bottom:1px solid var(--clay-soft);
+  background:rgba(245,249,245,.4);
+}
+.cover-section .cover-head h3{
+  font-size:15px; display:flex; align-items:center; gap:8px;
+}
+.cover-section .cover-head h3 .star-tag{
+  font-family:var(--serif-en); font-weight:600;
+  background:var(--clay); color:#fff;
+  font-size:10.5px; padding:2px 9px;
+  border-radius:99px; letter-spacing:.04em;
+}
+.cover-section .cover-head .desc{
+  font-size:12px; color:var(--ink-3);
+}
+.cover-section .cover-body{
+  padding:22px;
+  display:grid; grid-template-columns:1fr 1fr; gap:20px;
+  align-items:start;
+}
+.cover-pair{
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:var(--r-md);
+  overflow:hidden;
+  position:relative;
+}
+.cover-pair.original{
+  border-style:dashed;
+  border-color:var(--line-2);
+  opacity:.7;
+}
+.cover-pair-head{
+  padding:8px 12px;
+  background:var(--ivory);
+  border-bottom:1px solid var(--line);
+  font-family:var(--serif-en); font-style:italic;
+  font-size:10.5px; color:var(--ink-3);
+  letter-spacing:.06em; text-transform:uppercase;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.cover-pair.original .cover-pair-head{color:var(--ink-3)}
+.cover-pair.new .cover-pair-head{color:var(--clay-deep); background:var(--clay-tint); border-bottom-color:var(--clay-soft)}
+.cover-pair-img{
+  aspect-ratio: 3/4;
+  position:relative;
+  background:var(--bone);
+}
+.cover-pair-img svg{width:100%; height:100%}
+.cover-pair-actions{
+  display:flex; gap:6px;
+  padding:8px 12px;
+  background:var(--paper);
+  border-top:1px solid var(--line);
+}
+.cover-pair-action{
+  flex:1;
+  display:flex; align-items:center; justify-content:center; gap:5px;
+  padding:6px 10px;
+  font-size:11.5px;
+  background:var(--ivory); border:1px solid var(--line);
+  border-radius:var(--r-xs); color:var(--ink-2);
+  cursor:pointer; transition:all .12s;
+}
+.cover-pair-action:hover{
+  background:var(--bone); border-color:var(--line-2); color:var(--ink);
+}
+
+/* 正文配图（5 张网格） */
+.images-grid{
+  display:grid;
+  grid-template-columns:repeat(5, 1fr);
+  gap:10px;
+}
+.image-card{
+  position:relative;
+  aspect-ratio:3/4;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:var(--r-sm);
+  overflow:hidden;
+  transition:all .15s;
+  cursor:pointer;
+}
+.image-card:hover{
+  transform:translateY(-2px);
+  box-shadow:var(--sh-1);
+  border-color:var(--line-2);
+}
+.image-card .number{
+  position:absolute; top:6px; right:6px;
+  background:rgba(31,31,30,.7); color:#fff;
+  font-family:var(--serif-en); font-weight:600;
+  font-size:10.5px; padding:1px 7px; border-radius:99px;
+  z-index:5; letter-spacing:.04em;
+}
+.image-card svg{width:100%; height:100%}
+.image-card .img-overlay{
+  position:absolute; inset:0;
+  background:rgba(31,31,30,.65);
+  display:flex; align-items:center; justify-content:center;
+  gap:5px; opacity:0; transition:opacity .15s;
+}
+.image-card:hover .img-overlay{opacity:1}
+.image-card .img-overlay button{
+  background:rgba(255,255,255,.95);
+  padding:5px 8px; border-radius:var(--r-xs);
+  font-size:10.5px; color:var(--ink); font-weight:500;
+  cursor:pointer; transition:transform .12s;
+}
+.image-card .img-overlay button:hover{transform:translateY(-1px)}
+
+/* Done */
+.done-section{
+  background:var(--paper); border:1px solid var(--line);
+  border-left:3px solid var(--leaf); border-radius:var(--r-md);
+  padding:18px 22px;
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:14px;
+}
+.done-section .l{display:flex; align-items:center; gap:14px}
+.done-section .l h4{font-size:15px; font-weight:600; margin-bottom:2px}
+.done-section .l .desc{font-size:12.5px; color:var(--ink-3)}
+.done-section .r{display:flex; gap:8px; flex-wrap:wrap}
+.btn-done{display:flex; align-items:center; gap:6px; padding:9px 16px;
+  background:var(--paper); border:1px solid var(--line); border-radius:var(--r-sm);
+  font-size:12.5px; color:var(--ink-2); cursor:pointer; transition:all .12s; font-weight:500}
+.btn-done:hover{background:var(--bone); border-color:var(--line-2); color:var(--ink)}
+.btn-done.primary{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+.btn-done.primary:hover{background:#000}
+
+/* Footer */
+.actions-bar{position:fixed; left:var(--sidebar-w); right:0; bottom:0;
+  height:64px; display:flex; align-items:center; justify-content:space-between;
+  padding:0 32px; background:rgba(245,241,235,.94);
+  backdrop-filter:saturate(150%) blur(12px);
+  border-top:1px solid var(--line); z-index:40}
+.actions-bar .l, .actions-bar .r{display:flex; align-items:center; gap:14px}
+.actions-bar .meta{font-size:12px; color:var(--ink-3)}
+.actions-bar .meta b{color:var(--ink); font-weight:500; font-family:var(--serif-en)}
+.btn-primary-large{display:flex; align-items:center; gap:8px;
+  padding:11px 24px; background:var(--clay); color:#fff;
+  border-radius:var(--r-md); font-size:14px; font-weight:600;
+  cursor:pointer; transition:all .12s; box-shadow:var(--sh-clay)}
+.btn-primary-large:hover{background:var(--clay-deep); transform:translateY(-1px)}
+.btn-primary-large .arr{font-size:14px; transition:transform .15s}
+.btn-primary-large:hover .arr{transform:translateX(3px)}
+.btn-back{display:flex; align-items:center; gap:6px; padding:9px 16px;
+  background:transparent; color:var(--ink-2);
+  border:1px solid var(--line); border-radius:var(--r-sm);
+  font-size:13px; cursor:pointer; transition:all .12s}
+.btn-back:hover{background:var(--bone); border-color:var(--line-2)}
+
+@media (max-width:1100px){
+  .source-cover-row{flex-direction:column}
+  .source-cover{width:100%; max-width:240px}
+  .source-images{grid-template-columns:repeat(3,1fr)}
+  .images-grid{grid-template-columns:repeat(3,1fr)}
+  .cover-section .cover-body{grid-template-columns:1fr}
+}
+@media (max-width:780px){
+  .form-row{grid-template-columns:1fr; gap:8px}
+  .form-row .label{padding-top:0}
+  .actions-bar{left:0; padding:0 16px}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+<!-- ========= SIDEBAR ========= -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <span class="mark">
+      <svg viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="13" stroke="#1F1F1E" stroke-width="1.4"/>
+        <circle cx="14" cy="9" r="2.2" fill="#CC785C"/>
+        <circle cx="9" cy="17" r="2.2" fill="#3F5C52"/>
+        <circle cx="19" cy="17" r="2.2" fill="#1F1F1E"/>
+        <path d="M14 11.2 L9.8 15.6 M14 11.2 L18.2 15.6 M11 17.5 L17 17.5" stroke="#1F1F1E" stroke-width="1.1" stroke-linecap="round"/>
+      </svg>
+    </span>
+    <span class="name">承知<span class="en">CHENGZHI</span></span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-group">
+      <div class="nav-group-title">— Workflow · 主工作流</div>
+      <a class="nav-item" href="#">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L13.5 8.5 L20 10 L13.5 11.5 L12 18 L10.5 11.5 L4 10 L10.5 8.5 Z"/></svg></span>
+        <span class="label">选题广场</span>
+      </a>
+      <div class="nav-collapsible open" data-collapsible>
+        <a class="nav-item" data-toggle>
+          <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/><path d="M8 13h8M8 17h5"/></svg></span>
+          <span class="label">内容创作</span>
+          <span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </a>
+        <div class="nav-sub">
+          <a class="nav-sub-item">小红书创作</a>
+          <a class="nav-sub-item">公众号创作</a>
+          <div class="nav-collapsible nested" data-collapsible>
+            <a class="nav-sub-item with-chevron" data-toggle>
+              <span>视频创作</span>
+              <span class="chevron"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
+            </a>
+            <div class="nav-sub-2">
+              <a class="nav-sub-item-2">口播视频</a>
+              <a class="nav-sub-item-2">剧情视频</a>
+            </div>
+          </div>
+          <a class="nav-sub-item active">小红书仿写</a>
+          <a class="nav-sub-item">公众号仿写</a>
+          <a class="nav-sub-item">视频仿做</a>
+        </div>
+      </div>
+      <div class="nav-collapsible" data-collapsible>
+        <a class="nav-item" data-toggle>
+          <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>
+          <span class="label">爆款拆解</span>
+          <span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </a>
+        <div class="nav-sub">
+          <a class="nav-sub-item">拆解小红书爆款</a>
+          <a class="nav-sub-item">拆解抖音爆款</a>
+        </div>
+      </div>
+      <a class="nav-item" href="#">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span>
+        <span class="label">答疑逼单</span>
+      </a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">— Settings · 我的设置</div>
+      <a class="nav-item" href="#">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/></svg></span>
+        <span class="label">个人信息</span>
+      </a>
+      <a class="nav-item" href="#">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg></span>
+        <span class="label">个人风格</span>
+      </a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">— Knowledge · 知识库</div>
+      <div class="nav-collapsible" data-collapsible>
+        <a class="nav-item" data-toggle>
+          <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
+          <span class="label">保险知识库</span>
+          <span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </a>
+        <div class="nav-sub">
+          <a class="nav-sub-item">常见 FAQ</a>
+          <a class="nav-sub-item">理赔案例库</a>
+          <a class="nav-sub-item">险种大全</a>
+          <a class="nav-sub-item">投保注意事项</a>
+          <a class="nav-sub-item">保障责任</a>
+          <a class="nav-sub-item">合规词库</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="sidebar-foot">
+    <div class="member-card">
+      <div class="label">— ANNUAL MEMBER</div>
+      <div class="days">还剩 <b>327</b> 天到期</div>
+      <span class="renew">续费 / 加购积分</span>
+    </div>
+    <div class="user-mini">
+      <div class="avatar">林</div>
+      <div class="info">
+        <div class="name">林老师</div>
+        <div class="role">中产家庭保障顾问</div>
+      </div>
+      <span class="more">⋯</span>
+    </div>
+  </div>
+</aside>
+
+<!-- ========= MAIN ========= -->
+<div class="main">
+  <header class="topbar">
+    <div class="breadcrumb">
+      <span>内容创作</span>
+      <span class="sep">/</span>
+      <span class="current">小红书仿写</span>
+    </div>
+    <div class="top-actions">
+      <div class="credits-chip">
+        <span class="star">✦</span>
+        <span class="num">6,847</span>
+        <span class="total">/ 8,000 积分</span>
+        <div class="credits-bar"></div>
+      </div>
+      <button class="icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="badge"></span></button>
+      <button class="avatar-btn">林</button>
+    </div>
+  </header>
+
+  <div class="page-head">
+    <div class="page-title-row">
+      <div class="page-title">
+        <span class="platform-tag">小</span>
+        <h2>小红书仿写</h2>
+      </div>
+      <button class="btn-draft" onclick="saveDraft()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        <span>保存为草稿</span>
+      </button>
+    </div>
+
+    <div class="steps">
+      <div class="step done" onclick="goStep(1)">
+        <div class="dot">✓</div>
+        <div class="label">提供原文与改写要求</div>
+      </div>
+      <div class="step active" onclick="goStep(2)">
+        <div class="dot">2</div>
+        <div class="label">改写结果</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="content-inner">
+
+      <!-- ========= STEP 1 ========= -->
+      <div class="step-pane" id="step1">
+
+        <div class="section-card">
+          <div class="sc-head">
+            <h3><span class="num-tag">1</span>粘贴小红书链接</h3>
+            <span class="desc">AI 会读完原文的标题、正文、图片</span>
+          </div>
+          <div class="sc-body">
+            <div class="link-row">
+              <input type="text" class="text-field" value="https://www.xiaohongshu.com/explore/65f8e3210000000012013a47" />
+              <button class="btn-fetch success" onclick="alert('[演示] 已抓取成功')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>已抓取</span>
+              </button>
+            </div>
+
+            <div class="fetch-status">
+              <div class="check-circle">✓</div>
+              <span>原文抓取成功 · 标题、正文、6 张图片均已识别</span>
+            </div>
+
+            <div class="source-preview">
+              <div class="source-preview-head">
+                <span class="label">— Source · 原文</span>
+                <span class="author">
+                  <span class="av">小</span>
+                  <span>@保险姐姐Mia · 1.2 万粉</span>
+                </span>
+                <span class="stats">
+                  <span>👍 <b>3.8w</b></span>
+                  <span>💬 <b>1,247</b></span>
+                  <span>⭐ <b>1.2w</b></span>
+                </span>
+              </div>
+
+              <div class="source-cover-row">
+                <div class="source-cover">
+                  <span class="cover-tag">★ 首图</span>
+                  <svg viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice">
+                    <rect width="300" height="400" fill="#FFE5EB"/>
+                    <text x="40" y="80" font-family="Noto Serif SC" font-size="13" fill="#FF2442" letter-spacing="0.1em">| 保障笔记 ·  04 |</text>
+                    <text x="40" y="180" font-family="Noto Serif SC" font-size="38" fill="#1F1F1E" font-weight="700">医保到底</text>
+                    <text x="40" y="222" font-family="Noto Serif SC" font-size="38" fill="#FF2442" font-weight="700">够不够用？</text>
+                    <text x="40" y="270" font-family="Noto Serif SC" font-size="22" fill="#1F1F1E" font-weight="600">我的真实账单</text>
+                    <line x1="40" y1="298" x2="80" y2="298" stroke="#FF2442" stroke-width="2"/>
+                    <text x="40" y="334" font-family="Noto Serif SC" font-size="11" fill="#6B6862">姐妹们我真的想哭…</text>
+                    <text x="220" y="380" font-family="Fraunces" font-style="italic" font-size="10" fill="#A85A40">@保险姐姐Mia</text>
+                  </svg>
+                </div>
+                <div class="source-title-block">
+                  <div class="source-title">医保到底够不够用？我的真实账单告诉你 😭</div>
+                  <div class="source-tags">
+                    <span class="source-tag">#保险</span>
+                    <span class="source-tag">#医保</span>
+                    <span class="source-tag">#姐妹避雷</span>
+                    <span class="source-tag">#财务规划</span>
+                  </div>
+                  <div class="source-body">
+                    <p>姐妹们今天来跟你们聊一个我最近经历的事…💔</p>
+                    <p>我朋友前阵子家人住院，结果医保只报了一半！剩下几万块全靠自己掏…当时整个人都麻了 😭</p>
+                    <p>我才知道——原来我们交了那么多年社保，真到事的时候根本不够用。<strong>医保只报销目录内的项目</strong>，自费药、进口器材、特殊护理统统不管！</p>
+                    <p>建议姐妹们都看看自己的保障是不是有缺口～商保不是消费，是给自己一个底线 ❤️</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="source-images">
+                <div class="source-img-thumb">
+                  <svg viewBox="0 0 100 133" preserveAspectRatio="xMidYMid slice">
+                    <rect width="100" height="133" fill="#FFF5F0"/>
+                    <text x="50" y="60" text-anchor="middle" font-family="Noto Serif SC" font-size="32" fill="#FF2442" font-weight="700">50%</text>
+                    <text x="50" y="85" text-anchor="middle" font-family="Noto Serif SC" font-size="8" fill="#6B6862">医保平均报销</text>
+                  </svg>
+                </div>
+                <div class="source-img-thumb">
+                  <svg viewBox="0 0 100 133" preserveAspectRatio="xMidYMid slice">
+                    <rect width="100" height="133" fill="#FFE5EB"/>
+                    <text x="10" y="30" font-family="Noto Serif SC" font-size="9" fill="#FF2442" font-weight="700">坑 #1</text>
+                    <text x="10" y="60" font-family="Noto Serif SC" font-size="11" fill="#1F1F1E" font-weight="600">自费药</text>
+                    <text x="10" y="76" font-family="Noto Serif SC" font-size="11" fill="#1F1F1E" font-weight="600">不报销</text>
+                    <text x="10" y="105" font-family="Noto Serif SC" font-size="7" fill="#6B6862">5 万一盒…</text>
+                  </svg>
+                </div>
+                <div class="source-img-thumb">
+                  <svg viewBox="0 0 100 133" preserveAspectRatio="xMidYMid slice">
+                    <rect width="100" height="133" fill="#FFF5F0"/>
+                    <text x="10" y="30" font-family="Noto Serif SC" font-size="9" fill="#FF2442" font-weight="700">坑 #2</text>
+                    <text x="10" y="60" font-family="Noto Serif SC" font-size="11" fill="#1F1F1E" font-weight="600">ICU</text>
+                    <text x="10" y="76" font-family="Noto Serif SC" font-size="11" fill="#1F1F1E" font-weight="600">床位</text>
+                    <text x="10" y="105" font-family="Noto Serif SC" font-size="7" fill="#6B6862">不报销！</text>
+                  </svg>
+                </div>
+                <div class="source-img-thumb">
+                  <svg viewBox="0 0 100 133" preserveAspectRatio="xMidYMid slice">
+                    <rect width="100" height="133" fill="#FFE5EB"/>
+                    <text x="10" y="30" font-family="Noto Serif SC" font-size="9" fill="#FF2442" font-weight="700">坑 #3</text>
+                    <text x="10" y="60" font-family="Noto Serif SC" font-size="11" fill="#1F1F1E" font-weight="600">封顶线</text>
+                    <text x="10" y="76" font-family="Noto Serif SC" font-size="11" fill="#1F1F1E" font-weight="600">60 万</text>
+                  </svg>
+                </div>
+                <div class="source-img-thumb">
+                  <svg viewBox="0 0 100 133" preserveAspectRatio="xMidYMid slice">
+                    <rect width="100" height="133" fill="#1F1F1E"/>
+                    <text x="50" y="55" text-anchor="middle" font-family="Noto Serif SC" font-size="11" fill="#fff" font-weight="700">姐妹们</text>
+                    <text x="50" y="75" text-anchor="middle" font-family="Noto Serif SC" font-size="11" fill="#FFB1C0" font-weight="700">看看自己</text>
+                    <text x="50" y="95" text-anchor="middle" font-family="Noto Serif SC" font-size="11" fill="#FFB1C0" font-weight="700">的保障吧</text>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="sc-head">
+            <h3><span class="num-tag">2</span>告诉 AI 你想怎么改</h3>
+            <span class="desc">写得越具体，改写结果越贴近你想要的</span>
+          </div>
+          <div class="sc-body">
+
+            <div class="form-row">
+              <div class="label">改写方向 <span class="req">*</span></div>
+              <div class="control">
+                <textarea class="text-field" placeholder="（必填）告诉 AI 你想怎么改" style="min-height:120px">把"姐妹"口吻换成更专业但温暖的语气（不要太客户感）。
+
+把朋友的故事换成"我的客户老张"，32 岁中产，做完体检很担心这种典型场景。
+
+数据上更新：医保平均报销 60%（最新数据）。补充："剩下 40% 自掏" 这个对比。
+
+加一句"我在帮老张做规划之前，他也没意识到这个差距"，让人觉得你是专业顾问。
+
+结尾改成"如果你想了解适合自己的方案，私信我，我帮你分析"——别用"姐妹们觉醒吧"。</textarea>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="label">套用我的风格</div>
+              <div class="control">
+                <div class="toggle-row">
+                  <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+                  <div>
+                    <div class="toggle-label">套用我的写作风格 <span style="font-family:var(--serif-en); font-weight:600; font-size:10px; background:var(--clay); color:#fff; padding:1px 7px; border-radius:99px; margin-left:6px; letter-spacing:.04em;">V3</span></div>
+                    <div class="toggle-meta">基于 12 篇素材训练 · "温暖、克制、擅讲案例"</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="label">目标人群</div>
+              <div class="control">
+                <div class="chip-group">
+                  <span class="chip selected">中产</span>
+                  <span class="chip selected">宝妈</span>
+                  <span class="chip">高净值</span>
+                  <span class="chip">银发族</span>
+                  <span class="chip">单身青年</span>
+                  <span class="chip">创业者</span>
+                </div>
+                <div style="font-size:11px; color:var(--ink-3); margin-top:8px;">原文人群偏年轻女性 · 你可以指定改写后想触达的人群</div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="label">险种</div>
+              <div class="control">
+                <div class="chip-group">
+                  <span class="chip selected">医疗险</span>
+                  <span class="chip selected">重疾险</span>
+                  <span class="chip">寿险</span>
+                  <span class="chip">意外险</span>
+                  <span class="chip">年金险</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ========= STEP 2: 改写结果 ========= -->
+      <div class="step-pane active" id="step2">
+
+        <!-- 顶部摘要 -->
+        <div class="rewrite-summary">
+          <div class="l">
+            <div class="ico">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </div>
+            <div class="info">
+              <div>仿写完成 · 套用 <b>林老师 V3</b> 风格 · 面向 <b>中产 / 宝妈</b></div>
+              <div class="meta">原作 @保险姐姐Mia · 已替换标题、正文与 6 张图片</div>
+            </div>
+          </div>
+          <button class="btn-tool" onclick="alert('[演示] 整篇重新生成')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <span>整篇重新生成</span>
+          </button>
+        </div>
+
+        <!-- 标题候选 -->
+        <div class="section-card">
+          <div class="sc-head">
+            <h3>3 个新标题候选</h3>
+            <span class="desc">挑一个最贴近你想表达的</span>
+          </div>
+          <div class="sc-body">
+            <div class="title-cards">
+
+              <div class="title-card" onclick="pickTitle(this)">
+                <span class="style-label">数据型</span>
+                <span class="title-text">医保只报 60%？我帮老张算了笔账</span>
+                <div class="check">✓</div>
+              </div>
+
+              <div class="title-card selected" onclick="pickTitle(this)">
+                <span class="style-label">案例型</span>
+                <span class="title-text">32 岁的老张，体检后做了一件事</span>
+                <div class="check">✓</div>
+              </div>
+
+              <div class="title-card" onclick="pickTitle(this)">
+                <span class="style-label">悬念型</span>
+                <span class="title-text">他以为社保够用了，直到那天看到账单</span>
+                <div class="check">✓</div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- 正文 -->
+        <div class="section-card">
+          <div class="sc-head">
+            <h3>改写后的正文</h3>
+            <span class="desc">可直接编辑</span>
+          </div>
+          <div class="sc-body">
+            <div class="body-editor" contenteditable="true">老张是我的客户，今年 32 岁。他刚做完体检报告，特地来我办公室坐了会儿。
+
+他坐我对面时特别紧张，问我："我交了这么多年社保，真到大病那天，到底能保多少？"
+
+我翻给他看了一组数据：
+
+医保的平均报销比例约 <strong>60%</strong>。也就是说——<strong>住院花了 100 元，社保报 60，剩下 40 自掏</strong>。
+
+听起来好像还行。但还有几件事，我在帮他做规划之前，他也没意识到：
+
+第一，<strong>自费药、自费项目根本不在医保范围内</strong>。比如靶向药奥希替尼，一盒 5 万多。
+
+第二，<strong>ICU 床位、特殊护理</strong>很多医保也不覆盖，这些恰恰是大病阶段最贵的部分。
+
+第三，<strong>起付线和封顶线</strong>是隐藏门槛。北京医保起付线 1,800 元、封顶 60 万，超出的部分都要自己承担。
+
+老张听完沉默了一会儿。他说："那我之前的算盘真的打错了。"
+
+社保的 60% 只是起点，不是终点。<strong>真正的保障，是社保兜底 + 商保补充。</strong>
+
+如果你想了解适合自己的方案，私信我，我帮你分析。</div>
+          </div>
+        </div>
+
+        <!-- 首图 ★ 独立大区 -->
+        <div class="cover-section">
+          <div class="cover-head">
+            <h3><span class="star-tag">★ 首图</span>新首图</h3>
+            <span class="desc">小红书首图决定打开率 · AI 已根据林老师 V3 风格生成</span>
+          </div>
+          <div class="cover-body">
+
+            <div class="cover-pair original">
+              <div class="cover-pair-head">
+                <span>— ORIGINAL · 原首图</span>
+              </div>
+              <div class="cover-pair-img">
+                <svg viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice">
+                  <rect width="300" height="400" fill="#FFE5EB"/>
+                  <text x="40" y="80" font-family="Noto Serif SC" font-size="13" fill="#FF2442" letter-spacing="0.1em">| 保障笔记 ·  04 |</text>
+                  <text x="40" y="180" font-family="Noto Serif SC" font-size="38" fill="#1F1F1E" font-weight="700">医保到底</text>
+                  <text x="40" y="222" font-family="Noto Serif SC" font-size="38" fill="#FF2442" font-weight="700">够不够用？</text>
+                  <text x="40" y="270" font-family="Noto Serif SC" font-size="22" fill="#1F1F1E" font-weight="600">我的真实账单</text>
+                  <line x1="40" y1="298" x2="80" y2="298" stroke="#FF2442" stroke-width="2"/>
+                  <text x="40" y="334" font-family="Noto Serif SC" font-size="11" fill="#6B6862">姐妹们我真的想哭…</text>
+                  <text x="220" y="380" font-family="Fraunces" font-style="italic" font-size="10" fill="#A85A40">@保险姐姐Mia</text>
+                </svg>
+              </div>
+            </div>
+
+            <div class="cover-pair new">
+              <div class="cover-pair-head">
+                <span>— NEW · 新首图</span>
+                <span style="font-family:var(--mono); font-size:10px; color:var(--clay-deep)">3:4</span>
+              </div>
+              <div class="cover-pair-img">
+                <svg viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice">
+                  <rect width="300" height="400" fill="#F5E2D5"/>
+                  <text x="40" y="80" font-family="Noto Serif SC" font-size="11" fill="#A85A40" letter-spacing="0.2em">— 保障日记 · No. 04 —</text>
+                  <text x="40" y="170" font-family="Noto Serif SC" font-size="42" fill="#1F1F1E" font-weight="700">32 岁老张</text>
+                  <text x="40" y="216" font-family="Noto Serif SC" font-size="42" fill="#CC785C" font-weight="700">体检后</text>
+                  <text x="40" y="262" font-family="Noto Serif SC" font-size="42" fill="#1F1F1E" font-weight="700">做了一件事</text>
+                  <line x1="40" y1="290" x2="80" y2="290" stroke="#CC785C" stroke-width="2"/>
+                  <text x="40" y="326" font-family="Noto Serif SC" font-size="12" fill="#6B6862">医保只报 60%，剩下的</text>
+                  <text x="40" y="346" font-family="Noto Serif SC" font-size="12" fill="#6B6862">40% 谁来兜？</text>
+                  <text x="220" y="382" font-family="Fraunces" font-style="italic" font-size="11" fill="#A85A40">林老师 · 保险笔记</text>
+                </svg>
+              </div>
+              <div class="cover-pair-actions">
+                <button class="cover-pair-action" onclick="alert('[演示] 重新生成首图')">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                  重新生成
+                </button>
+                <button class="cover-pair-action">下载</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 正文配图 -->
+        <div class="section-card">
+          <div class="sc-head">
+            <h3>正文配图（5 张）</h3>
+            <span class="desc">配合改写后的正文 · 已替换为林老师风格</span>
+          </div>
+          <div class="sc-body">
+            <div class="images-grid">
+
+              <div class="image-card">
+                <span class="number">1</span>
+                <svg viewBox="0 0 200 267" preserveAspectRatio="xMidYMid slice">
+                  <rect width="200" height="267" fill="#FAF9F5"/>
+                  <text x="20" y="40" font-family="Noto Serif SC" font-size="9" fill="#6B6862" letter-spacing="0.1em">第一个真相</text>
+                  <line x1="20" y1="50" x2="35" y2="50" stroke="#CC785C" stroke-width="1.5"/>
+                  <text x="20" y="125" font-family="Noto Serif SC" font-size="80" fill="#CC785C" font-weight="700" letter-spacing="-0.04em">60</text>
+                  <text x="120" y="95" font-family="Noto Serif SC" font-size="32" fill="#CC785C" font-weight="700">%</text>
+                  <text x="20" y="160" font-family="Noto Serif SC" font-size="11" fill="#3A3935" font-weight="500">医保平均报销比例</text>
+                  <text x="20" y="195" font-family="Noto Serif SC" font-size="13" fill="#1F1F1E" font-weight="600">报 60</text>
+                  <text x="20" y="220" font-family="Noto Serif SC" font-size="13" fill="#A85A40" font-weight="600">自掏 40</text>
+                </svg>
+                <div class="img-overlay">
+                  <button onclick="event.stopPropagation()">重生成</button>
+                  <button onclick="event.stopPropagation()">下载</button>
+                </div>
+              </div>
+
+              <div class="image-card">
+                <span class="number">2</span>
+                <svg viewBox="0 0 200 267" preserveAspectRatio="xMidYMid slice">
+                  <rect width="200" height="267" fill="#E1E8E4"/>
+                  <text x="20" y="40" font-family="Noto Serif SC" font-size="9" fill="#3F5C52" letter-spacing="0.1em">坑 #1</text>
+                  <line x1="20" y1="50" x2="35" y2="50" stroke="#3F5C52" stroke-width="1.5"/>
+                  <text x="20" y="80" font-family="Noto Serif SC" font-size="20" fill="#1F1F1E" font-weight="700">自费药</text>
+                  <text x="20" y="105" font-family="Noto Serif SC" font-size="20" fill="#1F1F1E" font-weight="700">不在保障</text>
+                  <rect x="20" y="125" width="160" height="60" fill="#FAF9F5" rx="4"/>
+                  <text x="32" y="148" font-family="Noto Serif SC" font-size="10" fill="#6B6862">举个例子</text>
+                  <text x="32" y="168" font-family="Noto Serif SC" font-size="13" fill="#1F1F1E" font-weight="600">奥希替尼</text>
+                  <text x="32" y="180" font-family="Noto Serif SC" font-size="11" fill="#A85A40" font-weight="700">5 万 / 盒</text>
+                  <text x="20" y="220" font-family="Noto Serif SC" font-size="10" fill="#3A3935">100% 自费</text>
+                </svg>
+                <div class="img-overlay">
+                  <button onclick="event.stopPropagation()">重生成</button>
+                  <button onclick="event.stopPropagation()">下载</button>
+                </div>
+              </div>
+
+              <div class="image-card">
+                <span class="number">3</span>
+                <svg viewBox="0 0 200 267" preserveAspectRatio="xMidYMid slice">
+                  <rect width="200" height="267" fill="#F4ECD9"/>
+                  <text x="20" y="40" font-family="Noto Serif SC" font-size="9" fill="#8a6a3a" letter-spacing="0.1em">坑 #2</text>
+                  <line x1="20" y1="50" x2="35" y2="50" stroke="#C49B5C" stroke-width="1.5"/>
+                  <text x="20" y="80" font-family="Noto Serif SC" font-size="16" fill="#1F1F1E" font-weight="700">这些情况</text>
+                  <text x="20" y="100" font-family="Noto Serif SC" font-size="16" fill="#1F1F1E" font-weight="700">医保也不管</text>
+                  <g font-family="Noto Serif SC" font-size="10" fill="#3A3935">
+                    <circle cx="28" cy="135" r="2.5" fill="#C49B5C"/>
+                    <text x="38" y="139">异地就医</text>
+                    <circle cx="28" cy="160" r="2.5" fill="#C49B5C"/>
+                    <text x="38" y="164">特殊门诊</text>
+                    <circle cx="28" cy="185" r="2.5" fill="#C49B5C"/>
+                    <text x="38" y="189">ICU 床位费</text>
+                    <circle cx="28" cy="210" r="2.5" fill="#C49B5C"/>
+                    <text x="38" y="214">封顶线之外</text>
+                  </g>
+                </svg>
+                <div class="img-overlay">
+                  <button onclick="event.stopPropagation()">重生成</button>
+                  <button onclick="event.stopPropagation()">下载</button>
+                </div>
+              </div>
+
+              <div class="image-card">
+                <span class="number">4</span>
+                <svg viewBox="0 0 200 267" preserveAspectRatio="xMidYMid slice">
+                  <rect width="200" height="267" fill="#FAF9F5"/>
+                  <text x="20" y="40" font-family="Noto Serif SC" font-size="9" fill="#6B6862" letter-spacing="0.1em">所以 ——</text>
+                  <line x1="20" y1="50" x2="35" y2="50" stroke="#CC785C" stroke-width="1.5"/>
+                  <text x="20" y="90" font-family="Noto Serif SC" font-size="20" fill="#1F1F1E" font-weight="700">60% 是起点</text>
+                  <text x="20" y="120" font-family="Noto Serif SC" font-size="20" fill="#CC785C" font-weight="700">不是终点</text>
+                  <line x1="20" y1="140" x2="180" y2="140" stroke="#E4DDCE" stroke-width="1"/>
+                  <text x="20" y="170" font-family="Noto Serif SC" font-size="10" fill="#3A3935">真正的保障</text>
+                  <text x="20" y="195" font-family="Noto Serif SC" font-size="11" fill="#3A3935" font-weight="600">— 社保兜底</text>
+                  <text x="20" y="218" font-family="Noto Serif SC" font-size="11" fill="#A85A40" font-weight="600">— 商保补充</text>
+                </svg>
+                <div class="img-overlay">
+                  <button onclick="event.stopPropagation()">重生成</button>
+                  <button onclick="event.stopPropagation()">下载</button>
+                </div>
+              </div>
+
+              <div class="image-card">
+                <span class="number">5</span>
+                <svg viewBox="0 0 200 267" preserveAspectRatio="xMidYMid slice">
+                  <rect width="200" height="267" fill="#1F1F1E"/>
+                  <circle cx="100" cy="65" r="28" fill="none" stroke="#E9B79E" stroke-width="1.5"/>
+                  <circle cx="100" cy="65" r="16" fill="#CC785C"/>
+                  <text x="100" y="70" text-anchor="middle" font-family="Noto Serif SC" font-size="14" fill="#FAF9F5" font-weight="700">林</text>
+                  <text x="100" y="120" text-anchor="middle" font-family="Noto Serif SC" font-size="10" fill="#E9B79E" letter-spacing="0.1em">— 关注我 —</text>
+                  <text x="100" y="155" text-anchor="middle" font-family="Noto Serif SC" font-size="14" fill="#FAF9F5" font-weight="700">不让你买错</text>
+                  <text x="100" y="178" text-anchor="middle" font-family="Noto Serif SC" font-size="14" fill="#FAF9F5" font-weight="700">保险</text>
+                  <line x1="60" y1="200" x2="140" y2="200" stroke="#CC785C" stroke-width="0.8"/>
+                  <rect x="65" y="220" width="70" height="28" fill="#FAF9F5" rx="3"/>
+                  <text x="100" y="237" text-anchor="middle" font-family="Noto Serif SC" font-size="9" fill="#1F1F1E" font-weight="600">私信领方案</text>
+                </svg>
+                <div class="img-overlay">
+                  <button onclick="event.stopPropagation()">重生成</button>
+                  <button onclick="event.stopPropagation()">下载</button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Done -->
+        <div class="done-section">
+          <div class="l">
+            <div style="width:32px; height:32px; background:var(--leaf); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700;">✓</div>
+            <div>
+              <h4>仿写完成</h4>
+              <div class="desc">3 个标题 · 改写正文 · 1 张新首图 + 5 张正文配图</div>
+            </div>
+          </div>
+          <div class="r">
+            <button class="btn-done" onclick="alert('[演示] 已复制全部到剪贴板')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span>复制全部</span>
+            </button>
+            <button class="btn-done" onclick="alert('[演示] 即将下载 ZIP\\n包含：标题、正文、首图、5 张配图')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>下载 ZIP</span>
+            </button>
+            <button class="btn-done primary" onclick="saveDraft()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              <span>保存为草稿</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <div class="actions-bar">
+    <div class="l">
+      <button class="btn-back" onclick="goStep(currentStep - 1)" id="backBtn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="15 18 9 12 15 6"/></svg>
+        <span id="backText">← 返回</span>
+      </button>
+    </div>
+    <div class="r">
+      <span class="meta" id="creditsTip">本步骤已消耗 <b>8</b> 积分</span>
+      <button class="btn-primary-large" onclick="goStep(currentStep + 1)">
+        <span id="nextText">完成 / 关闭</span>
+        <span class="arr">→</span>
+      </button>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+document.querySelectorAll('[data-collapsible] [data-toggle]').forEach(toggle => {
+  toggle.addEventListener('click', e => {
+    e.preventDefault();
+    toggle.closest('[data-collapsible]').classList.toggle('open');
+  });
+});
+
+let currentStep = 2;
+const stepConfig = {
+  1: {pane:'step1', backText:'返回内容创作', nextText:'开始改写', credits:'本步骤将消耗 8 积分'},
+  2: {pane:'step2', backText:'重做改写', nextText:'完成 / 关闭', credits:'本步骤已消耗 8 积分'},
+};
+
+function goStep(n){
+  if(n < 1 || n > 2) return;
+  currentStep = n;
+  document.querySelectorAll('.step-pane').forEach(p => p.classList.remove('active'));
+  document.getElementById(stepConfig[n].pane).classList.add('active');
+  document.querySelectorAll('.steps .step').forEach((s, i) => {
+    s.classList.remove('active', 'done');
+    if(i + 1 < n) s.classList.add('done');
+    else if(i + 1 === n) s.classList.add('active');
+  });
+  document.getElementById('backText').innerHTML = '← ' + stepConfig[n].backText;
+  document.getElementById('nextText').textContent = stepConfig[n].nextText;
+  document.getElementById('creditsTip').innerHTML = stepConfig[n].credits.replace(/(\d+)/, '<b>$1</b>');
+  document.querySelector('.content').scrollTop = 0;
+}
+
+function pickTitle(card){
+  card.parentElement.querySelectorAll('.title-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+}
+
+document.querySelectorAll('.chip-group').forEach(group => {
+  group.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => chip.classList.toggle('selected'));
+  });
+});
+
+function saveDraft(){alert('[演示] 已保存为草稿')}
+</script>
+</body>
+</html>

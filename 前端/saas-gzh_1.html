@@ -1,0 +1,1496 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>承知 · 公众号创作</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700;900&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&display=swap" rel="stylesheet">
+<style>
+/* Design Tokens */
+:root{
+  --clay:#CC785C; --clay-deep:#A85A40; --clay-soft:#E9B79E; --clay-tint:#F5E2D5;
+  --pine:#3F5C52; --pine-soft:#C9D4CD; --pine-tint:#E1E8E4;
+  --sand:#C49B5C; --sand-soft:#ECDCBF; --sand-tint:#F4ECD9;
+  --paper:#FAF9F5; --ivory:#F5F1EB; --bone:#EFEAE0;
+  --line:#E4DDCE; --line-2:#D9D0BE;
+  --ink-3:#6B6862; --ink-2:#3A3935; --ink:#1F1F1E;
+  --leaf:#5C8A5C; --crimson:#B85450;
+  --gzh:#07C160;
+  --serif:'Noto Serif SC','Source Han Serif SC','Songti SC',ui-serif,Georgia,serif;
+  --serif-en:'Fraunces','Noto Serif SC',ui-serif,Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sh-1:0 1px 2px rgba(31,31,30,.04),0 2px 6px rgba(31,31,30,.04);
+  --sh-2:0 4px 12px rgba(31,31,30,.06),0 8px 24px rgba(31,31,30,.05);
+  --sh-3:0 12px 32px rgba(31,31,30,.10),0 24px 60px rgba(31,31,30,.08);
+  --sh-clay:0 6px 18px rgba(204,120,92,.30);
+  --r-xs:4px; --r-sm:6px; --r-md:10px; --r-lg:16px; --r-xl:24px;
+  --sidebar-w:248px;
+  --topbar-h:56px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+html{font-size:16px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{background:var(--ivory); color:var(--ink); font-family:var(--sans);
+  font-size:14px; line-height:1.6; font-feature-settings:"palt"; overflow:hidden}
+::selection{background:var(--clay-tint); color:var(--clay-deep)}
+a{color:inherit; text-decoration:none}
+img,svg{display:block; max-width:100%}
+button{font-family:inherit; cursor:pointer; border:none; background:transparent; color:inherit}
+input,textarea,select{font-family:inherit; color:inherit; outline:none}
+h1,h2,h3,h4,h5{font-family:var(--serif); font-weight:600; letter-spacing:-.01em; color:var(--ink); line-height:1.25; margin:0}
+.scroll-y{overflow-y:auto}
+.scroll-y::-webkit-scrollbar{width:8px}
+.scroll-y::-webkit-scrollbar-thumb{background:var(--line); border-radius:4px}
+.scroll-y::-webkit-scrollbar-thumb:hover{background:var(--line-2)}
+
+/* App Layout */
+.app{display:grid; grid-template-columns:var(--sidebar-w) 1fr; height:100vh}
+
+.sidebar{background:var(--paper); border-right:1px solid var(--line);
+  display:flex; flex-direction:column; height:100vh; overflow:hidden}
+.sidebar-brand{height:var(--topbar-h); display:flex; align-items:center; gap:10px; padding:0 20px;
+  border-bottom:1px solid var(--line); flex-shrink:0}
+.sidebar-brand .mark{width:26px; height:26px; flex-shrink:0}
+.sidebar-brand .name{font-family:var(--serif); font-weight:700; font-size:17px; color:var(--ink); letter-spacing:.02em}
+.sidebar-brand .name .en{color:var(--ink-3); font-weight:500; font-family:var(--sans);
+  font-size:11px; margin-left:4px; letter-spacing:.08em}
+.sidebar-nav{flex:1; overflow-y:auto; padding:20px 12px 12px}
+.sidebar-nav::-webkit-scrollbar{width:6px}
+.sidebar-nav::-webkit-scrollbar-thumb{background:var(--line); border-radius:3px}
+.nav-group{margin-bottom:18px}
+.nav-group-title{font-family:var(--serif-en); font-style:italic;
+  font-size:11px; color:var(--ink-3); letter-spacing:.08em; text-transform:uppercase;
+  padding:0 12px; margin-bottom:6px}
+.nav-item{display:flex; align-items:center; gap:10px; padding:8px 12px; margin-bottom:1px;
+  border-radius:var(--r-sm); font-size:13.5px; color:var(--ink-2);
+  cursor:pointer; transition:all .12s; position:relative}
+.nav-item:hover{background:var(--bone); color:var(--ink)}
+.nav-item .icon{width:18px; height:18px; flex-shrink:0; display:flex;
+  align-items:center; justify-content:center; color:var(--ink-3)}
+.nav-item:hover .icon{color:var(--ink-2)}
+.nav-item .label{flex:1; line-height:1.2}
+.nav-item .chevron{width:14px; height:14px; flex-shrink:0; color:var(--ink-3); transition:transform .15s}
+.nav-collapsible.open .chevron{transform:rotate(90deg)}
+.nav-sub{max-height:0; overflow:hidden; transition:max-height .25s ease}
+.nav-collapsible.open .nav-sub{max-height:400px}
+.nav-sub-item{display:block; padding:7px 12px 7px 40px; font-size:13px; color:var(--ink-3);
+  border-radius:var(--r-sm); cursor:pointer; transition:all .12s; position:relative}
+.nav-sub-item::before{content:''; position:absolute; left:26px; top:50%;
+  width:4px; height:4px; border-radius:50%; background:var(--line-2); transform:translateY(-50%)}
+.nav-sub-item:hover{color:var(--ink); background:var(--bone)}
+.nav-sub-item:hover::before{background:var(--ink-3)}
+.nav-sub-item.active{background:var(--clay-tint); color:var(--clay-deep); font-weight:500}
+.nav-sub-item.active::before{background:var(--clay)}
+.sidebar-foot{padding:14px 12px; flex-shrink:0; border-top:1px solid var(--line);
+  display:flex; flex-direction:column; gap:10px}
+.member-card{padding:12px 14px; background:linear-gradient(135deg, var(--clay-tint), var(--sand-soft));
+  border-radius:var(--r-md)}
+.member-card .label{font-family:var(--serif-en); font-style:italic;
+  font-size:10.5px; color:var(--clay-deep); letter-spacing:.04em; margin-bottom:4px}
+.member-card .days{font-family:var(--serif); font-size:14px; font-weight:600; color:var(--ink); margin-bottom:6px}
+.member-card .days b{font-family:var(--serif-en); font-weight:600; font-size:18px; color:var(--clay-deep); margin:0 2px}
+.member-card .renew{display:inline-block; font-size:11.5px; color:var(--clay-deep);
+  font-weight:600; padding:2px 0; border-bottom:1px solid var(--clay); cursor:pointer}
+.user-mini{display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:var(--r-sm);
+  cursor:pointer; transition:background .12s}
+.user-mini:hover{background:var(--bone)}
+.user-mini .avatar{width:32px; height:32px; border-radius:50%;
+  background:linear-gradient(135deg,var(--clay),var(--sand));
+  color:#fff; font-family:var(--serif); font-weight:700;
+  font-size:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0}
+.user-mini .info{flex:1; min-width:0}
+.user-mini .info .name{font-size:13px; color:var(--ink); font-weight:600}
+.user-mini .info .role{font-size:11px; color:var(--ink-3)}
+.user-mini .more{color:var(--ink-3); font-size:14px}
+
+/* Main + Topbar */
+.main{display:flex; flex-direction:column; height:100vh; overflow:hidden; background:var(--ivory)}
+.topbar{height:var(--topbar-h); display:flex; align-items:center; padding:0 24px;
+  border-bottom:1px solid var(--line); background:rgba(245,241,235,.85);
+  backdrop-filter:saturate(150%) blur(12px);
+  -webkit-backdrop-filter:saturate(150%) blur(12px);
+  flex-shrink:0; gap:16px}
+.breadcrumb{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-3)}
+.breadcrumb .sep{color:var(--line-2)}
+.breadcrumb .current{color:var(--ink); font-weight:500}
+.top-actions{margin-left:auto; display:flex; align-items:center; gap:8px}
+.credits-chip{display:flex; align-items:center; gap:8px; padding:6px 12px; background:var(--paper);
+  border:1px solid var(--line); border-radius:999px;
+  font-size:12.5px; cursor:pointer; transition:all .15s; position:relative}
+.credits-chip:hover{border-color:var(--line-2); background:var(--bone)}
+.credits-chip .star{color:var(--sand); font-size:13px}
+.credits-chip .num{font-family:var(--serif-en); font-weight:600; color:var(--ink); font-size:13px}
+.credits-chip .total{color:var(--ink-3); font-size:11.5px}
+.credits-chip .credits-bar{position:absolute; left:8px; right:8px; bottom:2px;
+  height:2px; background:var(--bone); border-radius:1px; overflow:hidden}
+.credits-chip .credits-bar::after{content:''; display:block; height:100%; width:85%;
+  background:linear-gradient(90deg, var(--clay), var(--sand))}
+.icon-btn{width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+  border-radius:var(--r-sm); color:var(--ink-2); transition:all .12s; position:relative}
+.icon-btn:hover{background:var(--bone); color:var(--ink)}
+.icon-btn .badge{position:absolute; top:6px; right:6px;
+  width:6px; height:6px; border-radius:50%; background:var(--crimson); box-shadow:0 0 0 2px var(--ivory)}
+.avatar-btn{width:36px; height:36px; border-radius:50%;
+  background:linear-gradient(135deg,var(--clay),var(--sand));
+  color:#fff; font-family:var(--serif); font-weight:700;
+  font-size:14px; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:transform .12s; border:2px solid transparent}
+.avatar-btn:hover{border-color:var(--clay)}
+
+/* Page Header (Progress) */
+.page-head{flex-shrink:0; background:var(--paper); border-bottom:1px solid var(--line); padding:18px 32px 22px}
+.page-title-row{display:flex; align-items:center; justify-content:space-between; margin-bottom:18px}
+.page-title{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.page-title .platform-tag{background:var(--gzh); color:#fff;
+  padding:3px 10px; border-radius:99px; font-size:11px; font-weight:600; letter-spacing:.04em}
+.page-title h2{font-size:18px; line-height:1.2}
+.page-title .from{font-size:12px; color:var(--ink-3);
+  display:flex; align-items:center; gap:5px; padding:4px 10px;
+  background:var(--ivory); border:1px dashed var(--line-2); border-radius:99px}
+.page-title .from b{color:var(--ink-2); font-weight:500}
+.page-actions{display:flex; gap:8px}
+.btn-draft{display:flex; align-items:center; gap:6px; padding:7px 14px;
+  font-size:12.5px; color:var(--ink-2); background:var(--paper);
+  border:1px solid var(--line); border-radius:var(--r-sm); cursor:pointer; transition:all .12s}
+.btn-draft:hover{background:var(--bone); border-color:var(--line-2); color:var(--ink)}
+
+/* Progress steps */
+.steps{display:flex; align-items:center; max-width:720px; margin:0 auto}
+.step{flex:1; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px;
+  position:relative; padding:0 8px}
+.step .dot{width:32px; height:32px; border-radius:50%; background:var(--bone);
+  color:var(--ink-3); display:flex; align-items:center; justify-content:center;
+  font-family:var(--serif-en); font-weight:600; font-size:14px;
+  border:2px solid var(--bone); transition:all .2s; position:relative; z-index:2}
+.step .label{font-size:13px; color:var(--ink-3); font-weight:500; white-space:nowrap}
+.step.done .dot{background:var(--leaf); border-color:var(--leaf); color:#fff}
+.step.done .label{color:var(--ink-2)}
+.step.active .dot{background:var(--clay); border-color:var(--clay); color:#fff;
+  box-shadow:0 0 0 4px rgba(204,120,92,.18)}
+.step.active .label{color:var(--clay-deep); font-weight:600}
+.step:not(:last-child)::after{content:''; position:absolute;
+  left:calc(50% + 16px); right:calc(-50% + 16px);
+  top:16px; height:2px; background:var(--bone); z-index:1}
+.step.done:not(:last-child)::after{background:var(--leaf)}
+
+/* Content */
+.content{flex:1; overflow-y:auto; padding:24px 24px 100px}
+.content-inner{max-width:1080px; margin:0 auto}
+
+.step-pane{display:none}
+.step-pane.active{display:block}
+
+.section-card{background:var(--paper); border:1px solid var(--line);
+  border-radius:var(--r-lg); margin-bottom:16px; overflow:hidden}
+.sc-head{padding:16px 22px; display:flex; align-items:center; justify-content:space-between;
+  border-bottom:1px solid var(--line); flex-wrap:wrap; gap:10px}
+.sc-head h3{font-size:15px}
+.sc-head .desc{font-size:12px; color:var(--ink-3)}
+.sc-body{padding:20px 22px}
+
+/* Step 1: Form */
+.form-row{display:grid; grid-template-columns:140px 1fr; gap:24px;
+  padding:18px 0; border-bottom:1px dashed var(--line); align-items:flex-start}
+.form-row:first-child{padding-top:0}
+.form-row:last-child{border-bottom:none; padding-bottom:0}
+.form-row .label{font-size:13px; color:var(--ink-2); font-weight:500; padding-top:8px;
+  display:flex; align-items:center; gap:5px}
+.form-row .label .req{color:var(--clay)}
+.form-row .control{min-width:0}
+
+.text-field{width:100%; padding:10px 14px; background:var(--ivory);
+  border:1px solid var(--line); border-radius:var(--r-sm);
+  font-size:13.5px; color:var(--ink); transition:all .12s}
+.text-field:focus{border-color:var(--clay); background:var(--paper);
+  box-shadow:0 0 0 3px rgba(204,120,92,.12)}
+textarea.text-field{min-height:80px; resize:vertical; font-family:inherit; line-height:1.65}
+
+.chip-group{display:flex; flex-wrap:wrap; gap:7px}
+.chip{padding:6px 13px; background:var(--ivory);
+  border:1px solid var(--line); border-radius:99px;
+  font-size:12.5px; color:var(--ink-2); cursor:pointer; transition:all .12s; user-select:none}
+.chip:hover{background:var(--bone); border-color:var(--line-2)}
+.chip.selected{background:var(--clay-tint); border-color:var(--clay-soft);
+  color:var(--clay-deep); font-weight:500}
+
+/* Word count chips —— 加点元数据 */
+.wordcount-chip{display:flex; align-items:center; gap:6px}
+.wordcount-chip .hint{font-size:10px; color:var(--ink-3); font-family:var(--mono)}
+.chip.selected .hint{color:var(--clay-deep)}
+
+/* Reference materials */
+.refs-list{display:flex; flex-direction:column; gap:6px; margin-bottom:10px}
+.refs-list:empty{display:none}
+.ref-item{display:flex; align-items:center; gap:10px; padding:8px 12px;
+  background:var(--ivory); border:1px solid var(--line); border-radius:var(--r-sm);
+  font-size:12.5px; transition:all .12s}
+.ref-item:hover{background:var(--bone); border-color:var(--line-2)}
+.ref-ico{width:26px; height:26px; border-radius:var(--r-xs);
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; border:1px solid}
+.ref-ico.pdf{background:#FEEAE6; color:var(--crimson); border-color:#F5C9C0}
+.ref-ico.doc{background:var(--pine-tint); color:var(--pine); border-color:var(--pine-soft)}
+.ref-ico.img{background:var(--clay-tint); color:var(--clay-deep); border-color:var(--clay-soft)}
+.ref-ico.link{background:var(--sand-tint); color:#8a6a3a; border-color:var(--sand-soft)}
+.ref-name{flex:1; min-width:0; font-weight:500; color:var(--ink);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.ref-size, .ref-meta{flex-shrink:0; font-family:var(--mono); font-size:11px; color:var(--ink-3)}
+.ref-meta{max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.ref-remove{width:22px; height:22px; flex-shrink:0;
+  border-radius:var(--r-xs); color:var(--ink-3);
+  font-size:18px; line-height:1;
+  display:flex; align-items:center; justify-content:center; transition:all .12s}
+.ref-remove:hover{background:#FEEAE6; color:var(--crimson)}
+.ref-actions{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.btn-add-ref{display:flex; align-items:center; gap:6px; padding:7px 14px;
+  background:var(--paper); border:1px dashed var(--line-2); border-radius:var(--r-sm);
+  font-size:12.5px; color:var(--ink-2); cursor:pointer; transition:all .12s; font-weight:500}
+.btn-add-ref:hover{background:var(--clay-tint); border-style:solid;
+  border-color:var(--clay); color:var(--clay-deep)}
+.ref-hint{font-size:11px; color:var(--ink-3); line-height:1.5}
+
+/* Style options */
+.style-options{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.style-option{padding:14px 16px; background:var(--ivory);
+  border:1.5px solid var(--line); border-radius:var(--r-sm);
+  cursor:pointer; transition:all .12s; display:flex; gap:12px; align-items:flex-start}
+.style-option:hover{border-color:var(--line-2)}
+.style-option.selected{background:var(--clay-tint); border-color:var(--clay)}
+.style-option .radio{width:16px; height:16px; flex-shrink:0;
+  border-radius:50%; border:1.5px solid var(--line-2);
+  background:var(--paper); position:relative; margin-top:1px}
+.style-option.selected .radio{border-color:var(--clay)}
+.style-option.selected .radio::after{content:''; position:absolute;
+  top:50%; left:50%; transform:translate(-50%,-50%);
+  width:7px; height:7px; border-radius:50%; background:var(--clay)}
+.style-option .info{flex:1; min-width:0}
+.style-option .info strong{display:flex; align-items:center; gap:6px;
+  font-size:13.5px; font-weight:600; color:var(--ink); margin-bottom:3px}
+.style-option .info strong .ver-tag{font-family:var(--serif-en); font-weight:600;
+  font-size:10px; background:var(--clay); color:#fff;
+  padding:1px 7px; border-radius:99px; letter-spacing:.04em}
+.style-option .info span{font-size:11.5px; color:var(--ink-3); line-height:1.5}
+
+/* 配图选项 - 卡片风格 */
+.image-opts{display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; max-width:540px}
+.img-opt{padding:12px 14px; background:var(--ivory);
+  border:1.5px solid var(--line); border-radius:var(--r-sm);
+  cursor:pointer; transition:all .12s; text-align:center;
+  position:relative}
+.img-opt:hover{border-color:var(--line-2)}
+.img-opt.selected{background:var(--clay-tint); border-color:var(--clay)}
+.img-opt .opt-icon{
+  width:32px; height:14px; margin:0 auto 8px;
+  background:var(--bone); border-radius:2px;
+  position:relative;
+}
+.img-opt.no-img .opt-icon{background:transparent; border:1px dashed var(--line-2)}
+.img-opt.cover-only .opt-icon{background:var(--clay-soft)}
+.img-opt.full .opt-icon{background:var(--clay)}
+.img-opt.full .opt-icon::after{
+  content:''; position:absolute;
+  bottom:-8px; left:0; right:0; height:6px;
+  background:var(--clay-soft); border-radius:2px;
+}
+.img-opt .opt-name{font-size:12.5px; font-weight:600; color:var(--ink); margin-bottom:2px; margin-top:14px}
+.img-opt.full .opt-name{margin-top:18px}
+.img-opt.selected .opt-name{color:var(--clay-deep)}
+.img-opt .opt-meta{font-size:10.5px; color:var(--ink-3); font-family:var(--mono)}
+
+/* Step 2: Edit */
+.edit-grid{display:grid; grid-template-columns: 1fr 320px; gap:16px; align-items:flex-start}
+.title-cards{display:flex; flex-direction:column; gap:10px}
+.title-card{display:flex; gap:14px; align-items:center;
+  padding:14px 18px; background:var(--ivory);
+  border:1.5px solid var(--line); border-radius:var(--r-md);
+  cursor:pointer; transition:all .12s}
+.title-card:hover{border-color:var(--line-2)}
+.title-card.selected{background:var(--paper); border-color:var(--clay);
+  box-shadow:0 0 0 3px rgba(204,120,92,.08)}
+.title-card .style-label{flex-shrink:0; font-family:var(--serif-en); font-style:italic;
+  font-size:10.5px; padding:3px 9px; background:var(--paper);
+  border:1px solid var(--line); border-radius:99px;
+  color:var(--ink-3); letter-spacing:.04em; font-weight:500}
+.title-card.selected .style-label{background:var(--clay-tint); border-color:var(--clay-soft); color:var(--clay-deep)}
+.title-card .title-text{flex:1; min-width:0; font-family:var(--serif);
+  font-size:15px; font-weight:600; color:var(--ink); line-height:1.4}
+.title-card .check{flex-shrink:0; width:22px; height:22px; border-radius:50%;
+  border:1.5px solid var(--line-2); background:var(--paper);
+  display:flex; align-items:center; justify-content:center;
+  color:transparent; font-size:11px; font-weight:700; transition:all .12s}
+.title-card.selected .check{background:var(--clay); border-color:var(--clay); color:#fff}
+
+/* Body editor —— 公众号长文，更宽松的版式 */
+.body-editor{
+  background:var(--ivory); border:1px solid var(--line);
+  border-radius:var(--r-md); padding:28px 36px;
+  font-family:var(--serif); font-size:15.5px; line-height:2;
+  color:var(--ink); min-height:520px;
+  outline:none; white-space:pre-wrap; position:relative;
+}
+.body-editor:focus{background:var(--paper); border-color:var(--clay-soft);
+  box-shadow:0 0 0 3px rgba(204,120,92,.06)}
+.body-editor strong{font-weight:600; color:var(--ink)}
+.body-editor h2{
+  font-size:19px; font-weight:700;
+  color:var(--ink); margin:32px 0 14px;
+  padding-bottom:6px;
+  border-bottom:2px solid var(--clay);
+  display:inline-block; max-width:100%;
+  letter-spacing:.01em;
+}
+.body-editor h2:first-child{margin-top:0}
+.body-editor p{margin:0 0 14px}
+.body-editor .cite-mark{
+  display:inline-block; vertical-align:super;
+  font-size:9.5px; font-family:var(--mono);
+  color:var(--clay-deep); background:var(--clay-tint);
+  padding:0 4px; border-radius:3px; margin:0 1px;
+  font-weight:600; cursor:pointer;
+}
+
+/* Right side panel */
+.side-panel{display:flex; flex-direction:column; gap:12px; position:sticky; top:0}
+.side-card{background:var(--paper); border:1px solid var(--line);
+  border-radius:var(--r-md); overflow:hidden}
+.side-card-head{padding:11px 16px; font-family:var(--serif-en); font-style:italic;
+  font-size:11px; color:var(--ink-3); letter-spacing:.06em;
+  border-bottom:1px solid var(--line); text-transform:uppercase;
+  display:flex; align-items:center; justify-content:space-between}
+.side-card-body{padding:14px 16px}
+
+/* 字数指示器（公众号特殊） */
+.word-meter{
+  background:var(--ivory);
+  border:1px dashed var(--line-2);
+  border-radius:var(--r-sm);
+  padding:14px 16px;
+  margin-bottom:14px;
+}
+.word-meter .wm-row{
+  display:flex; align-items:baseline; justify-content:space-between;
+  margin-bottom:8px;
+}
+.word-meter .wm-num{
+  font-family:var(--serif-en); font-weight:600;
+  font-size:30px; color:var(--ink); line-height:1;
+  letter-spacing:-.02em;
+}
+.word-meter .wm-target{
+  font-size:11.5px; color:var(--ink-3); font-family:var(--mono);
+}
+.word-meter .wm-target b{color:var(--ink-2); font-weight:500}
+.word-meter .wm-track{
+  height:6px; background:var(--bone);
+  border-radius:3px; overflow:hidden;
+  margin-top:6px;
+}
+.word-meter .wm-fill{
+  height:100%;
+  background:linear-gradient(90deg, var(--leaf), var(--sand));
+  border-radius:3px;
+}
+.word-meter .wm-status{
+  font-size:11px; color:var(--leaf);
+  margin-top:6px;
+  display:flex; align-items:center; gap:5px;
+}
+.word-meter .wm-status::before{
+  content:''; width:6px; height:6px; border-radius:50%; background:var(--leaf);
+}
+
+.info-row{display:flex; justify-content:space-between; padding:7px 0;
+  font-size:12.5px; border-bottom:1px dashed var(--line)}
+.info-row:last-child{border-bottom:none; padding-bottom:0}
+.info-row:first-child{padding-top:0}
+.info-row .k{color:var(--ink-3)}
+.info-row .v{color:var(--ink); font-weight:500; max-width:170px; text-align:right}
+.info-row .v.serif{font-family:var(--serif-en); font-weight:600; color:var(--clay-deep)}
+
+.cite-list{display:flex; flex-direction:column; gap:8px}
+.cite-row{display:flex; gap:8px; align-items:flex-start;
+  font-size:12px; line-height:1.55; color:var(--ink-2);
+  padding:6px 0; border-bottom:1px dashed var(--line); cursor:pointer}
+.cite-row:last-child{border-bottom:none}
+.cite-row:hover{color:var(--clay-deep)}
+.cite-row .num{flex-shrink:0; font-family:var(--mono);
+  color:var(--clay-deep); font-weight:600; font-size:11px}
+
+.regen-btn{width:100%; padding:10px;
+  background:var(--ink); color:var(--paper);
+  border-radius:var(--r-sm);
+  font-size:12.5px; font-weight:500;
+  cursor:pointer; transition:all .12s;
+  display:flex; align-items:center; justify-content:center; gap:6px}
+.regen-btn:hover{background:#000}
+.regen-btn .credits-tip{font-size:10.5px; color:rgba(245,249,245,.6);
+  font-family:var(--mono); margin-left:6px}
+
+/* Step 3: 公众号配图 - 单列大图 */
+.images-toolbar{display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:14px; padding:14px 18px;
+  background:var(--paper); border:1px solid var(--line);
+  border-radius:var(--r-md); margin-bottom:16px}
+.images-toolbar .l{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+.images-toolbar .check-icon{
+  width:24px; height:24px; background:var(--leaf); color:#fff;
+  border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:700; flex-shrink:0}
+.images-toolbar .info-text{font-size:13px; color:var(--ink-2)}
+.images-toolbar .info-text b{color:var(--ink); font-weight:600}
+.images-toolbar .info-text .meta{font-size:11.5px; color:var(--ink-3); margin-top:2px}
+.images-toolbar .r{display:flex; gap:8px}
+.btn-tool{display:flex; align-items:center; gap:6px;
+  padding:8px 14px; background:var(--ivory);
+  border:1px solid var(--line); border-radius:var(--r-sm);
+  font-size:12.5px; color:var(--ink-2);
+  cursor:pointer; transition:all .12s}
+.btn-tool:hover{background:var(--bone); border-color:var(--line-2); color:var(--ink)}
+.btn-tool.primary{background:var(--clay); color:#fff; border-color:var(--clay); box-shadow:var(--sh-clay)}
+.btn-tool.primary:hover{background:var(--clay-deep)}
+
+/* 单列大图 - 2.35:1 比例 */
+.gzh-image-list{
+  display:flex; flex-direction:column; gap:14px;
+  margin-bottom:24px;
+}
+.gzh-image-card{
+  position:relative;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:var(--r-md);
+  overflow:hidden;
+  transition:all .15s;
+  cursor:pointer;
+}
+.gzh-image-card:hover{
+  border-color:var(--line-2);
+  box-shadow:var(--sh-2);
+}
+.gzh-image-card.cover{
+  border-color:var(--clay-soft);
+  background:linear-gradient(135deg, var(--paper), var(--clay-tint));
+}
+.gzh-image-card .img-frame{
+  position:relative;
+  aspect-ratio: 2.35 / 1;
+  overflow:hidden;
+}
+.gzh-image-card svg{
+  width:100%; height:100%;
+}
+.gzh-image-card .frame-meta{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 16px;
+  background:var(--paper);
+  border-top:1px solid var(--line);
+}
+.gzh-image-card .frame-info{
+  display:flex; align-items:center; gap:8px;
+}
+.gzh-image-card .role-tag{
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:11px; font-weight:600;
+  padding:2px 8px; border-radius:99px;
+  letter-spacing:.04em;
+}
+.gzh-image-card .role-tag.cover{background:var(--clay); color:#fff}
+.gzh-image-card .role-tag.body{background:var(--bone); color:var(--ink-2)}
+.gzh-image-card .frame-name{
+  font-size:12.5px;
+  color:var(--ink-2);
+  font-weight:500;
+}
+.gzh-image-card .ratio-tag{
+  font-size:10.5px;
+  color:var(--ink-3);
+  font-family:var(--mono);
+  background:var(--ivory);
+  padding:2px 8px; border-radius:3px;
+  border:1px solid var(--line);
+}
+.gzh-image-card .frame-actions{
+  display:flex; gap:6px;
+}
+.gzh-image-card .frame-action{
+  display:flex; align-items:center; gap:4px;
+  padding:5px 10px;
+  font-size:11.5px;
+  background:transparent;
+  border:1px solid var(--line);
+  border-radius:var(--r-xs);
+  color:var(--ink-2);
+  cursor:pointer; transition:all .12s;
+}
+.gzh-image-card .frame-action:hover{
+  background:var(--bone);
+  border-color:var(--line-2);
+  color:var(--ink);
+}
+
+/* 当用户选了"不需要配图" 时的空状态 */
+.no-image-state{
+  background:var(--paper);
+  border:1px dashed var(--line-2);
+  border-radius:var(--r-md);
+  padding:60px 40px;
+  text-align:center;
+}
+.no-image-state .ico{
+  width:56px; height:56px; margin:0 auto 16px;
+  background:var(--bone); color:var(--ink-3);
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+}
+.no-image-state h4{font-size:16px; margin-bottom:6px}
+.no-image-state p{font-size:13px; color:var(--ink-3); margin-bottom:18px; line-height:1.7}
+.no-image-state .add-btn{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:9px 18px;
+  background:var(--clay); color:#fff;
+  border-radius:var(--r-sm);
+  font-size:13px; font-weight:500;
+  cursor:pointer; transition:all .12s;
+  box-shadow:var(--sh-clay);
+}
+.no-image-state .add-btn:hover{background:var(--clay-deep); transform:translateY(-1px)}
+
+/* Done section */
+.done-section{background:var(--paper); border:1px solid var(--line);
+  border-left:3px solid var(--leaf); border-radius:var(--r-md);
+  padding:18px 22px;
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:14px}
+.done-section .l{display:flex; align-items:center; gap:14px}
+.done-section .l h4{font-size:15px; font-weight:600; margin-bottom:2px}
+.done-section .l .desc{font-size:12.5px; color:var(--ink-3)}
+.done-section .r{display:flex; gap:8px; flex-wrap:wrap}
+.btn-done{display:flex; align-items:center; gap:6px; padding:9px 16px;
+  background:var(--paper); border:1px solid var(--line); border-radius:var(--r-sm);
+  font-size:12.5px; color:var(--ink-2); cursor:pointer; transition:all .12s; font-weight:500}
+.btn-done:hover{background:var(--bone); border-color:var(--line-2); color:var(--ink)}
+.btn-done.primary{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+.btn-done.primary:hover{background:#000}
+
+/* Footer Actions Bar */
+.actions-bar{position:fixed; left:var(--sidebar-w); right:0; bottom:0;
+  height:64px; display:flex; align-items:center; justify-content:space-between;
+  padding:0 32px; background:rgba(245,241,235,.94);
+  backdrop-filter:saturate(150%) blur(12px);
+  -webkit-backdrop-filter:saturate(150%) blur(12px);
+  border-top:1px solid var(--line); z-index:40}
+.actions-bar .l, .actions-bar .r{display:flex; align-items:center; gap:14px}
+.actions-bar .meta{font-size:12px; color:var(--ink-3)}
+.actions-bar .meta b{color:var(--ink); font-weight:500; font-family:var(--serif-en)}
+.btn-primary-large{display:flex; align-items:center; gap:8px;
+  padding:11px 24px; background:var(--clay); color:#fff;
+  border-radius:var(--r-md); font-size:14px; font-weight:600;
+  cursor:pointer; transition:all .12s; box-shadow:var(--sh-clay)}
+.btn-primary-large:hover{background:var(--clay-deep); transform:translateY(-1px)}
+.btn-primary-large .arr{font-size:14px; transition:transform .15s}
+.btn-primary-large:hover .arr{transform:translateX(3px)}
+.btn-back{display:flex; align-items:center; gap:6px; padding:9px 16px;
+  background:transparent; color:var(--ink-2);
+  border:1px solid var(--line); border-radius:var(--r-sm);
+  font-size:13px; cursor:pointer; transition:all .12s}
+.btn-back:hover{background:var(--bone); border-color:var(--line-2)}
+
+/* Modal */
+.modal-bg{position:fixed; inset:0; background:rgba(31,31,30,.55);
+  backdrop-filter:blur(4px); z-index:100; display:none;
+  align-items:center; justify-content:center; padding:24px}
+.modal-bg.active{display:flex; animation:fadeIn .15s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--paper); border-radius:var(--r-xl);
+  padding:28px 32px; max-width:780px; width:100%;
+  box-shadow:var(--sh-3); animation:slideUp .2s cubic-bezier(.2,.8,.2,1);
+  position:relative; max-height:calc(100vh - 48px); overflow-y:auto}
+@keyframes slideUp{from{opacity:0; transform:translateY(8px)}to{opacity:1; transform:translateY(0)}}
+.modal-close{position:absolute; top:14px; right:14px;
+  width:30px; height:30px; display:flex; align-items:center; justify-content:center;
+  color:var(--ink-3); border-radius:var(--r-xs);
+  font-size:20px; line-height:1; transition:all .12s}
+.modal-close:hover{background:var(--bone); color:var(--ink)}
+.modal h3{font-size:20px; margin-bottom:6px}
+.modal-sub{font-size:13px; color:var(--ink-3); line-height:1.65; margin-bottom:20px}
+
+/* 通用 Tab 样式 - 用于参考材料 modal */
+.tpl-tabs{display:flex; gap:4px; background:var(--ivory);
+  padding:3px; border-radius:var(--r-sm); border:1px solid var(--line); margin-bottom:18px}
+.tpl-tab{flex:1; text-align:center; padding:7px 10px;
+  font-size:12.5px; color:var(--ink-3); border-radius:var(--r-xs);
+  cursor:pointer; transition:all .12s; font-weight:500}
+.tpl-tab:hover{color:var(--ink-2)}
+.tpl-tab.active{background:var(--paper); color:var(--ink); box-shadow:var(--sh-1)}
+
+.modal-actions{display:flex; justify-content:flex-end; gap:10px;
+  padding-top:18px; border-top:1px dashed var(--line-2)}
+
+@media (max-width:1100px){
+  .edit-grid{grid-template-columns:1fr}
+  .style-options{grid-template-columns:1fr}
+  .image-opts{grid-template-columns:1fr}
+}
+@media (max-width:780px){
+  .form-row{grid-template-columns:1fr; gap:8px}
+  .form-row .label{padding-top:0}
+  .actions-bar{left:0; padding:0 16px}
+  .body-editor{padding:20px 22px; font-size:15px}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+<!-- ========= SIDEBAR ========= -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <span class="mark">
+      <svg viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="13" stroke="#1F1F1E" stroke-width="1.4"/>
+        <circle cx="14" cy="9" r="2.2" fill="#CC785C"/>
+        <circle cx="9" cy="17" r="2.2" fill="#3F5C52"/>
+        <circle cx="19" cy="17" r="2.2" fill="#1F1F1E"/>
+        <path d="M14 11.2 L9.8 15.6 M14 11.2 L18.2 15.6 M11 17.5 L17 17.5" stroke="#1F1F1E" stroke-width="1.1" stroke-linecap="round"/>
+      </svg>
+    </span>
+    <span class="name">承知<span class="en">CHENGZHI</span></span>
+  </div>
+
+  <nav class="sidebar-nav scroll-y">
+    <div class="nav-group">
+      <div class="nav-group-title">— Workflow · 主工作流</div>
+      <a class="nav-item" href="#">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L13.5 8.5 L20 10 L13.5 11.5 L12 18 L10.5 11.5 L4 10 L10.5 8.5 Z"/><circle cx="19" cy="5" r="1.2"/><circle cx="5" cy="19" r="1.2"/></svg></span>
+        <span class="label">选题广场</span>
+      </a>
+      <div class="nav-collapsible open" data-collapsible>
+        <a class="nav-item" data-toggle>
+          <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/><path d="M8 13h8M8 17h5"/></svg></span>
+          <span class="label">内容创作</span>
+          <span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </a>
+        <div class="nav-sub">
+          <a class="nav-sub-item">小红书创作</a>
+          <a class="nav-sub-item">视频号创作</a>
+          <a class="nav-sub-item active">公众号创作</a>
+          <a class="nav-sub-item">小红书仿写</a>
+          <a class="nav-sub-item">公众号仿写</a>
+          <a class="nav-sub-item">视频仿做</a>
+        </div>
+      </div>
+      <div class="nav-collapsible" data-collapsible>
+        <a class="nav-item" data-toggle>
+          <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>
+          <span class="label">爆款拆解</span>
+          <span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </a>
+        <div class="nav-sub">
+          <a class="nav-sub-item">拆解小红书爆款</a>
+          <a class="nav-sub-item">拆解抖音爆款</a>
+        </div>
+      </div>
+      <a class="nav-item" href="#">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span>
+        <span class="label">答疑逼单</span>
+      </a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">— Settings · 我的设置</div>
+      <a class="nav-item" href="#">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><line x1="14" y1="9" x2="18" y2="9"/><line x1="14" y1="13" x2="18" y2="13"/><line x1="14" y1="17" x2="18" y2="17"/></svg></span>
+        <span class="label">个人信息</span>
+      </a>
+      <a class="nav-item" href="#">
+        <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg></span>
+        <span class="label">个人风格</span>
+      </a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">— Knowledge · 知识库</div>
+      <div class="nav-collapsible" data-collapsible>
+        <a class="nav-item" data-toggle>
+          <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
+          <span class="label">保险知识库</span>
+          <span class="chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </a>
+        <div class="nav-sub">
+          <a class="nav-sub-item">常见 FAQ</a>
+          <a class="nav-sub-item">理赔案例库</a>
+          <a class="nav-sub-item">险种大全</a>
+          <a class="nav-sub-item">投保注意事项</a>
+          <a class="nav-sub-item">保障责任</a>
+          <a class="nav-sub-item">合规词库</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="sidebar-foot">
+    <div class="member-card">
+      <div class="label">— ANNUAL MEMBER</div>
+      <div class="days">还剩 <b>327</b> 天到期</div>
+      <span class="renew">续费 / 加购积分</span>
+    </div>
+    <div class="user-mini">
+      <div class="avatar">林</div>
+      <div class="info">
+        <div class="name">林老师</div>
+        <div class="role">中产家庭保障顾问</div>
+      </div>
+      <span class="more">⋯</span>
+    </div>
+  </div>
+</aside>
+
+<!-- ========= MAIN ========= -->
+<div class="main">
+  <header class="topbar">
+    <div class="breadcrumb">
+      <span>内容创作</span>
+      <span class="sep">/</span>
+      <span class="current">公众号创作</span>
+    </div>
+    <div class="top-actions">
+      <div class="credits-chip">
+        <span class="star">✦</span>
+        <span class="num">6,847</span>
+        <span class="total">/ 8,000 积分</span>
+        <div class="credits-bar"></div>
+      </div>
+      <button class="icon-btn" aria-label="通知">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="badge"></span>
+      </button>
+      <button class="avatar-btn" aria-label="个人信息">林</button>
+    </div>
+  </header>
+
+  <div class="page-head">
+    <div class="page-title-row">
+      <div class="page-title">
+        <span class="platform-tag">公</span>
+        <h2>公众号创作</h2>
+        <span class="from">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 L13.5 8.5 L20 10 L13.5 11.5 L12 18 L10.5 11.5 L4 10 L10.5 8.5 Z"/></svg>
+          来自选题广场：<b>《医保改革落地，30+ 群体到底要不要重新规划》</b>
+        </span>
+      </div>
+      <div class="page-actions">
+        <button class="btn-draft" onclick="saveDraft()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+          <span>保存为草稿</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step done" onclick="goStep(1)">
+        <div class="dot">✓</div>
+        <div class="label">提需求</div>
+      </div>
+      <div class="step active" onclick="goStep(2)">
+        <div class="dot">2</div>
+        <div class="label">改文案</div>
+      </div>
+      <div class="step done" onclick="goStep(3)">
+        <div class="dot">3</div>
+        <div class="label">配图</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="content-inner">
+
+      <!-- ========= STEP 1: 提需求 ========= -->
+      <div class="step-pane" id="step1">
+        <div class="section-card">
+          <div class="sc-head">
+            <h3>告诉 AI 你想写什么</h3>
+            <span class="desc">公众号长文 · 默认 2,000 字 · 可选是否要封面和正文配图</span>
+          </div>
+          <div class="sc-body">
+
+            <div class="form-row">
+              <div class="label">选题主题 <span class="req">*</span></div>
+              <div class="control">
+                <input type="text" class="text-field" value="医保改革落地，30+ 群体到底要不要重新规划保障？" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="label">主要内容方向</div>
+              <div class="control">
+                <textarea class="text-field" placeholder="（选填）告诉 AI 你想强调的角度">先用一个客户案例引入；然后讲清楚医保 60% 的真实含义；列举医保不能覆盖的 5 大空白；再讲商保如何补充；最后给出 30+ 人群的搭配建议。整体偏深度解读，避免营销味。</textarea>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="label">参考材料</div>
+              <div class="control">
+                <div class="refs-list">
+                  <div class="ref-item">
+                    <div class="ref-ico pdf">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    </div>
+                    <span class="ref-name">2024 医保改革政策实施细则.pdf</span>
+                    <span class="ref-size">3.8 MB</span>
+                    <button class="ref-remove" onclick="removeRef(this)">×</button>
+                  </div>
+                  <div class="ref-item">
+                    <div class="ref-ico link">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    </div>
+                    <span class="ref-name">国家医保局：2023 年度医保运行公告</span>
+                    <span class="ref-meta">www.nhsa.gov.cn/...</span>
+                    <button class="ref-remove" onclick="removeRef(this)">×</button>
+                  </div>
+                </div>
+                <div class="ref-actions">
+                  <button class="btn-add-ref" onclick="openRefModal()">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span>添加参考材料</span>
+                  </button>
+                  <span class="ref-hint">支持 PDF / DOC / 图片 / 链接 · AI 会读完再写 · 仅本次使用</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="label">字数 <span class="req">*</span></div>
+              <div class="control">
+                <div class="chip-group">
+                  <span class="chip">1,500 字 <span style="font-size:10px; color:var(--ink-3); font-family:var(--mono); margin-left:3px">短</span></span>
+                  <span class="chip selected">2,000 字 <span style="font-size:10px; color:var(--clay-deep); font-family:var(--mono); margin-left:3px">推荐</span></span>
+                  <span class="chip">2,500 字</span>
+                  <span class="chip">3,000 字</span>
+                  <span class="chip">4,000 字 <span style="font-size:10px; color:var(--ink-3); font-family:var(--mono); margin-left:3px">深度</span></span>
+                </div>
+                <div style="font-size:11px; color:var(--ink-3); margin-top:8px; line-height:1.5;">公众号长文建议 1,500-4,000 字 · 不超过 4,000 字</div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="label">险种 <span class="req">*</span></div>
+              <div class="control">
+                <div class="chip-group">
+                  <span class="chip selected">医疗险</span>
+                  <span class="chip selected">重疾险</span>
+                  <span class="chip">寿险</span>
+                  <span class="chip">意外险</span>
+                  <span class="chip">年金险</span>
+                  <span class="chip">储蓄险</span>
+                  <span class="chip">少儿险</span>
+                  <span class="chip">团险</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="label">目标人群 <span class="req">*</span></div>
+              <div class="control">
+                <div class="chip-group">
+                  <span class="chip selected">中产</span>
+                  <span class="chip">宝妈</span>
+                  <span class="chip">高净值</span>
+                  <span class="chip">银发族</span>
+                  <span class="chip">单身青年</span>
+                  <span class="chip">创业者</span>
+                  <span class="chip">全职主妇</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="label">写作风格 <span class="req">*</span></div>
+              <div class="control">
+                <div class="style-options">
+                  <div class="style-option selected">
+                    <div class="radio"></div>
+                    <div class="info">
+                      <strong>我的个人风格 <span class="ver-tag">V3</span></strong>
+                      <span>基于 12 篇素材训练 · "温暖、克制、擅讲案例"</span>
+                    </div>
+                  </div>
+                  <div class="style-option">
+                    <div class="radio"></div>
+                    <div class="info">
+                      <strong>通用专业风格</strong>
+                      <span>严谨、引经据典、数据驱动</span>
+                    </div>
+                  </div>
+                  <div class="style-option">
+                    <div class="radio"></div>
+                    <div class="info">
+                      <strong>通用温暖风格</strong>
+                      <span>亲切、生活化、像跟朋友聊天</span>
+                    </div>
+                  </div>
+                  <div class="style-option">
+                    <div class="radio"></div>
+                    <div class="info">
+                      <strong>通用犀利风格</strong>
+                      <span>痛点直击、节奏快、容易爆</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="label">配图选项</div>
+              <div class="control">
+                <div class="image-opts">
+                  <div class="img-opt no-img" onclick="pickImageOpt(this)">
+                    <div class="opt-icon"></div>
+                    <div class="opt-name">不需要配图</div>
+                    <div class="opt-meta">纯文字</div>
+                  </div>
+                  <div class="img-opt cover-only selected" onclick="pickImageOpt(this)">
+                    <div class="opt-icon"></div>
+                    <div class="opt-name">仅生成封面</div>
+                    <div class="opt-meta">推荐 · 1 张图</div>
+                  </div>
+                  <div class="img-opt full" onclick="pickImageOpt(this)">
+                    <div class="opt-icon"></div>
+                    <div class="opt-name">封面 + 正文配图</div>
+                    <div class="opt-meta">5 张图</div>
+                  </div>
+                </div>
+                <div style="font-size:11px; color:var(--ink-3); margin-top:8px; line-height:1.5;">公众号封面比例为 <b style="font-family:var(--mono); color:var(--ink-2)">2.35:1</b> · 列表展示需要封面图</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ========= STEP 2: 改文案 ========= -->
+      <div class="step-pane active" id="step2">
+        <div class="edit-grid">
+
+          <div class="edit-main">
+            <div class="section-card">
+              <div class="sc-head">
+                <h3>3 个备选标题</h3>
+                <span class="desc">公众号标题决定打开率 · 挑一个</span>
+              </div>
+              <div class="sc-body">
+                <div class="title-cards">
+                  <div class="title-card selected" onclick="pickTitle(this)">
+                    <span class="style-label">深度型</span>
+                    <span class="title-text">医保改革落地：30+ 群体的保障缺口究竟有多大？</span>
+                    <div class="check">✓</div>
+                  </div>
+                  <div class="title-card" onclick="pickTitle(this)">
+                    <span class="style-label">故事型</span>
+                    <span class="title-text">32 岁老张的体检单：让我重新审视医保不能解决的问题</span>
+                    <div class="check">✓</div>
+                  </div>
+                  <div class="title-card" onclick="pickTitle(this)">
+                    <span class="style-label">反问型</span>
+                    <span class="title-text">医保的 60% 之外，我们还需要什么？关于 30+ 保障规划的思考</span>
+                    <div class="check">✓</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section-card">
+              <div class="sc-head">
+                <h3>正文内容</h3>
+                <span class="desc">可直接编辑 · 已自动添加章节小标题</span>
+              </div>
+              <div class="sc-body">
+                <div class="body-editor" contenteditable="true"><p>最近一位老朋友找到我，他叫老张，今年 32 岁。</p><p>他刚做完一次例行体检，医生提醒他要注意一些代谢指标。坐我办公室里时，他显得很紧张，问我："你说我每个月公司都给交社保，万一哪天真出事了，社保到底能管多少？"</p><p>这个问题特别好，但很多人没认真算过这笔账。</p><h2>一、医保的"60%"是怎么来的？</h2><p>很多人不知道，我们日常说的"医保报销"，其实是一个非常复杂的计算过程。</p><p>根据国家医保局公开数据，2023 年全国基本医保住院费用平均报销比例约为 <strong>60%</strong><span class="cite-mark">[1]</span>。也就是说，<strong>住院花了 100 元，社保平均能报 60 元，剩下 40 元需要自己掏</strong>。</p><p>但这只是平均数。实际报销情况受很多因素影响：</p><p><strong>第一，医保目录限制。</strong>医保只覆盖目录内的药品和诊疗项目。目录外的——也就是常说的"自费项目"——不在报销范围内。</p><p><strong>第二，起付线和封顶线。</strong>北京 2024 年的医保起付线是 1,800 元，超过这个数才开始报销；封顶线是 60 万。这意味着，小病自己掏，大病也可能自己掏。</p><p><strong>第三，异地就医。</strong>在户籍地以外就医，报销比例和流程都会复杂很多。</p><h2>二、医保不报销的"五大空白"</h2><p>在实战中，我们发现医保有五大常见空白<span class="cite-mark">[2]</span>：</p><p><strong>1. 高价自费药。</strong>像靶向药里的奥希替尼，一盒约 5 万元；CAR-T 细胞疗法，单次治疗费用百万级别。这些救命药很多都不在医保目录内。</p><p><strong>2. 进口高端器材。</strong>进口心脏支架、人工关节等。国产支架已大量进入集采降价，但进口款仍属自费范畴。</p><p><strong>3. 特殊病房与床位。</strong>ICU 床位、单人间、特护服务——这些在报销时往往不计入医保。</p><p><strong>4. 营养支持与康复。</strong>大病后期的营养支持、康复治疗、心理辅导，这些"长尾费用"很多医保不覆盖。</p><p><strong>5. 误工损失。</strong>最容易被忽略的——病假期间的收入损失。家庭支柱一旦倒下，月供、孩子学费、父母赡养，都成了实际压力。</p><h2>三、商保如何弥补这些空白？</h2><p>针对上述五大空白，商保产品的设计逻辑就是"医保的延伸"。</p><p><strong>百万医疗险</strong>——补的是"自费药"和"封顶线之外"的部分。每年几百块，能报销几百万的医疗费用，是性价比最高的补充工具。</p><p><strong>重大疾病险</strong>——补的是"误工损失"。一次性赔付一笔钱，让你在治病期间有底气不用工作。</p><p><strong>意外险</strong>——补的是急性意外造成的伤害和损失。</p><p><strong>寿险</strong>——补的是家庭支柱倒下后，配偶、子女、老人的生活保障。</p><p>这四类产品分工明确，叠加起来才能形成一个完整的保障网<span class="cite-mark">[3]</span>。</p><h2>四、30+ 群体的最佳搭配建议</h2><p>如果你也在 30 岁这个阶段，我的建议是：<strong>先解决"花费风险"，再解决"收入风险"。</strong></p><p>具体顺序：百万医疗险 → 意外险 → 重疾险 → 定期寿险。</p><p>这个顺序的逻辑是：百万医疗和意外险是最基础的、保费便宜的；重疾险和寿险是核心保障，保费稍高但缺一不可。</p><p>我经常告诉客户：保险的本质不是"买安心"，而是用一笔小的、确定的支出，来对冲未来一笔大的、不确定的损失。</p><h2>写在最后</h2><p>无论你处在哪个阶段——刚工作、有家庭、还是上有老下有小——医保都只是基础。商保不是"额外开销"，而是"基础保障"的必备延伸。</p><p>在你身体状态最好、保费最便宜的时候做好规划，胜过在出事后追悔莫及。</p><p>如果你想了解适合自己的方案，欢迎来找我聊聊。每个家庭的情况不同，但保障的逻辑是一样的。</p></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="side-panel">
+
+            <!-- 字数指示器（公众号特有） -->
+            <div class="word-meter">
+              <div class="wm-row">
+                <span class="wm-num">1,962</span>
+                <span class="wm-target">目标 <b>2,000</b> 字</span>
+              </div>
+              <div class="wm-track"><div class="wm-fill" style="width:98%"></div></div>
+              <div class="wm-status">字数符合预期</div>
+            </div>
+
+            <div class="side-card">
+              <div class="side-card-head">
+                <span>— Info · 写作信息</span>
+              </div>
+              <div class="side-card-body">
+                <div class="info-row">
+                  <span class="k">写作风格</span>
+                  <span class="v">林老师 V3</span>
+                </div>
+                <div class="info-row">
+                  <span class="k">险种</span>
+                  <span class="v">医疗险, 重疾险</span>
+                </div>
+                <div class="info-row">
+                  <span class="k">目标人群</span>
+                  <span class="v">中产</span>
+                </div>
+                <div class="info-row">
+                  <span class="k">章节数</span>
+                  <span class="v serif">5</span>
+                </div>
+                <div class="info-row">
+                  <span class="k">预计阅读</span>
+                  <span class="v">约 7 分钟</span>
+                </div>
+                <div class="info-row">
+                  <span class="k">配图</span>
+                  <span class="v">封面 + 正文配图</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="side-card">
+              <div class="side-card-head">
+                <span>— Citations · 引用来源</span>
+              </div>
+              <div class="side-card-body">
+                <div class="cite-list">
+                  <div class="cite-row">
+                    <span class="num">[1]</span>
+                    <span>国家医保局 · 2023 年医保运行公告</span>
+                  </div>
+                  <div class="cite-row">
+                    <span class="num">[2]</span>
+                    <span>FAQ #047 · 医保覆盖范围</span>
+                  </div>
+                  <div class="cite-row">
+                    <span class="num">[3]</span>
+                    <span>险种大全 · 险种搭配逻辑</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button class="regen-btn" onclick="regenerateAll()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              <span>整篇重新生成</span>
+              <span class="credits-tip">−10 积分</span>
+            </button>
+
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ========= STEP 3: 配图 ========= -->
+      <div class="step-pane" id="step3">
+
+        <div class="images-toolbar">
+          <div class="l">
+            <div class="check-icon">✓</div>
+            <div class="info-text">
+              <div>AI 已为这篇文章生成 <b>5 张</b> 配图（2.35:1 比例）</div>
+              <div class="meta">1 张封面 + 4 张正文配图 · 按章节自动匹配</div>
+            </div>
+          </div>
+          <div class="r">
+            <button class="btn-tool primary" onclick="regenAllImages()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              <span>全部重新生成</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="gzh-image-list">
+
+          <!-- Cover -->
+          <div class="gzh-image-card cover">
+            <div class="img-frame">
+              <svg viewBox="0 0 940 400" preserveAspectRatio="xMidYMid slice">
+                <rect width="940" height="400" fill="#F5E2D5"/>
+                <line x1="0" y1="380" x2="940" y2="380" stroke="#CC785C" stroke-width="2"/>
+                <text x="60" y="80" font-family="Noto Serif SC" font-size="13" fill="#A85A40" letter-spacing="0.2em">林老师的保障日记 · 第 047 期</text>
+                <line x1="60" y1="100" x2="120" y2="100" stroke="#CC785C" stroke-width="2"/>
+                <text x="60" y="200" font-family="Noto Serif SC" font-size="48" fill="#1F1F1E" font-weight="700">医保改革落地：</text>
+                <text x="60" y="258" font-family="Noto Serif SC" font-size="48" fill="#CC785C" font-weight="700">30+ 群体的保障缺口</text>
+                <text x="60" y="316" font-family="Noto Serif SC" font-size="48" fill="#1F1F1E" font-weight="700">究竟有多大？</text>
+                <text x="60" y="358" font-family="Fraunces" font-style="italic" font-size="13" fill="#6B6862">— 一份关于风险与对冲的深度解读</text>
+              </svg>
+            </div>
+            <div class="frame-meta">
+              <div class="frame-info">
+                <span class="role-tag cover">★ 封面</span>
+                <span class="frame-name">主标题 + 期刊号</span>
+                <span class="ratio-tag">2.35:1 · 940×400</span>
+              </div>
+              <div class="frame-actions">
+                <button class="frame-action" onclick="regenSingle('封面')">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                  <span>重新生成</span>
+                </button>
+                <button class="frame-action">下载</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Image 2 - 数据图 -->
+          <div class="gzh-image-card">
+            <div class="img-frame">
+              <svg viewBox="0 0 940 400" preserveAspectRatio="xMidYMid slice">
+                <rect width="940" height="400" fill="#FAF9F5"/>
+                <text x="60" y="70" font-family="Noto Serif SC" font-size="14" fill="#6B6862" letter-spacing="0.1em">— 第一章 · 60% 是怎么来的 —</text>
+
+                <text x="60" y="230" font-family="Noto Serif SC" font-size="160" fill="#CC785C" font-weight="700" letter-spacing="-0.04em">60</text>
+                <text x="290" y="170" font-family="Noto Serif SC" font-size="50" fill="#CC785C" font-weight="700">%</text>
+                <text x="60" y="280" font-family="Noto Serif SC" font-size="18" fill="#3A3935" font-weight="500">基础医保住院费用平均报销比例</text>
+
+                <line x1="500" y1="120" x2="500" y2="320" stroke="#E4DDCE" stroke-width="1"/>
+
+                <text x="540" y="160" font-family="Noto Serif SC" font-size="13" fill="#6B6862">100 元医疗费</text>
+                <text x="540" y="195" font-family="Noto Serif SC" font-size="22" fill="#1F1F1E" font-weight="600">医保报 60 元</text>
+                <text x="540" y="230" font-family="Noto Serif SC" font-size="22" fill="#A85A40" font-weight="600">剩下 40 元自掏</text>
+
+                <text x="540" y="290" font-family="Fraunces" font-style="italic" font-size="11" fill="#6B6862">— 数据：国家医保局 2023 年公告</text>
+
+                <text x="60" y="370" font-family="Fraunces" font-style="italic" font-size="11" fill="#6B6862">林老师 · 保障日记</text>
+              </svg>
+            </div>
+            <div class="frame-meta">
+              <div class="frame-info">
+                <span class="role-tag body">正文 · 02</span>
+                <span class="frame-name">第一章 · 数据展示</span>
+                <span class="ratio-tag">2.35:1</span>
+              </div>
+              <div class="frame-actions">
+                <button class="frame-action" onclick="regenSingle('第一章')">重新生成</button>
+                <button class="frame-action">下载</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Image 3 - 五大空白 -->
+          <div class="gzh-image-card">
+            <div class="img-frame">
+              <svg viewBox="0 0 940 400" preserveAspectRatio="xMidYMid slice">
+                <rect width="940" height="400" fill="#E1E8E4"/>
+                <text x="60" y="70" font-family="Noto Serif SC" font-size="14" fill="#3F5C52" letter-spacing="0.1em">— 第二章 · 五大空白 —</text>
+                <line x1="60" y1="90" x2="120" y2="90" stroke="#3F5C52" stroke-width="2"/>
+
+                <text x="60" y="150" font-family="Noto Serif SC" font-size="32" fill="#1F1F1E" font-weight="700">医保不报销的</text>
+                <text x="60" y="190" font-family="Noto Serif SC" font-size="32" fill="#3F5C52" font-weight="700">五大空白</text>
+
+                <g font-family="Noto Serif SC" font-size="14" fill="#3A3935">
+                  <text x="500" y="150">01　高价自费药</text>
+                  <text x="500" y="180">02　进口高端器材</text>
+                  <text x="500" y="210">03　特殊病房与床位</text>
+                  <text x="500" y="240">04　营养支持与康复</text>
+                  <text x="500" y="270">05　误工损失</text>
+                </g>
+
+                <line x1="500" y1="290" x2="880" y2="290" stroke="#3F5C52" stroke-width="1" opacity=".4"/>
+                <text x="500" y="318" font-family="Noto Serif SC" font-size="12" fill="#3F5C52" font-style="italic">每一项都关乎到个人或家庭的实际负担</text>
+
+                <text x="60" y="370" font-family="Fraunces" font-style="italic" font-size="11" fill="#6B6862">— FAQ #047 · 医保覆盖范围</text>
+              </svg>
+            </div>
+            <div class="frame-meta">
+              <div class="frame-info">
+                <span class="role-tag body">正文 · 03</span>
+                <span class="frame-name">第二章 · 五大空白清单</span>
+                <span class="ratio-tag">2.35:1</span>
+              </div>
+              <div class="frame-actions">
+                <button class="frame-action" onclick="regenSingle('第二章')">重新生成</button>
+                <button class="frame-action">下载</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Image 4 - 商保对比 -->
+          <div class="gzh-image-card">
+            <div class="img-frame">
+              <svg viewBox="0 0 940 400" preserveAspectRatio="xMidYMid slice">
+                <rect width="940" height="400" fill="#F4ECD9"/>
+                <text x="60" y="70" font-family="Noto Serif SC" font-size="14" fill="#8a6a3a" letter-spacing="0.1em">— 第三章 · 四类商保 —</text>
+                <line x1="60" y1="90" x2="120" y2="90" stroke="#C49B5C" stroke-width="2"/>
+
+                <text x="60" y="150" font-family="Noto Serif SC" font-size="28" fill="#1F1F1E" font-weight="700">商保如何弥补医保空白？</text>
+
+                <g>
+                  <rect x="60" y="190" width="200" height="150" fill="#FAF9F5" rx="6"/>
+                  <text x="78" y="218" font-family="Noto Serif SC" font-size="13" fill="#A85A40" font-weight="600">百万医疗</text>
+                  <text x="78" y="248" font-family="Noto Serif SC" font-size="11" fill="#3A3935">补：自费药</text>
+                  <text x="78" y="266" font-family="Noto Serif SC" font-size="11" fill="#3A3935">补：封顶线之外</text>
+                  <text x="78" y="316" font-family="Fraunces" font-style="italic" font-size="11" fill="#6B6862">几百块 / 年</text>
+
+                  <rect x="280" y="190" width="200" height="150" fill="#FAF9F5" rx="6"/>
+                  <text x="298" y="218" font-family="Noto Serif SC" font-size="13" fill="#A85A40" font-weight="600">重大疾病</text>
+                  <text x="298" y="248" font-family="Noto Serif SC" font-size="11" fill="#3A3935">补：误工损失</text>
+                  <text x="298" y="266" font-family="Noto Serif SC" font-size="11" fill="#3A3935">一次性赔付</text>
+                  <text x="298" y="316" font-family="Fraunces" font-style="italic" font-size="11" fill="#6B6862">核心保障</text>
+
+                  <rect x="500" y="190" width="200" height="150" fill="#FAF9F5" rx="6"/>
+                  <text x="518" y="218" font-family="Noto Serif SC" font-size="13" fill="#A85A40" font-weight="600">意外险</text>
+                  <text x="518" y="248" font-family="Noto Serif SC" font-size="11" fill="#3A3935">补：意外伤害</text>
+                  <text x="518" y="266" font-family="Noto Serif SC" font-size="11" fill="#3A3935">补：意外医疗</text>
+                  <text x="518" y="316" font-family="Fraunces" font-style="italic" font-size="11" fill="#6B6862">百元起</text>
+
+                  <rect x="720" y="190" width="160" height="150" fill="#FAF9F5" rx="6"/>
+                  <text x="738" y="218" font-family="Noto Serif SC" font-size="13" fill="#A85A40" font-weight="600">寿险</text>
+                  <text x="738" y="248" font-family="Noto Serif SC" font-size="11" fill="#3A3935">补：家庭责任</text>
+                  <text x="738" y="266" font-family="Noto Serif SC" font-size="11" fill="#3A3935">补：身故风险</text>
+                  <text x="738" y="316" font-family="Fraunces" font-style="italic" font-size="11" fill="#6B6862">配偶/子女兜底</text>
+                </g>
+
+                <text x="60" y="375" font-family="Fraunces" font-style="italic" font-size="11" fill="#6B6862">— 险种大全 · 险种搭配逻辑</text>
+              </svg>
+            </div>
+            <div class="frame-meta">
+              <div class="frame-info">
+                <span class="role-tag body">正文 · 04</span>
+                <span class="frame-name">第三章 · 四类商保对比</span>
+                <span class="ratio-tag">2.35:1</span>
+              </div>
+              <div class="frame-actions">
+                <button class="frame-action" onclick="regenSingle('第三章')">重新生成</button>
+                <button class="frame-action">下载</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Image 5 - 收尾金句 -->
+          <div class="gzh-image-card">
+            <div class="img-frame">
+              <svg viewBox="0 0 940 400" preserveAspectRatio="xMidYMid slice">
+                <rect width="940" height="400" fill="#1F1F1E"/>
+                <line x1="60" y1="60" x2="80" y2="60" stroke="#CC785C" stroke-width="2"/>
+                <text x="60" y="90" font-family="Noto Serif SC" font-size="13" fill="#E9B79E" letter-spacing="0.1em">写在最后</text>
+
+                <text x="60" y="170" font-family="Noto Serif SC" font-size="34" fill="#FAF9F5" font-weight="700">保险的本质，</text>
+                <text x="60" y="220" font-family="Noto Serif SC" font-size="34" fill="#E9B79E" font-weight="700">不是"买安心"。</text>
+
+                <text x="60" y="290" font-family="Noto Serif SC" font-size="22" fill="#FAF9F5" font-weight="500">而是用一笔小的、确定的支出，</text>
+                <text x="60" y="320" font-family="Noto Serif SC" font-size="22" fill="#FAF9F5" font-weight="500">来对冲未来一笔大的、不确定的损失。</text>
+
+                <line x1="60" y1="350" x2="120" y2="350" stroke="#CC785C" stroke-width="1"/>
+                <text x="60" y="378" font-family="Fraunces" font-style="italic" font-size="11" fill="#E9B79E">— 林老师</text>
+              </svg>
+            </div>
+            <div class="frame-meta">
+              <div class="frame-info">
+                <span class="role-tag body">正文 · 05</span>
+                <span class="frame-name">收尾 · 金句卡</span>
+                <span class="ratio-tag">2.35:1</span>
+              </div>
+              <div class="frame-actions">
+                <button class="frame-action" onclick="regenSingle('收尾')">重新生成</button>
+                <button class="frame-action">下载</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Done section -->
+        <div class="done-section">
+          <div class="l">
+            <div style="width:32px; height:32px; background:var(--leaf); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700;">✓</div>
+            <div>
+              <h4>这篇公众号长文已就绪</h4>
+              <div class="desc">3 个标题 · 1,962 字正文 · 5 张 2.35:1 配图（1 张封面 + 4 张正文）</div>
+            </div>
+          </div>
+          <div class="r">
+            <button class="btn-done" onclick="alert('[演示] 已复制全部内容到剪贴板\\n\\n包括标题、正文、配图链接')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span>复制全部</span>
+            </button>
+            <button class="btn-done" onclick="alert('[演示] 即将下载 ZIP\\n包含：标题、正文 .docx、5 张 PNG 图片')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>下载 ZIP</span>
+            </button>
+            <button class="btn-done primary" onclick="saveDraft()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              <span>保存为草稿</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Footer Actions Bar -->
+  <div class="actions-bar" id="actionsBar">
+    <div class="l" id="actionsLeft">
+      <button class="btn-back" onclick="goStep(currentStep - 1)" id="backBtn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        <span id="backText">← 重做需求</span>
+      </button>
+    </div>
+    <div class="r">
+      <span class="meta" id="creditsTip">本步骤已消耗 <b>10</b> 积分</span>
+      <button class="btn-primary-large" onclick="goStep(currentStep + 1)" id="nextBtn">
+        <span id="nextText">下一步：配图</span>
+        <span class="arr">→</span>
+      </button>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- 添加参考材料 Modal -->
+<div class="modal-bg" id="refModal" onclick="if(event.target===this)closeRefModal()">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:480px">
+    <button class="modal-close" onclick="closeRefModal()">×</button>
+    <h3>添加参考材料</h3>
+    <p class="modal-sub">AI 会读完这些材料，结合到这次创作里。<b>仅本次使用，不会保存到素材库。</b></p>
+
+    <div class="tpl-tabs" style="margin-bottom:14px">
+      <div class="tpl-tab active" data-pane="ref-file" onclick="switchRefTab(this)">上传文件</div>
+      <div class="tpl-tab" data-pane="ref-link" onclick="switchRefTab(this)">粘贴链接</div>
+    </div>
+
+    <div class="ref-pane active" id="ref-pane-ref-file">
+      <div style="padding:32px 20px; text-align:center; background:var(--ivory); border:2px dashed var(--line-2); border-radius:var(--r-sm); cursor:pointer; transition:all .15s;" onmouseover="this.style.borderColor='var(--clay)'; this.style.background='var(--bone)'" onmouseout="this.style.borderColor='var(--line-2)'; this.style.background='var(--ivory)'">
+        <div style="width:42px; height:42px; margin:0 auto 12px; background:var(--clay-tint); color:var(--clay-deep); border-radius:var(--r-sm); display:flex; align-items:center; justify-content:center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <div style="font-size:13.5px; color:var(--ink-2); font-weight:500; margin-bottom:4px;">点击上传，或把文件拖到这里</div>
+        <div style="font-size:11.5px; color:var(--ink-3);">支持 PDF / DOC / DOCX / JPG / PNG · 单文件最大 20MB</div>
+      </div>
+    </div>
+
+    <div class="ref-pane" id="ref-pane-ref-link" style="display:none">
+      <input type="text" placeholder="粘贴公众号 / 知乎 / 网页文章链接…" style="width:100%; padding:11px 14px; background:var(--ivory); border:1px solid var(--line); border-radius:var(--r-sm); font-size:13.5px;" />
+      <div style="font-size:11.5px; color:var(--ink-3); margin-top:8px; line-height:1.55;">AI 会自动抓取链接里的正文内容，仅用于本次创作参考。</div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:18px">
+      <button class="btn-back" onclick="closeRefModal()">取消</button>
+      <button class="btn-primary-large" onclick="addRef()" style="padding:9px 20px; font-size:13px">
+        <span>添加</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('[data-collapsible] [data-toggle]').forEach(toggle => {
+  toggle.addEventListener('click', e => {
+    e.preventDefault();
+    toggle.closest('[data-collapsible]').classList.toggle('open');
+  });
+});
+
+let currentStep = 2;
+const stepConfig = {
+  1: {pane:'step1', backText:'返回选题广场', nextText:'生成正文', credits:'本步骤将消耗 10 积分'},
+  2: {pane:'step2', backText:'重做需求', nextText:'下一步：配图', credits:'本步骤已消耗 10 积分'},
+  3: {pane:'step3', backText:'回到改文案', nextText:'完成 / 关闭', credits:'本步骤已消耗 20 积分'},
+};
+
+function goStep(n){
+  if(n < 1 || n > 3) return;
+  currentStep = n;
+  document.querySelectorAll('.step-pane').forEach(p => p.classList.remove('active'));
+  document.getElementById(stepConfig[n].pane).classList.add('active');
+  const steps = document.querySelectorAll('.steps .step');
+  steps.forEach((s, i) => {
+    s.classList.remove('active', 'done');
+    if(i + 1 < n) s.classList.add('done');
+    else if(i + 1 === n) s.classList.add('active');
+  });
+  document.getElementById('backText').innerHTML = '← ' + stepConfig[n].backText;
+  document.getElementById('nextText').textContent = stepConfig[n].nextText;
+  document.getElementById('creditsTip').innerHTML = stepConfig[n].credits.replace(/(\d+)/, '<b>$1</b>');
+  document.querySelector('.content').scrollTop = 0;
+}
+
+function pickTitle(card){
+  card.parentElement.querySelectorAll('.title-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+}
+
+document.querySelectorAll('.chip-group').forEach(group => {
+  group.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      // 字数那一组是单选
+      if(chip.parentElement.querySelector('.chip[class*="selected"]') && chip.textContent.includes('字')){
+        chip.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+        chip.classList.add('selected');
+      } else {
+        chip.classList.toggle('selected');
+      }
+    });
+  });
+});
+
+document.querySelectorAll('.style-options').forEach(group => {
+  group.querySelectorAll('.style-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      group.querySelectorAll('.style-option').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+    });
+  });
+});
+
+function pickImageOpt(opt){
+  opt.parentElement.querySelectorAll('.img-opt').forEach(o => o.classList.remove('selected'));
+  opt.classList.add('selected');
+}
+
+function saveDraft(){
+  alert('[演示] 已保存为草稿\n\n下次打开「公众号创作」时会自动恢复你当前的进度。');
+}
+function regenerateAll(){
+  if(confirm('整篇重新生成会替换当前正文，确定吗？')){
+    alert('[演示] 正在重新生成 2,000 字长文... 约 30 秒后完成。');
+  }
+}
+function regenSingle(name){
+  alert(`[演示] 正在重新生成「${name}」配图... 约 10 秒后完成。`);
+}
+function regenAllImages(){
+  if(confirm('全部重新生成会替换当前 5 张图，确定吗？')){
+    alert('[演示] 正在重新生成 5 张 2.35:1 配图... 约 60 秒后完成。');
+  }
+}
+
+const refModal = document.getElementById('refModal');
+function openRefModal(){refModal.classList.add('active'); document.body.style.overflow = 'hidden'}
+function closeRefModal(){refModal.classList.remove('active'); document.body.style.overflow = ''}
+function switchRefTab(tab){
+  tab.parentElement.querySelectorAll('.tpl-tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  document.querySelectorAll('.ref-pane').forEach(p => p.style.display = 'none');
+  document.getElementById('ref-pane-' + tab.dataset.pane).style.display = 'block';
+}
+function removeRef(btn){
+  const item = btn.closest('.ref-item');
+  item.style.opacity = '0';
+  item.style.transition = 'opacity .15s';
+  setTimeout(() => item.remove(), 150);
+}
+function addRef(){
+  alert('[演示] 参考材料已添加。\n\n实际产品中：\n· 文件会上传到临时存储（仅本次使用）\n· 链接会自动抓取正文\n· AI 在 Step 2 生成时会读完所有参考材料');
+  closeRefModal();
+}
+
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape'){
+    if(refModal.classList.contains('active')) closeRefModal();
+  }
+});
+</script>
+</body>
+</html>

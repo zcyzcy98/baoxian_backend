@@ -24,6 +24,7 @@ import java.util.List;
 /**
  * AtlasCloud Seedance 2.0 Fast (reference-to-video) 视频生成服务。
  *
+ * 就啊时间的话
  * 流程：
  *  1. DeepSeek 把口播脚本拆成 ≤10 秒的多段，并为每段生成英文提示词
  *  2. 对每段串行调用 AtlasCloud POST /api/v1/model/generateVideo
@@ -87,28 +88,37 @@ public class SeedanceService {
             String style) {
 
         if (isBlank(script)) throw new IllegalArgumentException("口播脚本不能为空");
-        if (isBlank(characterImageUrl)) throw new IllegalArgumentException("人物参考图不能为空");
 
         List<Segment> segments = splitScript(script, style);
         log.info("[Seedance] 脚本已拆分为 {} 段", segments.size());
+        return submitAndPollSequential(segments, characterImageUrl, backgroundImageUrl);
+    }
 
-        // 逐段提交任务，收集 predictionId
-        List<String> predictionIds = new ArrayList<>();
-        for (int i = 0; i < segments.size(); i++) {
-            Segment seg = segments.get(i);
-            log.info("[Seedance] 提交第 {}/{} 段，预估 {} 秒", i + 1, segments.size(), seg.durationEstimate);
-            String predictionId = submitTask(seg, characterImageUrl, backgroundImageUrl);
-            predictionIds.add(predictionId);
-        }
+    /**
+     * 直接使用前端已编辑好的分镜段生成视频，跳过 DeepSeek 拆分。
+     */
+    public List<SegmentResult> generateSegmentsDirect(
+            List<Segment> segments,
+            String characterImageUrl,
+            String backgroundImageUrl) {
 
-        // 依次轮询各任务
+        if (segments == null || segments.isEmpty()) throw new IllegalArgumentException("分镜段列表不能为空");
+        log.info("[Seedance] 直接使用前端分镜，共 {} 段", segments.size());
+        return submitAndPollSequential(segments, characterImageUrl, backgroundImageUrl);
+    }
+
+    /** 提交一段 → 轮询完成 → 提交下一段，避免批量提交后第二段因等待过久而失效 */
+    private List<SegmentResult> submitAndPollSequential(
+            List<Segment> segments, String characterImageUrl, String backgroundImageUrl) {
+
         List<SegmentResult> results = new ArrayList<>();
         for (int i = 0; i < segments.size(); i++) {
             Segment seg = segments.get(i);
-            String predictionId = predictionIds.get(i);
+            log.info("[Seedance] 提交第 {}/{} 段，预估 {} 秒", i + 1, segments.size(), seg.durationEstimate());
+            String predictionId = submitTask(seg, characterImageUrl, backgroundImageUrl);
             log.info("[Seedance] 轮询第 {}/{} 段，predictionId={}", i + 1, segments.size(), predictionId);
             String videoUrl = pollTask(predictionId);
-            results.add(new SegmentResult(i + 1, seg.script, seg.durationEstimate, videoUrl));
+            results.add(new SegmentResult(i + 1, seg.script(), seg.durationEstimate(), videoUrl));
         }
         return results;
     }
@@ -202,10 +212,11 @@ public class SeedanceService {
 
     private String submitTask(Segment seg, String characterImageUrl, String backgroundImageUrl) {
         try {
-            // reference_images：人物图必须放第一位，背景图可选附加
-            // localhost URL 转 base64，供 AtlasCloud 外网服务器访问
+            // reference_images：人物图可选（测试时可不传），背景图也可选
             ArrayNode refImages = mapper.createArrayNode();
-            refImages.add(resolveImageRef(characterImageUrl));
+            if (!isBlank(characterImageUrl)) {
+                refImages.add(resolveImageRef(characterImageUrl));
+            }
             if (!isBlank(backgroundImageUrl)) {
                 refImages.add(resolveImageRef(backgroundImageUrl));
             }
@@ -216,7 +227,7 @@ public class SeedanceService {
             body.set("reference_images", refImages);
             body.set("reference_videos", mapper.createArrayNode());
             body.set("reference_audios", mapper.createArrayNode());
-            body.put("duration", seg.durationEstimate);
+            body.put("duration", seg.durationEstimate());
             body.put("resolution", "720p");
             body.put("ratio", "adaptive");
             body.put("generate_audio", true);
@@ -242,11 +253,12 @@ public class SeedanceService {
             }
 
             JsonNode root = mapper.readTree(resp.body());
-            // 响应格式：{"data": {"id": "xxx", ...}}
-            String predictionId = root.path("data").path("id").asText(null);
+            // 实际响应格式：顶层直接有 "id"（扁平），兼容旧有 data.id 嵌套格式
+            String predictionId = root.path("id").asText(null);
+            if (isBlank(predictionId)) predictionId = root.path("data").path("id").asText(null);
             if (!isBlank(predictionId)) return predictionId;
 
-            throw new RuntimeException("AtlasCloud 响应中未找到 data.id，响应: " + truncate(resp.body(), 300));
+            throw new RuntimeException("AtlasCloud 响应中未找到 id，响应: " + truncate(resp.body(), 300));
 
         } catch (RuntimeException e) {
             throw e;
@@ -256,7 +268,7 @@ public class SeedanceService {
     }
 
     private String buildSegmentPrompt(Segment seg) {
-        return seg.prompt + ". The character is saying: \"" + seg.script + "\"";
+        return seg.prompt() + ". The character is saying: \"" + seg.script() + "\"";
     }
 
     // ─── Step 3: 轮询任务 ─────────────────────────────────────────
@@ -290,18 +302,20 @@ public class SeedanceService {
             throw new RuntimeException("查询失败 " + resp.statusCode() + ": " + truncate(resp.body(), 300));
         }
 
-        JsonNode data = mapper.readTree(resp.body()).path("data");
-        String status = data.path("status").asText("");
+        JsonNode root = mapper.readTree(resp.body());
+        // 实际响应为扁平格式：status / outputs 在顶层；兼容 data.* 嵌套格式
+        JsonNode node = root.has("status") ? root : root.path("data");
+        String status = node.path("status").asText("");
         log.debug("[Seedance] predictionId={} status={}", predictionId, status);
 
         if (status.equals("failed")) {
-            String error = data.path("error").asText("Generation failed");
+            String error = node.path("error").asText("Generation failed");
             throw new RuntimeException("AtlasCloud 任务失败 predictionId=" + predictionId + " error=" + error);
         }
 
         if (status.equals("completed") || status.equals("succeeded")) {
-            // 响应格式：data.outputs 数组，第 0 个元素为视频 URL
-            JsonNode outputs = data.path("outputs");
+            // outputs 是字符串数组，第 0 个元素为视频 URL
+            JsonNode outputs = node.path("outputs");
             if (outputs.isArray() && !outputs.isEmpty()) {
                 String url = outputs.get(0).asText("");
                 if (!isBlank(url)) return url;
@@ -335,6 +349,7 @@ public class SeedanceService {
             return "data:" + mime + ";base64," + b64;
         } catch (Exception e) {
             log.warn("[Seedance] 本地图片转 base64 失败，直接使用 URL: {}", e.getMessage());
+
             return imageUrl;
         }
     }
@@ -367,7 +382,7 @@ public class SeedanceService {
 
     // ─── 数据类 ────────────────────────────────────────────────────
 
-    record Segment(String script, String prompt, int durationEstimate) {}
+    public record Segment(String script, String prompt, int durationEstimate) {}
 
     public record SegmentResult(int index, String script, int durationEstimate, String videoUrl) {}
 }
