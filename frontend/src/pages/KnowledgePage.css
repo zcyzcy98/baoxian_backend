@@ -1,0 +1,80 @@
+/* ===== 知识库问答 ===== */
+.kb-page { padding-bottom: 60px; max-width: 920px; margin: 0 auto; }
+
+.kb-header { margin-bottom: 18px; }
+.kb-header h2 { font-size: 22px; margin-bottom: 4px; }
+.page-sub { font-size: 13px; color: var(--ink-3); margin: 0; }
+
+.kb-input-card {
+  background: var(--paper); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: 18px 20px; margin-bottom: 24px;
+}
+.kb-textarea {
+  width: 100%; box-sizing: border-box;
+  padding: 12px 14px; border: 1.5px solid var(--line); border-radius: var(--r-sm);
+  background: var(--ivory); font-size: 14px; font-family: inherit;
+  outline: none; resize: vertical; line-height: 1.6;
+}
+.kb-textarea:focus { border-color: var(--clay-soft); background: #fff; }
+.kb-input-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 10px;
+}
+.kb-hint { font-size: 11.5px; color: var(--ink-3); }
+.btn-ask {
+  padding: 9px 22px; border: none; border-radius: var(--r-sm);
+  background: var(--clay); color: #fff; font-weight: 600; cursor: pointer;
+}
+.btn-ask:hover:not(:disabled) { background: var(--clay-deep); }
+.btn-ask:disabled { background: var(--line-2); cursor: not-allowed; }
+
+.kb-error {
+  margin-top: 10px; padding: 9px 12px; font-size: 12.5px;
+  background: rgba(184,84,80,.08); color: var(--crimson);
+  border: 1px solid rgba(184,84,80,.2); border-radius: var(--r-sm);
+}
+
+.kb-history h3 { font-size: 14px; margin-bottom: 14px; color: var(--ink-2); }
+.kb-qa {
+  background: var(--paper); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: 18px 20px; margin-bottom: 14px;
+}
+.kb-q {
+  display: grid; grid-template-columns: 28px 1fr auto; gap: 10px;
+  align-items: center; padding-bottom: 12px;
+  border-bottom: 1px solid var(--line); margin-bottom: 12px;
+}
+.kb-q-icon, .kb-a-icon {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 12px; color: #fff;
+}
+.kb-q-icon { background: var(--ink-2); }
+.kb-a-icon { background: var(--clay); }
+.kb-q-text { font-weight: 500; font-size: 13.5px; }
+.kb-q-time { font-size: 11px; color: var(--ink-3); }
+
+.kb-a { display: grid; grid-template-columns: 28px 1fr; gap: 10px; }
+.kb-a-content { line-height: 1.75; font-size: 14px; color: var(--ink-2); }
+.kb-a-content p { margin: 0 0 10px; }
+.kb-a-content ul, .kb-a-content ol { padding-left: 22px; margin: 8px 0; }
+.kb-a-content code { background: var(--ivory); padding: 1px 6px; border-radius: 3px; font-size: 12.5px; }
+.kb-a-content pre { background: var(--ivory); padding: 10px; border-radius: 6px; overflow-x: auto; }
+
+.kb-a-foot {
+  display: flex; gap: 12px; align-items: center;
+  margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line);
+}
+.kb-a-model { font-size: 11px; color: var(--ink-3); }
+.kb-copy {
+  margin-left: auto; padding: 4px 12px; font-size: 11.5px;
+  border: 1.5px solid var(--line); background: transparent;
+  border-radius: 99px; color: var(--ink-3); cursor: pointer;
+}
+.kb-copy:hover { color: var(--clay); border-color: var(--clay); }
+
+.kb-empty {
+  text-align: center; padding: 60px 20px; color: var(--ink-3); font-size: 14px;
+}
+.kb-empty p { font-size: 12px; margin-top: 6px; }
+.empty-icon { font-size: 38px; margin-bottom: 12px; opacity: 0.6; }

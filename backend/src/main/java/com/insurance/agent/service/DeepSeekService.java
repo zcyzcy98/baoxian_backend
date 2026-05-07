@@ -1,0 +1,106 @@
+package com.insurance.agent.service;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+
+@Service
+public class DeepSeekService {
+    private static final Logger log = LoggerFactory.getLogger(DeepSeekService.class);
+
+    private static final String MODEL_CHAT = "deepseek-chat";
+    private static final String MODEL_REASONER = "deepseek-reasoner";
+
+    @Value("${deepseek.api.key:}")
+    private String apiKey;
+
+    @Value("${deepseek.api.base-url:https://api.deepseek.com}")
+    private String baseUrl;
+
+    @Value("${deepseek.api.timeout-seconds:60}")
+    private int timeoutSeconds;
+
+    private final ObjectMapper mapper = new ObjectMapper();
+    private final HttpClient http = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(15))
+            .build();
+
+    public String chat(String systemPrompt, String userPrompt, String requestedModel) {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException(
+                    "未配置 DEEPSEEK_API_KEY 环境变量, 后端无法调用 DeepSeek。请在启动前 export DEEPSEEK_API_KEY=...");
+        }
+        String model = resolveModel(requestedModel);
+        log.info("[AI 请求] model={} system={} user={}",
+                model, truncate(systemPrompt, 200), truncate(userPrompt, 500));
+        try {
+            ObjectNode body = mapper.createObjectNode();
+            body.put("model", model);
+            body.put("stream", false);
+            body.put("temperature", 0.8);
+            ArrayNode messages = body.putArray("messages");
+            if (systemPrompt != null && !systemPrompt.isBlank()) {
+                ObjectNode sys = messages.addObject();
+                sys.put("role", "system");
+                sys.put("content", systemPrompt);
+            }
+            ObjectNode user = messages.addObject();
+            user.put("role", "user");
+            user.put("content", userPrompt);
+
+            String payload = mapper.writeValueAsString(body);
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/chat/completions"))
+                    .timeout(Duration.ofSeconds(timeoutSeconds))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + apiKey)
+                    .POST(HttpRequest.BodyPublishers.ofString(payload))
+                    .build();
+
+            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() / 100 != 2) {
+                log.warn("[AI 异常] model={} status={} body={}", model, resp.statusCode(), truncate(resp.body(), 500));
+                throw new RuntimeException("DeepSeek API 返回 " + resp.statusCode() + ": " + truncate(resp.body(), 300));
+            }
+            JsonNode root = mapper.readTree(resp.body());
+            JsonNode choice = root.path("choices").path(0).path("message").path("content");
+            if (choice.isMissingNode() || choice.isNull()) {
+                log.warn("[AI 异常] 响应格式异常 model={} body={}", model, truncate(resp.body(), 500));
+                throw new RuntimeException("DeepSeek 响应格式异常: " + truncate(resp.body(), 300));
+            }
+            String result = choice.asText();
+            log.info("[AI 响应] model={} 长度={} 内容={}", model, result.length(), truncate(result, 500));
+            return result;
+        } catch (RuntimeException e) {
+            log.error("[AI 异常] model={} 错误={}", model, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("[AI 异常] model={} 错误={}", model, e.getMessage());
+            throw new RuntimeException("调用 DeepSeek 失败: " + e.getMessage(), e);
+        }
+    }
+
+    public String resolveModel(String requested) {
+        if (requested == null) return MODEL_CHAT;
+        return switch (requested.trim().toLowerCase()) {
+            case "reasoner", "deepseek-reasoner", "增强", "enhanced" -> MODEL_REASONER;
+            default -> MODEL_CHAT;
+        };
+    }
+
+    private String truncate(String s, int n) {
+        if (s == null) return "";
+        return s.length() <= n ? s : s.substring(0, n) + "...";
+    }
+}

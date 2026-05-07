@@ -1,0 +1,56 @@
+.topnav {
+  display: flex;
+  align-items: center;
+  height: 56px;
+  padding: 0 24px;
+  background: #ffffff;
+  border-bottom: 1px solid #e8e0d4;
+  flex-shrink: 0;
+}
+
+.topnav-brand {
+  font-size: 16px;
+  font-weight: 600;
+  color: #3a2a25;
+  letter-spacing: 0.5px;
+  margin-right: 32px;
+  white-space: nowrap;
+}
+
+.topnav-tabs {
+  display: flex;
+  gap: 4px;
+  height: 100%;
+}
+
+.topnav-tab {
+  position: relative;
+  height: 100%;
+  padding: 0 18px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+  color: #7a6660;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.topnav-tab:hover {
+  color: #3a2a25;
+}
+
+.topnav-tab.is-active {
+  color: #3a2a25;
+}
+
+.topnav-tab.is-active::after {
+  content: '';
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: -1px;
+  height: 2px;
+  background: #b27d72;
+  border-radius: 2px 2px 0 0;
+}

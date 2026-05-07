@@ -1,0 +1,117 @@
+server:
+  port: 8888
+
+spring:
+  application:
+    name: agent-backend
+  # 自动加载 application-local.yml(如存在), 用于本地开发的 secrets。
+  # 该文件已加入 .gitignore, 不会提交到 git。
+  # 生产环境优先用环境变量覆盖, 不需要这个文件。
+  config:
+    import: "optional:classpath:application-local.yml"
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+  datasource:
+    url: ${JDBC_DATABASE_URL:}
+    username: ${JDBC_DATABASE_USERNAME:}
+    password: ${JDBC_DATABASE_PASSWORD:}
+
+deepseek:
+  api:
+    key: ${DEEPSEEK_API_KEY:}
+    base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+    timeout-seconds: ${DEEPSEEK_TIMEOUT_SECONDS:60}
+
+image:
+  api:
+    provider: ${IMAGE_PROVIDER:hiapi}
+    key: ${IMAGE_API_KEY:}
+    base-url: ${IMAGE_API_BASE:https://api.hiapi.ai/v1}
+    model: ${IMAGE_MODEL:gpt-image-2}
+    size: ${IMAGE_SIZE:1:1}
+    quality: ${IMAGE_QUALITY:medium}
+    watermark: ${IMAGE_WATERMARK:false}
+    timeout-seconds: ${IMAGE_TIMEOUT_SECONDS:120}
+  seedream:
+    key: ${ARK_API_KEY:}
+    base-url: ${SEEDREAM_API_BASE:https://ark.cn-beijing.volces.com/api/v3}
+    model: ${SEEDREAM_MODEL:doubao-seedream-5-0-260128}
+    size: ${SEEDREAM_SIZE:2K}
+    watermark: ${SEEDREAM_WATERMARK:false}
+
+libtv:
+  api:
+    key: ${LIBTV_ACCESS_KEY:}
+    base-url: ${LIBTV_BASE_URL:https://im.liblib.tv}
+    timeout-seconds: ${LIBTV_TIMEOUT_SECONDS:30}
+    poll-interval-seconds: ${LIBTV_POLL_INTERVAL_SECONDS:25}
+    poll-timeout-seconds: ${LIBTV_POLL_TIMEOUT_SECONDS:3600}
+
+seedance:
+  api:
+    key: ${SEEDANCE_API_KEY:}
+    base-url: ${SEEDANCE_BASE_URL:https://api.atlascloud.ai}
+    model: ${SEEDANCE_MODEL:bytedance/seedance-2.0-fast/reference-to-video}
+    timeout-seconds: ${SEEDANCE_TIMEOUT_SECONDS:60}
+    poll-interval-seconds: ${SEEDANCE_POLL_INTERVAL_SECONDS:8}
+    poll-timeout-seconds: ${SEEDANCE_POLL_TIMEOUT_SECONDS:900}
+
+media2doc:
+  api:
+    # 视频翻拍使用：视频链接 -> 解析/ASR转写文本 -> 文档 -> 脚本。
+    # provider 默认 none，表示未启用自动链接解析；配置真实服务后即可直接输入视频链接。
+    provider: ${MEDIA2DOC_PROVIDER:none}
+    key: ${MEDIA2DOC_API_KEY:}
+    base-url: ${MEDIA2DOC_API_BASE:}
+    transcribe-path: ${MEDIA2DOC_TRANSCRIBE_PATH:/transcribe}
+    timeout-seconds: ${MEDIA2DOC_TIMEOUT_SECONDS:300}
+    # 火山方舟视频理解模型
+    model: ${MEDIA2DOC_MODEL:doubao-seed-2-0-mini-260215}
+    # 视频采样帧率
+    fps: ${MEDIA2DOC_FPS:1}
+
+avatar:
+  upload-dir: ${AVATAR_UPLOAD_DIR:uploads/avatars}
+  # 外网可访问的后端地址，LibTV 用此 URL 下载角色图片。
+  # 本地开发时设为 ngrok/frp 公网地址；生产部署时设为域名。
+  public-base-url: ${AVATAR_PUBLIC_BASE_URL:http://localhost:8888}
+
+app:
+  data:
+    excel-path: ${EXCEL_DATA_PATH:}
+
+bitable:
+  config:
+    path: ${BITABLE_CONFIG_PATH:bitable-config.json}
+
+embedding:
+  api:
+    key: ${EMBEDDING_API_KEY:}
+    base-url: ${EMBEDDING_API_BASE:https://dashscope.aliyuncs.com/compatible-mode/v1}
+    model: ${EMBEDDING_MODEL:text-embedding-v3}
+    timeout-seconds: ${EMBEDDING_TIMEOUT_SECONDS:60}
+
+vector:
+  index:
+    path: ${VECTOR_INDEX_PATH:generated/vector-index.json}
+    auto-build-on-startup: ${VECTOR_INDEX_AUTO_BUILD_ON_STARTUP:false}
+
+tophubdata:
+  api:
+    key: ${TOPHUBDATA_API_KEY:}
+    base-url: ${TOPHUBDATA_BASE_URL:https://api.tophubdata.com}
+    timeout-seconds: ${TOPHUBDATA_TIMEOUT_SECONDS:15}
+
+douyin:
+  cookie: ${DOUYIN_COOKIE:}
+
+logging:
+  level:
+    com.insurance.agent: INFO
+
+postgres:
+  import:
+    enabled: ${POSTGRES_IMPORT_ENABLED:true}
+    auto-run: ${POSTGRES_IMPORT_AUTO_RUN:false}

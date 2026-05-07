@@ -1,0 +1,130 @@
+/* ===== 积分管理 ===== */
+.credits-page { padding-bottom: 60px; max-width: 920px; margin: 0 auto; }
+
+.credits-header {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: 20px;
+}
+.credits-header h2 { font-size: 22px; margin-bottom: 4px; }
+.credits-sub { font-size: 13px; color: var(--ink-3); margin: 0; }
+.btn-buy {
+  padding: 10px 18px; border: none; border-radius: var(--r-sm);
+  background: var(--clay); color: #fff; font-weight: 600; cursor: pointer;
+  box-shadow: var(--sh-clay);
+}
+.btn-buy:hover { background: var(--clay-deep); }
+
+/* Balance card */
+.balance-card {
+  display: grid; grid-template-columns: 240px 1fr; gap: 32px;
+  padding: 24px 28px; background: var(--paper); border: 1px solid var(--line);
+  border-radius: var(--r-lg); margin-bottom: 24px; align-items: center;
+}
+.balance-label { font-size: 12px; color: var(--ink-3); margin-bottom: 6px; }
+.balance-num {
+  font-family: var(--serif); font-size: 44px; font-weight: 600;
+  color: var(--clay); line-height: 1; margin-bottom: 6px;
+}
+.balance-tip { font-size: 11px; color: var(--ink-3); }
+.balance-progress { padding-left: 20px; border-left: 1px solid var(--line); }
+.prog-row {
+  display: flex; justify-content: space-between;
+  font-size: 12px; color: var(--ink-3); margin-bottom: 8px;
+}
+.prog-bar { height: 6px; background: var(--ivory); border-radius: 99px; overflow: hidden; }
+.prog-fill { height: 100%; background: linear-gradient(90deg, var(--clay), var(--clay-deep)); transition: width 0.4s; }
+
+/* Records */
+.records-section { background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 22px 24px; }
+.records-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.records-head h3 { font-size: 16px; }
+.records-tabs { display: flex; gap: 2px; background: var(--ivory); padding: 3px; border-radius: var(--r-sm); }
+.records-tab {
+  padding: 6px 14px; font-size: 12px; color: var(--ink-3);
+  border: none; background: transparent; border-radius: var(--r-xs);
+  cursor: pointer; font-weight: 500;
+}
+.records-tab.is-active { background: #fff; color: var(--ink); box-shadow: var(--sh-1); }
+
+.records-list { display: flex; flex-direction: column; }
+.record-row {
+  display: grid; grid-template-columns: 36px 1fr auto; gap: 14px;
+  padding: 14px 0; border-bottom: 1px solid var(--line);
+  align-items: center;
+}
+.record-row:last-child { border-bottom: none; }
+.record-icon {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--clay-tint); color: var(--clay);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 600;
+}
+.record-main { min-width: 0; }
+.record-title { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 500; margin-bottom: 4px; }
+.record-detail { font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.record-side { text-align: right; }
+.record-cost { font-family: var(--serif); font-weight: 600; color: var(--ink); font-size: 14px; }
+.record-cost.is-pos { color: var(--leaf); }
+.record-time { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+
+.plat-tag { font-size: 10px; padding: 1px 8px; border-radius: 99px; font-weight: 500; }
+.plat-xhs { background: #ffe9ec; color: var(--xhs); }
+.plat-gzh { background: #e1f4e7; color: var(--gzh); }
+.plat-dy  { background: #f0f0f0; color: #1f1f1f; }
+.plat-video { background: #e8f3ff; color: #1677ff; }
+
+.records-foot { display: flex; justify-content: space-between; padding-top: 16px; }
+.btn-text {
+  background: transparent; border: none; font-size: 13px; color: var(--clay);
+  cursor: pointer; padding: 6px 0; text-decoration: none;
+}
+.btn-text:hover { color: var(--clay-deep); }
+
+/* Modal */
+.modal-mask {
+  position: fixed; inset: 0; background: rgba(31,31,30,.45);
+  z-index: 100; display: flex; align-items: center; justify-content: center;
+}
+.modal-card {
+  background: var(--paper); border-radius: var(--r-lg);
+  width: 480px; max-width: calc(100vw - 32px);
+  padding: 24px; box-shadow: var(--sh-3);
+}
+.modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+.modal-head h3 { font-size: 17px; }
+.modal-close {
+  width: 28px; height: 28px; border: none; background: transparent;
+  font-size: 20px; cursor: pointer; color: var(--ink-3);
+}
+.modal-close:hover { color: var(--ink); }
+
+.pkg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+.pkg-card {
+  border: 1.5px solid var(--line); background: var(--ivory);
+  border-radius: var(--r-md); padding: 14px 8px; cursor: pointer; text-align: center;
+  transition: all 0.12s;
+}
+.pkg-card:hover { border-color: var(--line-2); }
+.pkg-card.is-active { border-color: var(--clay); background: var(--clay-tint); }
+.pkg-credits { font-weight: 600; margin-bottom: 4px; }
+.pkg-price { font-family: var(--serif); font-size: 18px; color: var(--clay); }
+.pkg-save { font-size: 11px; color: var(--leaf); margin-top: 4px; }
+
+.pay-row { margin-bottom: 22px; }
+.pay-label { font-size: 13px; color: var(--ink-3); margin-bottom: 8px; }
+.pay-methods { display: flex; gap: 10px; }
+.pay-opt {
+  flex: 1; display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border: 1.5px solid var(--line); border-radius: var(--r-sm);
+  cursor: pointer; font-size: 13px;
+}
+.pay-opt.is-active { border-color: var(--clay); background: var(--clay-tint); }
+.pay-opt input { accent-color: var(--clay); }
+
+.modal-foot { display: flex; justify-content: space-between; align-items: center; }
+.modal-total { font-family: var(--serif); font-size: 16px; }
+.btn-confirm {
+  padding: 10px 22px; border: none; border-radius: var(--r-sm);
+  background: var(--clay); color: #fff; font-weight: 600; cursor: pointer;
+}
+.btn-confirm:hover { background: var(--clay-deep); }

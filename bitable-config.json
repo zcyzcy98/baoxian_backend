@@ -1,0 +1,11 @@
+[ {
+  "id" : "c779c4a9-7985-48a4-ac41-1eb2a05fabc5",
+  "name" : "小红书爆款样本库",
+  "description" : "小红书爆款样例库向量化数据源",
+  "appToken" : "BRoAbr3WGazdyRslqBdcSFPZnke",
+  "tableId" : "tblYssDJOFyFPRsk",
+  "sourceTableName" : "小红书爆款样本库",
+  "category" : "飞书",
+  "active" : true,
+  "kind" : "HOT_NOTE"
+} ]
