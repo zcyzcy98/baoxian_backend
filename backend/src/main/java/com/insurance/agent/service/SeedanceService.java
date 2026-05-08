@@ -9,6 +9,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
+import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -43,6 +50,7 @@ public class SeedanceService {
     private final HttpClient http = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(15))
+            .followRedirects(java.net.http.HttpClient.Redirect.NORMAL)
             .build();
 
     @Value("${seedance.api.key:}")
@@ -395,6 +403,10 @@ public class SeedanceService {
                 if (isBlank(filename)) filename = "avatar.jpg";
             }
 
+            // 压缩：最长边不超过 1080px，JPEG quality=0.85，避免超出 AtlasCloud 大小限制
+            imageBytes = compressImage(imageBytes);
+            filename = filename.replaceAll("\\.[^.]+$", "") + ".jpg";
+            log.info("[Seedance] 压缩后准备上传: filename={} size={}KB", filename, imageBytes.length / 1024);
             String cdnUrl = uploadMediaToAtlas(imageBytes, filename);
             log.info("[Seedance] uploadMedia 成功: {}", cdnUrl);
 
@@ -531,6 +543,46 @@ public class SeedanceService {
             }
         }
         throw new RuntimeException("资产轮询超时（60s），assetId=" + assetId);
+    }
+
+    private byte[] compressImage(byte[] raw) throws Exception {
+        BufferedImage src = ImageIO.read(new java.io.ByteArrayInputStream(raw));
+        if (src == null) return raw;
+
+        int w = src.getWidth(), h = src.getHeight();
+        int maxSide = 1080;
+        if (w > maxSide || h > maxSide) {
+            double scale = (double) maxSide / Math.max(w, h);
+            int nw = (int) (w * scale), nh = (int) (h * scale);
+            BufferedImage scaled = new BufferedImage(nw, nh, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = scaled.createGraphics();
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.setColor(Color.WHITE);
+            g.fillRect(0, 0, nw, nh);
+            g.drawImage(src, 0, 0, nw, nh, null);
+            g.dispose();
+            src = scaled;
+        } else if (src.getType() != BufferedImage.TYPE_INT_RGB) {
+            BufferedImage rgb = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = rgb.createGraphics();
+            g.setColor(Color.WHITE);
+            g.fillRect(0, 0, w, h);
+            g.drawImage(src, 0, 0, null);
+            g.dispose();
+            src = rgb;
+        }
+
+        ImageWriter writer = ImageIO.getImageWritersByFormatName("jpeg").next();
+        ImageWriteParam param = writer.getDefaultWriteParam();
+        param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+        param.setCompressionQuality(0.85f);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (ImageOutputStream ios = ImageIO.createImageOutputStream(baos)) {
+            writer.setOutput(ios);
+            writer.write(null, new IIOImage(src, null, null), param);
+        }
+        writer.dispose();
+        return baos.toByteArray();
     }
 
     private String requiredApiKey() {
