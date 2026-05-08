@@ -24,9 +24,11 @@ public class TopHubDataService {
     private static final Logger log = LoggerFactory.getLogger(TopHubDataService.class);
 
     private final ObjectMapper mapper = new ObjectMapper();
-    private final HttpClient http = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
+    private final HttpClient http;
+
+    public TopHubDataService(HttpClient sharedHttpClient) {
+        this.http = sharedHttpClient;
+    }
 
     @Value("${tophubdata.api.key:}")
     private String apiKey;
@@ -55,7 +57,21 @@ public class TopHubDataService {
             "利率", "降息", "加息", "GDP", "CPI", "消费", "投资",
             "疫苗", "药品", "医院", "看病", "挂号", "体检", "养生",
             "房产", "房价", "房贷", "落户", "教育", "学区", "培训",
-            "维权", "投诉", "赔偿", "纠纷", "官司"
+            "维权", "投诉", "赔偿", "纠纷", "官司",
+            "裁员", "失业", "降薪", "延迟退休", "老龄化", "生育率", "DRG", "惠民保"
+    );
+
+    // 明确无关的噪音关键词：命中任意一个则直接过滤（AI 不再二次处理）
+    private static final List<String> NOISE_KEYWORDS = Arrays.asList(
+            // 娱乐明星
+            "出轨", "离婚", "结婚", "颜值", "综艺", "演唱会", "爱豆", "饭圈",
+            "选手", "流量明星", "恋情", "分手", "绯闻", "人设", "塌房",
+            // 纯游戏
+            "英雄联盟", "王者荣耀", "原神", "游戏更新", "赛季", "段位",
+            // 纯竞技体育（与健康无关的）
+            "夺冠", "进球", "世界杯", "奥运金牌", "赛程", "球队",
+            // 明显低价值娱乐
+            "八卦", "吃瓜", "路透", "粉丝"
     );
 
     public boolean isConfigured() {
@@ -248,29 +264,34 @@ public class TopHubDataService {
         String title = item.path("title").asText("");
         if (title.isBlank()) return null;
 
+        // 第一道过滤：明确噪音关键词，直接丢弃（AI 也不需要看）
+        if (isNoise(title)) return null;
+
         String sitename = item.path("sitename").asText("热点");
         String description = item.path("description").asText("");
         String url = item.path("url").asText("");
         String views = item.path("views").asText("");
 
         long heat = parseHeat(views);
-
         int insuranceRelevance = computeInsuranceRelevance(title, description);
-        boolean isInsuranceRelevant = insuranceRelevance > 0;
-        boolean isHighHeat = heat > 10_000_000;
-
-        if (!isInsuranceRelevant && !isHighHeat) return null;
 
         TopicCandidate c = buildCandidate(title, url, sitename, description, views, heat, maxHeat, insuranceRelevance);
 
         List<String> tags = new ArrayList<>();
         tags.add(sitename);
-        if (isInsuranceRelevant) {
-            tags.add("保险相关");
-        }
+        if (insuranceRelevance > 0) tags.add("保险相关");
         c.setTags(tags);
 
         return c;
+    }
+
+    static boolean isNoise(String title) {
+        if (title == null) return true;
+        String lower = title.toLowerCase();
+        for (String kw : NOISE_KEYWORDS) {
+            if (lower.contains(kw.toLowerCase())) return true;
+        }
+        return false;
     }
 
     private TopicCandidate convertSearchItem(JsonNode item, long maxHeat, String keyword) {
@@ -322,15 +343,20 @@ public class TopHubDataService {
         }
         c.setAngle(angle.toString());
 
-        int baseScore;
-        if (maxHeat > 0) {
-            baseScore = (int) Math.round(55.0 * heat / maxHeat);
+        // 热度分：0-50，非线性（对数压缩，避免热度一家独大）
+        int heatScore;
+        if (maxHeat > 0 && heat > 0) {
+            double ratio = Math.log1p(heat) / Math.log1p(maxHeat);
+            heatScore = (int) Math.round(50.0 * ratio);
         } else {
-            baseScore = 50;
+            heatScore = 20;
         }
-        baseScore = Math.min(85, Math.max(30, baseScore));
-        int bonus = Math.min(15, insuranceRelevance * 3);
-        c.setScore(Math.min(100, baseScore + bonus));
+        heatScore = Math.min(50, Math.max(10, heatScore));
+
+        // 保险相关性分：0-50（AI 筛选后会覆盖更准确的分数，这里先给规则分）
+        int relevanceScore = Math.min(50, insuranceRelevance * 10);
+
+        c.setScore(Math.min(100, Math.max(15, heatScore + relevanceScore)));
 
         c.setSuggestedAgent("xhs-title");
 

@@ -165,3 +165,24 @@ export async function generateSeedanceVideo(payload) {
 export async function mergeVideos(urls) {
   return postJson('/api/video/merge', { urls })
 }
+
+// ─── Admin (手动开通) ──────────────────────────────────────
+// 用法：在浏览器控制台 import 或直接 fetch
+// grantAccess('138xxxxxxxx') — 需要在后端 application.yml 里配 admin.secret-key
+export async function grantAccess(phone, adminKey = 'chengzhi-admin-2024') {
+  const res = await fetch('/api/admin/grant', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+    body: JSON.stringify({ phone }),
+  })
+  return res.json()
+}
+
+export async function revokeAccess(phone, adminKey = 'chengzhi-admin-2024') {
+  const res = await fetch('/api/admin/revoke', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+    body: JSON.stringify({ phone }),
+  })
+  return res.json()
+}

@@ -32,9 +32,11 @@ public class DeepSeekService {
     private int timeoutSeconds;
 
     private final ObjectMapper mapper = new ObjectMapper();
-    private final HttpClient http = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(15))
-            .build();
+    private final HttpClient http;
+
+    public DeepSeekService(HttpClient sharedHttpClient) {
+        this.http = sharedHttpClient;
+    }
 
     public String chat(String systemPrompt, String userPrompt, String requestedModel) {
         if (apiKey == null || apiKey.isBlank()) {

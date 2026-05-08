@@ -20,9 +20,11 @@ public class TopicCandidate {
     private String title;           // 选题标题
     private String reason;          // 选题原因 / 为什么推荐这个
     private String angle;           // 切入角度 / 简短解释 (1-2 句话)
+    private String whyThisTopic;    // AI 生成的一句话推荐理由 (前端"WHY THIS TOPIC"区域)
     private List<String> tags;      // 险种 / 客群 / 类型 标签
-    private List<String> insuranceTypes; // 险种标签 (用于筛选)
-    private List<String> demographics;   // 人群标签 (用于筛选)
+    private List<String> insuranceTypes;        // 险种标签 (用于筛选)
+    private List<String> demographics;          // 人群标签 (用于筛选)
+    private List<String> recommendedPlatforms;  // AI 推荐的发布平台 (抖音/小红书/公号...)
     private String sourceLabel;     // 给前端展示的飞书表来源
     private String sourceUrl;       // 原文链接 (如有)
     private String sourceCategory;  // 来源分类: SYSTEM_RECOMMEND / HOT_TEMPLATE / KNOWLEDGE_BASE / NEWS_HOTSPOT / USER_WRITE
@@ -45,10 +47,14 @@ public class TopicCandidate {
     public void setAngle(String angle) { this.angle = angle; }
     public List<String> getTags() { return tags; }
     public void setTags(List<String> tags) { this.tags = tags; }
+    public String getWhyThisTopic() { return whyThisTopic; }
+    public void setWhyThisTopic(String whyThisTopic) { this.whyThisTopic = whyThisTopic; }
     public List<String> getInsuranceTypes() { return insuranceTypes; }
     public void setInsuranceTypes(List<String> insuranceTypes) { this.insuranceTypes = insuranceTypes; }
     public List<String> getDemographics() { return demographics; }
     public void setDemographics(List<String> demographics) { this.demographics = demographics; }
+    public List<String> getRecommendedPlatforms() { return recommendedPlatforms; }
+    public void setRecommendedPlatforms(List<String> recommendedPlatforms) { this.recommendedPlatforms = recommendedPlatforms; }
     public String getSourceLabel() { return sourceLabel; }
     public void setSourceLabel(String sourceLabel) { this.sourceLabel = sourceLabel; }
     public String getSourceUrl() { return sourceUrl; }

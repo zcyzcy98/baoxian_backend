@@ -46,7 +46,11 @@
       "Bash(mkdir -p \"/Users/yang2krown/Desktop/保险 Agent/前端\" && cp \"/Users/yang2krown/Library/Mobile Documents/.Trash/前端/saas-koubo_1.html\" \"/Users/yang2krown/Desktop/保险 Agent/前端/saas-koubo_1.html\" && echo \"OK\")",
       "Bash(awk '{print $NF}')",
       "Bash(cp \"/Users/yang2krown/Library/Mobile Documents/.Trash/前端/\"*.html \"/Users/yang2krown/Desktop/保险 Agent/前端/\" && ls \"/Users/yang2krown/Desktop/保险 Agent/前端/\")",
-      "Bash(npx --yes acorn --ecma2020 --module src/pages/DramaPage.jsx)"
+      "Bash(npx --yes acorn --ecma2020 --module src/pages/DramaPage.jsx)",
+      "Bash(curl -sv --max-time 10 \"https://api.tophubdata.com/hot?date=2026-05-08\" -H \"Authorization: test\")",
+      "Bash(~/.m2/wrapper/dists/apache-maven-3.9.12-bin/*/apache-maven-*/bin/mvn compile *)",
+      "Bash(pdftotext \"/Users/yang2krown/Downloads/承知 · 保险经纪人 AI 获客系统 — 点击发布，等客户上门.pdf\" -)",
+      "Bash(python3 -c ' *)"
     ]
   }
 }

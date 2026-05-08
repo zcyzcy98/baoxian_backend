@@ -26,11 +26,14 @@ public class TopicGenerationService {
 
     private final BitableTopicReader bitableReader;
     private final TopHubDataService topHubDataService;
+    private final TopicAiFilterService aiFilter;
 
     public TopicGenerationService(BitableTopicReader bitableReader,
-                                  TopHubDataService topHubDataService) {
+                                  TopHubDataService topHubDataService,
+                                  TopicAiFilterService aiFilter) {
         this.bitableReader = bitableReader;
         this.topHubDataService = topHubDataService;
+        this.aiFilter = aiFilter;
     }
 
     private static final Set<String> TOPHUB_CATEGORIES = Set.of("hot", "hotspot", "热点", "热点追踪");
@@ -152,8 +155,12 @@ public class TopicGenerationService {
 
         if (!onlyBitable && topHubDataService.isConfigured()) {
             try {
-                List<TopicCandidate> hot = topHubDataService.fetchHotTopics(limit);
-                bag.addAll(hot);
+                // 始终从 TopHub 拉满 100 条，经过噪音过滤和 AI 筛选后候选会减少，
+                // 这样无论用户选 10/20/30 都能从足够大的池里挑到指定数量
+                List<TopicCandidate> hot = topHubDataService.fetchHotTopics(100);
+                // AI 增强：过滤噪音 + 补全 whyThisTopic / insuranceTypes / recommendedPlatforms
+                List<TopicCandidate> aiEnriched = aiFilter.enrichWithAi(hot);
+                bag.addAll(aiEnriched);
             } catch (Exception e) {
                 log.warn("fetch hot topics failed, will serve bitable-only: {}", e.getMessage());
             }

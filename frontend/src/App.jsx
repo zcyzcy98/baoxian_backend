@@ -1,6 +1,8 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import './index.css'
 import './App.css'
+import { fetchMe, clearToken } from './auth'
+import LandingPage from './pages/LandingPage'
 import Sidebar from './components/Sidebar'
 import Topbar from './components/Topbar'
 import TopicSquarePage from './pages/TopicSquarePage'
@@ -39,7 +41,40 @@ const PAGE_MAP = {
   'credits': { component: CreditsPage, breadcrumb: ['积分管理'] },
 }
 
+// auth status: 'loading' | 'guest' | 'no-access' | 'active'
+function useAuth() {
+  const [auth, setAuth] = useState({ status: 'loading', phone: '' })
+
+  useEffect(() => {
+    fetchMe().then(user => {
+      if (!user) {
+        setAuth({ status: 'guest', phone: '' })
+      } else if (!user.hasAccess) {
+        setAuth({ status: 'no-access', phone: user.phone })
+      } else {
+        setAuth({ status: 'active', phone: user.phone })
+      }
+    })
+  }, [])
+
+  function onAuthSuccess(user) {
+    if (user.hasAccess) {
+      setAuth({ status: 'active', phone: user.phone })
+    } else {
+      setAuth({ status: 'no-access', phone: user.phone })
+    }
+  }
+
+  function onLogout() {
+    clearToken()
+    setAuth({ status: 'guest', phone: '' })
+  }
+
+  return { auth, onAuthSuccess, onLogout }
+}
+
 export default function App() {
+  const { auth, onAuthSuccess, onLogout } = useAuth()
   const [activeId, setActiveId] = useState(() => {
     return localStorage.getItem('chengzhi:active-page') || 'topic-square'
   })
@@ -51,6 +86,25 @@ export default function App() {
     if (prefill) setTopicPrefill(prefill)
   }, [])
 
+  if (auth.status === 'loading') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'var(--sans)', color: 'var(--ink-3, #6B6862)', fontSize: 14 }}>
+        加载中…
+      </div>
+    )
+  }
+
+  if (auth.status === 'guest' || auth.status === 'no-access') {
+    return (
+      <LandingPage
+        onAuthSuccess={onAuthSuccess}
+        noAccess={auth.status === 'no-access'}
+        phone={auth.phone}
+        onLogout={onLogout}
+      />
+    )
+  }
+
   const pageConfig = PAGE_MAP[activeId] || PAGE_MAP['topic-square']
   const PageComponent = pageConfig.component
 
@@ -58,7 +112,7 @@ export default function App() {
     <div className="app">
       <Sidebar activeId={activeId} onNavigate={navigate} />
       <div className="main">
-        <Topbar breadcrumb={pageConfig.breadcrumb} onNavigate={navigate} />
+        <Topbar breadcrumb={pageConfig.breadcrumb} onNavigate={navigate} onLogout={onLogout} phone={auth.phone} />
         <div className="content scroll-y">
           <div className="content-inner">
             <PageComponent
