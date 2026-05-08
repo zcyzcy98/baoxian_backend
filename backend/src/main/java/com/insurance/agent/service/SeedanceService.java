@@ -9,6 +9,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -19,6 +27,7 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -83,13 +92,15 @@ public class SeedanceService {
             String script,
             String characterImageUrl,
             String backgroundImageUrl,
-            String style) {
+            String style,
+            String ratio,
+            String resolution) {
 
         if (isBlank(script)) throw new IllegalArgumentException("口播脚本不能为空");
 
         List<Segment> segments = splitScript(script, style);
         log.info("[Seedance] 脚本已拆分为 {} 段", segments.size());
-        return submitAndPollSequential(segments, characterImageUrl, backgroundImageUrl);
+        return submitAndPollSequential(segments, characterImageUrl, backgroundImageUrl, ratio, resolution);
     }
 
     /**
@@ -98,22 +109,25 @@ public class SeedanceService {
     public List<SegmentResult> generateSegmentsDirect(
             List<Segment> segments,
             String characterImageUrl,
-            String backgroundImageUrl) {
+            String backgroundImageUrl,
+            String ratio,
+            String resolution) {
 
         if (segments == null || segments.isEmpty()) throw new IllegalArgumentException("分镜段列表不能为空");
         log.info("[Seedance] 直接使用前端分镜，共 {} 段", segments.size());
-        return submitAndPollSequential(segments, characterImageUrl, backgroundImageUrl);
+        return submitAndPollSequential(segments, characterImageUrl, backgroundImageUrl, ratio, resolution);
     }
 
     /** 提交一段 → 轮询完成 → 提交下一段，避免批量提交后第二段因等待过久而失效 */
     private List<SegmentResult> submitAndPollSequential(
-            List<Segment> segments, String characterImageUrl, String backgroundImageUrl) {
+            List<Segment> segments, String characterImageUrl, String backgroundImageUrl,
+            String ratio, String resolution) {
 
         List<SegmentResult> results = new ArrayList<>();
         for (int i = 0; i < segments.size(); i++) {
             Segment seg = segments.get(i);
-            log.info("[Seedance] 提交第 {}/{} 段，预估 {} 秒", i + 1, segments.size(), seg.durationEstimate());
-            String predictionId = submitTask(seg, characterImageUrl, backgroundImageUrl);
+            log.info("[Seedance] 提交第 {}/{} 段，比例={} 清晰度={}", i + 1, segments.size(), ratio, resolution);
+            String predictionId = submitTask(seg, characterImageUrl, backgroundImageUrl, ratio, resolution);
             log.info("[Seedance] 轮询第 {}/{} 段，predictionId={}", i + 1, segments.size(), predictionId);
             String videoUrl = pollTask(predictionId);
             results.add(new SegmentResult(i + 1, seg.script(), seg.durationEstimate(), videoUrl));
@@ -126,17 +140,19 @@ public class SeedanceService {
     private List<Segment> splitScript(String script, String style) {
         String systemPrompt = """
                 # 角色
-                你是专业的口播视频脚本拆分助手，专为 AI 视频生成 API（每次最多生成 10 秒）准备输入。
+                你是专业的口播视频脚本拆分助手，专为 AI 视频生成 API（每次最多生成 15 秒）准备输入。
 
                 # 任务
                 把用户给的口播脚本拆成多个片段，每片段满足：
-                - 口播字数 ≤ 50 字（对应 ≤10 秒，按 5 字/秒估算）
+                - 口播字数 ≤ 70 字（对应 ≤15 秒，按 5 字/秒估算）
                 - 在自然停顿处（句号、问号、感叹号、换行）切分
                 - 不得改动任何口播原文
 
                 同时为每个片段生成 AI 视频生成提示词，要求：
                 - 专注「真人口播」风格：正脸出镜、自然表情、直视镜头
+                - 视频画面中不要出现文字
                 - 用英文描述画面（模型要求英文 prompt）
+                - 不要有浮夸的运镜
                 - 简洁有力，包含：景别、情绪、动作/手势（如有）
                 - 不要加入与脚本无关的场景设定
 
@@ -208,7 +224,8 @@ public class SeedanceService {
     // POST /api/v1/model/generateVideo
     // 响应：data.id = predictionId
 
-    private String submitTask(Segment seg, String characterImageUrl, String backgroundImageUrl) {
+    private String submitTask(Segment seg, String characterImageUrl, String backgroundImageUrl,
+                              String ratio, String resolution) {
         try {
             // reference_images：人物图可选（测试时可不传），背景图也可选
             ArrayNode refImages = mapper.createArrayNode();
@@ -219,18 +236,25 @@ public class SeedanceService {
                 refImages.add(resolveImageRef(backgroundImageUrl));
             }
 
+            log.info(refImages.toString());
+
+            String finalRatio      = isBlank(ratio)      ? "9:16" : ratio.trim();
+            String finalResolution = isBlank(resolution) ? "720p" : resolution.trim();
+
             ObjectNode body = mapper.createObjectNode();
             body.put("model", model);
             body.put("prompt", buildSegmentPrompt(seg));
-            body.set("reference_images", refImages);
+            body.set("images", refImages);
             body.set("reference_videos", mapper.createArrayNode());
             body.set("reference_audios", mapper.createArrayNode());
             body.put("duration", seg.durationEstimate());
-            body.put("resolution", "720p");
-            body.put("ratio", "adaptive");
+            body.put("resolution", finalResolution);
+            body.put("ratio", finalRatio);
             body.put("generate_audio", true);
             body.put("watermark", false);
             body.put("return_last_frame", false);
+
+            log.info(body.toString());
 
             String payload = mapper.writeValueAsString(body);
             log.debug("[Seedance] submit payload={}", truncate(payload, 400));
@@ -327,8 +351,8 @@ public class SeedanceService {
 
     /**
      * 将图片 URL 转为可供 AtlasCloud 外网访问的形式。
-     * 如果是 localhost URL，直接读本地文件并转 base64 data URL 发送，
-     * 避免 AtlasCloud 服务器因无法访问内网地址而报 400。
+     * localhost URL → 读文件 → 缩放到 720px 以内 → JPEG 压缩 → base64 data URL。
+     * 公网 URL 直接返回，AtlasCloud 自行下载。
      */
     private String resolveImageRef(String imageUrl) {
         if (isBlank(imageUrl)) return imageUrl;
@@ -336,20 +360,63 @@ public class SeedanceService {
             return imageUrl; // 公网 URL 直接使用
         }
         try {
-            // URL 形如 http://localhost:8888/api/avatar/image/{filename}
             String filename = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
             Path filePath = Paths.get(avatarUploadDir).resolve(filename);
-            byte[] bytes = Files.readAllBytes(filePath);
-            String mime = Files.probeContentType(filePath);
-            if (mime == null) mime = "image/jpeg";
-            String b64 = Base64.getEncoder().encodeToString(bytes);
-            log.info("[Seedance] 本地图片 {} 转 base64（{}字节）", filename, bytes.length);
-            return "data:" + mime + ";base64," + b64;
-        } catch (Exception e) {
-            log.warn("[Seedance] 本地图片转 base64 失败，直接使用 URL: {}", e.getMessage());
 
+            BufferedImage original = ImageIO.read(filePath.toFile());
+            if (original == null) throw new RuntimeException("无法解码图片: " + filename);
+
+            // 缩放：最长边不超过 720px
+            BufferedImage scaled = scaleImage(original, 720);
+
+            // 转 JPEG（去掉透明通道）并压缩到 quality=0.82
+            byte[] jpegBytes = toJpegBytes(scaled, 0.82f);
+            String b64 = Base64.getEncoder().encodeToString(jpegBytes);
+            log.info("[Seedance] 图片 {} 压缩后 {}KB，base64 {}KB",
+                    filename, jpegBytes.length / 1024, b64.length() / 1024);
+            return b64;  // AtlasCloud 接受纯 base64 字符串（不含 data:image/... 前缀）
+        } catch (Exception e) {
+            log.warn("[Seedance] 图片处理失败，直接使用原 URL: {}", e.getMessage());
             return imageUrl;
         }
+    }
+
+    private BufferedImage scaleImage(BufferedImage src, int maxSide) {
+        int w = src.getWidth(), h = src.getHeight();
+        if (w <= maxSide && h <= maxSide) return src;
+        double scale = (double) maxSide / Math.max(w, h);
+        int nw = (int) (w * scale), nh = (int) (h * scale);
+        BufferedImage out = new BufferedImage(nw, nh, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = out.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g.drawImage(src, 0, 0, nw, nh, null);
+        g.dispose();
+        return out;
+    }
+
+    private byte[] toJpegBytes(BufferedImage img, float quality) throws Exception {
+        // 确保没有 Alpha 通道（JPEG 不支持透明）
+        if (img.getType() != BufferedImage.TYPE_INT_RGB) {
+            BufferedImage rgb = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = rgb.createGraphics();
+            g.setColor(Color.WHITE);
+            g.fillRect(0, 0, img.getWidth(), img.getHeight());
+            g.drawImage(img, 0, 0, null);
+            g.dispose();
+            img = rgb;
+        }
+        Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("jpeg");
+        ImageWriter writer = writers.next();
+        ImageWriteParam param = writer.getDefaultWriteParam();
+        param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+        param.setCompressionQuality(quality);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (ImageOutputStream ios = ImageIO.createImageOutputStream(baos)) {
+            writer.setOutput(ios);
+            writer.write(null, new IIOImage(img, null, null), param);
+        }
+        writer.dispose();
+        return baos.toByteArray();
     }
 
     private String requiredApiKey() {

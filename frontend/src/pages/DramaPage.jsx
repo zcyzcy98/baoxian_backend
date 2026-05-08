@@ -91,6 +91,8 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
   const [backgroundPreview, setBackgroundPreview] = useState(null)
   const [backgroundUploading, setBackgroundUploading] = useState(false)
   const [licenseChecked, setLicenseChecked] = useState(false)
+  const [videoRatio, setVideoRatio] = useState('9:16')
+  const [videoResolution, setVideoResolution] = useState('720p')
   const charFileRef = useRef(null)
   const bgFileRef = useRef(null)
 
@@ -290,6 +292,8 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
         characterImageUrl: characterImageUrl || null,
         backgroundImageUrl: backgroundImageUrl || null,
         style: direction,
+        videoRatio,
+        videoResolution,
       }
       // 如果有已编辑的分镜段，直接传给后端，跳过 DeepSeek 重新拆分
       if (storyboardSegs.length > 0) {
@@ -452,6 +456,8 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
                   onClearBg={() => { setBackgroundPreview(null); setBackgroundImageUrl(''); if (bgFileRef.current) bgFileRef.current.value = '' }}
                   licenseChecked={licenseChecked} onLicenseToggle={() => setLicenseChecked(v => !v)}
                   onGenerate={goGenerate} genError={genError}
+                  videoRatio={videoRatio} onRatioChange={setVideoRatio}
+                  videoResolution={videoResolution} onResolutionChange={setVideoResolution}
                 />
               </aside>
             </div>
@@ -606,6 +612,8 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
                   onClearBg={() => { setBackgroundPreview(null); setBackgroundImageUrl(''); if (bgFileRef.current) bgFileRef.current.value = '' }}
                   licenseChecked={licenseChecked} onLicenseToggle={() => setLicenseChecked(v => !v)}
                   onGenerate={goGenerate} genError={genError}
+                  videoRatio={videoRatio} onRatioChange={setVideoRatio}
+                  videoResolution={videoResolution} onResolutionChange={setVideoResolution}
                 />
               </aside>
             </div>
@@ -652,6 +660,8 @@ function UploadPanel({
   onUpload, onClearChar, onClearBg,
   licenseChecked, onLicenseToggle,
   onGenerate, genError,
+  videoRatio, onRatioChange,
+  videoResolution, onResolutionChange,
 }) {
   return (
     <div className="upload-panel">
@@ -721,6 +731,36 @@ function UploadPanel({
           <span>+ 上传背景图（可选）</span>
         </button>
       )}
+
+      <div className="upload-panel-divider" />
+
+      {/* 视频参数 */}
+      <div className="up-options">
+        <div className="up-option-group">
+          <div className="up-option-label">画面比例</div>
+          <div className="up-option-btns">
+            {['9:16', '16:9'].map(r => (
+              <button key={r}
+                className={'up-option-btn' + (videoRatio === r ? ' is-active' : '')}
+                onClick={() => onRatioChange(r)}>
+                {r === '9:16' ? '📱 竖屏 9:16' : '🖥 横屏 16:9'}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="up-option-group">
+          <div className="up-option-label">清晰度</div>
+          <div className="up-option-btns">
+            {['720p', '1080p'].map(res => (
+              <button key={res}
+                className={'up-option-btn' + (videoResolution === res ? ' is-active' : '')}
+                onClick={() => onResolutionChange(res)}>
+                {res === '1080p' ? '✨ ' : ''}{res}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {genError && <div className="kb-error" style={{fontSize:12}}>{genError}</div>}
 

@@ -29,6 +29,10 @@ public class AgentRequest {
     private Boolean needImages;
     // 前端已编辑好的分镜段（有此字段时跳过 DeepSeek 拆分，直接生成）
     private java.util.List<java.util.Map<String, Object>> storyboardSegments;
+    // 视频比例：9:16 / 16:9，默认 9:16
+    private String videoRatio;
+    // 视频清晰度：720p / 1080p，默认 720p
+    private String videoResolution;
 
     public String getTopic() { return topic; }
     public void setTopic(String topic) { this.topic = topic; }
@@ -104,4 +108,10 @@ public class AgentRequest {
 
     public java.util.List<java.util.Map<String, Object>> getStoryboardSegments() { return storyboardSegments; }
     public void setStoryboardSegments(java.util.List<java.util.Map<String, Object>> storyboardSegments) { this.storyboardSegments = storyboardSegments; }
+
+    public String getVideoRatio() { return videoRatio; }
+    public void setVideoRatio(String videoRatio) { this.videoRatio = videoRatio; }
+
+    public String getVideoResolution() { return videoResolution; }
+    public void setVideoResolution(String videoResolution) { this.videoResolution = videoResolution; }
 }

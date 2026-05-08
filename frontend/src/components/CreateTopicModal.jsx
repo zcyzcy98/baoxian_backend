@@ -47,6 +47,25 @@ export default function CreateTopicModal({ topic, onClose, onNavigate }) {
           <span className="ctm-badge">选题创作</span>
           <h3 className="ctm-title">{topic.title}</h3>
           {topic.reason && <p className="ctm-reason">{topic.reason}</p>}
+          {topic.sourceUrl && (
+            <a
+              className="ctm-source-link"
+              href={topic.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              title={topic.sourceUrl}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/>
+                <line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+              查看原文 / 热点来源
+            </a>
+          )}
+          {topic.sourceLabel && !topic.sourceUrl && (
+            <p className="ctm-source-label">来源: {topic.sourceLabel}</p>
+          )}
         </div>
 
         <div className="ctm-divider" />

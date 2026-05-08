@@ -855,6 +855,8 @@ public class AgentController {
         try {
             List<SeedanceService.SegmentResult> results;
             java.util.List<java.util.Map<String, Object>> sbSegs = req.getStoryboardSegments();
+            String ratio      = req.getVideoRatio();
+            String resolution = req.getVideoResolution();
             if (sbSegs != null && !sbSegs.isEmpty()) {
                 // 前端已编辑好的分镜段，直接使用，跳过 DeepSeek 拆分
                 List<SeedanceService.Segment> segs = new ArrayList<>();
@@ -864,13 +866,15 @@ public class AgentController {
                     String prompt = String.valueOf(m.getOrDefault("prompt", "A professional insurance advisor talking to camera, close-up, natural expression"));
                     segs.add(new SeedanceService.Segment(voiceover, prompt, Math.max(3, Math.min(10, dur))));
                 }
-                results = seedance.generateSegmentsDirect(segs, req.getCharacterImageUrl(), req.getBackgroundImageUrl());
+                results = seedance.generateSegmentsDirect(segs, req.getCharacterImageUrl(), req.getBackgroundImageUrl(), ratio, resolution);
             } else {
                 results = seedance.generateSegments(
                         script,
                         req.getCharacterImageUrl(),
                         req.getBackgroundImageUrl(),
-                        req.getStyle());
+                        req.getStyle(),
+                        ratio,
+                        resolution);
             }
             List<Map<String, Object>> segments = new ArrayList<>();
             for (SeedanceService.SegmentResult r : results) {
