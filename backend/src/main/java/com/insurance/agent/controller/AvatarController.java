@@ -1,10 +1,10 @@
 package com.insurance.agent.controller;
 
+import com.insurance.agent.service.OssService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -29,6 +29,12 @@ public class AvatarController {
     @Value("${avatar.public-base-url:http://localhost:8888}")
     private String publicBaseUrl;
 
+    private final OssService ossService;
+
+    public AvatarController(OssService ossService) {
+        this.ossService = ossService;
+    }
+
     @PostMapping("/upload")
     public ResponseEntity<Map<String, String>> upload(@RequestParam("file") MultipartFile file) throws IOException {
         if (file == null || file.isEmpty()) {
@@ -48,19 +54,32 @@ public class AvatarController {
                 : ".jpg";
         String filename = UUID.randomUUID().toString().replace("-", "") + ext;
 
+        // 本地保存
         Path dir = Paths.get(uploadDir);
         Files.createDirectories(dir);
         Path dest = dir.resolve(filename);
         file.transferTo(dest);
 
+        // 如果 OSS 已配置，上传到 OSS 并删除本地临时文件
+        if (ossService.isEnabled()) {
+            try (var in = Files.newInputStream(dest)) {
+                String ossUrl = ossService.upload(filename, in,
+                        contentType, file.getSize());
+                log.info("[Avatar] OSS 上传成功: {}", ossUrl);
+                Files.deleteIfExists(dest);
+                return ResponseEntity.ok(Map.of("url", ossUrl, "filename", filename));
+            } catch (Exception e) {
+                log.warn("[Avatar] OSS 上传失败，降级为本地 URL: {}", e.getMessage());
+            }
+        }
+
         String url = publicBaseUrl.replaceAll("/$", "") + "/api/avatar/image/" + filename;
-        log.info("[Avatar] 上传成功: {} → {}", filename, url);
+        log.info("[Avatar] 本地上传成功: {} → {}", filename, url);
         return ResponseEntity.ok(Map.of("url", url, "filename", filename));
     }
 
     @GetMapping("/image/{filename}")
     public ResponseEntity<byte[]> serve(@PathVariable String filename) throws IOException {
-        // 安全检查：不允许路径遍历
         if (filename.contains("..") || filename.contains("/") || filename.contains("\\")) {
             return ResponseEntity.badRequest().build();
         }
@@ -69,10 +88,10 @@ public class AvatarController {
             return ResponseEntity.notFound().build();
         }
         byte[] bytes = Files.readAllBytes(file);
-        String contentType = Files.probeContentType(file);
-        if (contentType == null) contentType = "application/octet-stream";
+        String ct = Files.probeContentType(file);
+        if (ct == null) ct = "application/octet-stream";
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_TYPE, contentType)
+                .header(HttpHeaders.CONTENT_TYPE, ct)
                 .header(HttpHeaders.CACHE_CONTROL, "max-age=86400")
                 .body(bytes);
     }

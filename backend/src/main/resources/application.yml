@@ -78,6 +78,15 @@ avatar:
   # 本地开发时设为 ngrok/frp 公网地址；生产部署时设为域名。
   public-base-url: ${AVATAR_PUBLIC_BASE_URL:http://localhost:8888}
 
+oss:
+  enabled: ${OSS_ENABLED:false}
+  endpoint: ${OSS_ENDPOINT:}
+  access-key-id: ${OSS_ACCESS_KEY_ID:}
+  access-key-secret: ${OSS_ACCESS_KEY_SECRET:}
+  bucket-name: ${OSS_BUCKET_NAME:}
+  # 上传目录前缀，文件最终 URL 为 https://{bucket}.{endpoint}/{dir}/{filename}
+  dir: ${OSS_DIR:avatars}
+
 app:
   data:
     excel-path: ${EXCEL_DATA_PATH:}

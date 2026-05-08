@@ -9,13 +9,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.imageio.IIOImage;
-import javax.imageio.ImageIO;
-import javax.imageio.ImageWriteParam;
-import javax.imageio.ImageWriter;
-import javax.imageio.stream.ImageOutputStream;
-import java.awt.*;
-import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -26,9 +19,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Iterator;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * AtlasCloud Seedance 2.0 Fast (reference-to-video) 视频生成服务。
@@ -118,6 +110,8 @@ public class SeedanceService {
         return submitAndPollSequential(segments, characterImageUrl, backgroundImageUrl, ratio, resolution);
     }
 
+    private static final int MAX_SEGMENT_ATTEMPTS = 2;
+
     /** 提交一段 → 轮询完成 → 提交下一段，避免批量提交后第二段因等待过久而失效 */
     private List<SegmentResult> submitAndPollSequential(
             List<Segment> segments, String characterImageUrl, String backgroundImageUrl,
@@ -126,11 +120,25 @@ public class SeedanceService {
         List<SegmentResult> results = new ArrayList<>();
         for (int i = 0; i < segments.size(); i++) {
             Segment seg = segments.get(i);
-            log.info("[Seedance] 提交第 {}/{} 段，比例={} 清晰度={}", i + 1, segments.size(), ratio, resolution);
-            String predictionId = submitTask(seg, characterImageUrl, backgroundImageUrl, ratio, resolution);
-            log.info("[Seedance] 轮询第 {}/{} 段，predictionId={}", i + 1, segments.size(), predictionId);
-            String videoUrl = pollTask(predictionId);
-            results.add(new SegmentResult(i + 1, seg.script(), seg.durationEstimate(), videoUrl));
+            RuntimeException lastErr = null;
+            for (int attempt = 1; attempt <= MAX_SEGMENT_ATTEMPTS; attempt++) {
+                try {
+                    log.info("[Seedance] 提交第 {}/{} 段（第 {} 次），比例={} 清晰度={}",
+                            i + 1, segments.size(), attempt, ratio, resolution);
+                    String predictionId = submitTask(seg, characterImageUrl, backgroundImageUrl, ratio, resolution);
+                    log.info("[Seedance] 轮询第 {}/{} 段，predictionId={}", i + 1, segments.size(), predictionId);
+                    String videoUrl = pollTask(predictionId);
+                    results.add(new SegmentResult(i + 1, seg.script(), seg.durationEstimate(), videoUrl));
+                    lastErr = null;
+                    break;
+                } catch (RuntimeException e) {
+                    lastErr = e;
+                    log.warn("[Seedance] 第 {}/{} 段第 {}/{} 次失败: {}",
+                            i + 1, segments.size(), attempt, MAX_SEGMENT_ATTEMPTS, e.getMessage());
+                    if (attempt < MAX_SEGMENT_ATTEMPTS) sleep(5);
+                }
+            }
+            if (lastErr != null) throw lastErr;
         }
         return results;
     }
@@ -244,7 +252,7 @@ public class SeedanceService {
             ObjectNode body = mapper.createObjectNode();
             body.put("model", model);
             body.put("prompt", buildSegmentPrompt(seg));
-            body.set("images", refImages);
+            body.set("reference_images", refImages);
             body.set("reference_videos", mapper.createArrayNode());
             body.set("reference_audios", mapper.createArrayNode());
             body.put("duration", seg.durationEstimate());
@@ -299,12 +307,18 @@ public class SeedanceService {
 
     private String pollTask(String predictionId) {
         long deadline = System.nanoTime() + Duration.ofSeconds(pollTimeoutSeconds).toNanos();
+        int consecutiveErrors = 0;
         while (System.nanoTime() < deadline) {
             try {
                 String result = queryTask(predictionId);
+                consecutiveErrors = 0;
                 if (result != null) return result;
             } catch (Exception e) {
-                log.warn("[Seedance] 查询任务 {} 失败，将重试: {}", predictionId, e.getMessage());
+                consecutiveErrors++;
+                log.warn("[Seedance] 查询任务 {} 失败（连续第 {} 次）: {}", predictionId, consecutiveErrors, e.getMessage());
+                if (consecutiveErrors >= 3) {
+                    throw new RuntimeException("任务 " + predictionId + " 连续失败 3 次，放弃重试: " + e.getMessage(), e);
+                }
             }
             sleep(pollIntervalSeconds);
         }
@@ -350,73 +364,173 @@ public class SeedanceService {
     // ─── 工具 ──────────────────────────────────────────────────────
 
     /**
-     * 将图片 URL 转为可供 AtlasCloud 外网访问的形式。
-     * localhost URL → 读文件 → 缩放到 720px 以内 → JPEG 压缩 → base64 data URL。
-     * 公网 URL 直接返回，AtlasCloud 自行下载。
+     * 将图片 URL 转为 AtlasCloud asset ID（atlas-asset-xxx），绕过人脸检测。
+     * 流程：读取图片字节 → uploadMedia → sd/assets 注册 → 轮询到 Active → 返回 atlas_asset_id
+     * 失败时降级：公网 URL 直接用 / 本地文件转 base64。
      */
     private String resolveImageRef(String imageUrl) {
         if (isBlank(imageUrl)) return imageUrl;
-        if (!imageUrl.matches("https?://(localhost|127\\.0\\.0\\.1)(:\\d+)?/.*")) {
-            return imageUrl; // 公网 URL 直接使用
-        }
+
+        boolean isLocal = imageUrl.matches("https?://(localhost|127\\.0\\.0\\.1)(:\\d+)?/.*");
+
         try {
-            String filename = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
-            Path filePath = Paths.get(avatarUploadDir).resolve(filename);
+            byte[] imageBytes;
+            String filename;
+            if (isLocal) {
+                String fname = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
+                imageBytes = Files.readAllBytes(Paths.get(avatarUploadDir).resolve(fname));
+                filename = fname;
+            } else {
+                HttpRequest dlReq = HttpRequest.newBuilder()
+                        .uri(URI.create(imageUrl))
+                        .timeout(Duration.ofSeconds(30))
+                        .GET().build();
+                HttpResponse<byte[]> dlResp = http.send(dlReq, HttpResponse.BodyHandlers.ofByteArray());
+                if (dlResp.statusCode() / 100 != 2) {
+                    throw new RuntimeException("下载图片失败 " + dlResp.statusCode());
+                }
+                imageBytes = dlResp.body();
+                String path = URI.create(imageUrl).getPath();
+                filename = path.substring(path.lastIndexOf('/') + 1);
+                if (isBlank(filename)) filename = "avatar.jpg";
+            }
 
-            BufferedImage original = ImageIO.read(filePath.toFile());
-            if (original == null) throw new RuntimeException("无法解码图片: " + filename);
+            String cdnUrl = uploadMediaToAtlas(imageBytes, filename);
+            log.info("[Seedance] uploadMedia 成功: {}", cdnUrl);
 
-            // 缩放：最长边不超过 720px
-            BufferedImage scaled = scaleImage(original, 720);
+            String assetId = registerAndWaitAsset(cdnUrl);
+            log.info("[Seedance] 资产注册成功，atlas_asset_id={}", assetId);
+            return "asset://" + assetId;
 
-            // 转 JPEG（去掉透明通道）并压缩到 quality=0.82
-            byte[] jpegBytes = toJpegBytes(scaled, 0.82f);
-            String b64 = Base64.getEncoder().encodeToString(jpegBytes);
-            log.info("[Seedance] 图片 {} 压缩后 {}KB，base64 {}KB",
-                    filename, jpegBytes.length / 1024, b64.length() / 1024);
-            return b64;  // AtlasCloud 接受纯 base64 字符串（不含 data:image/... 前缀）
         } catch (Exception e) {
-            log.warn("[Seedance] 图片处理失败，直接使用原 URL: {}", e.getMessage());
-            return imageUrl;
+            throw new RuntimeException("图片资产上传失败: " + e.getMessage(), e);
         }
     }
 
-    private BufferedImage scaleImage(BufferedImage src, int maxSide) {
-        int w = src.getWidth(), h = src.getHeight();
-        if (w <= maxSide && h <= maxSide) return src;
-        double scale = (double) maxSide / Math.max(w, h);
-        int nw = (int) (w * scale), nh = (int) (h * scale);
-        BufferedImage out = new BufferedImage(nw, nh, BufferedImage.TYPE_INT_RGB);
-        Graphics2D g = out.createGraphics();
-        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g.drawImage(src, 0, 0, nw, nh, null);
-        g.dispose();
-        return out;
+    /**
+     * Step 1：上传图片到 AtlasCloud CDN，返回 CDN URL。
+     * POST https://api.atlascloud.ai/api/v1/model/uploadMedia  multipart field=file
+     */
+    private String uploadMediaToAtlas(byte[] imageBytes, String filename) throws Exception {
+        String boundary = "----FormBoundary" + UUID.randomUUID().toString().replace("-", "");
+        String ct = filename.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
+
+        ByteArrayOutputStream body = new ByteArrayOutputStream();
+        body.write(("--" + boundary + "\r\n"
+                + "Content-Disposition: form-data; name=\"file\"; filename=\"" + filename + "\"\r\n"
+                + "Content-Type: " + ct + "\r\n\r\n").getBytes());
+        body.write(imageBytes);
+        body.write(("\r\n--" + boundary + "--\r\n").getBytes());
+
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(trimSlash(baseUrl) + "/api/v1/model/uploadMedia"))
+                .timeout(Duration.ofSeconds(60))
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .header("Authorization", "Bearer " + requiredApiKey())
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray()))
+                .build();
+
+        HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+        log.info("[Seedance] uploadMedia status={} body={}", resp.statusCode(), truncate(resp.body(), 400));
+
+        if (resp.statusCode() / 100 != 2) {
+            throw new RuntimeException("uploadMedia 失败 " + resp.statusCode() + ": " + truncate(resp.body(), 300));
+        }
+
+        JsonNode root = mapper.readTree(resp.body());
+        // 官方 API 返回顶层 url；console API 返回 data.download_url，兼容两种
+        String url = root.path("url").asText(null);
+        if (isBlank(url)) url = root.path("data").path("download_url").asText(null);
+        if (isBlank(url)) url = root.path("data").path("url").asText(null);
+        if (isBlank(url)) {
+            throw new RuntimeException("uploadMedia 响应中未找到 url: " + truncate(resp.body(), 300));
+        }
+        return url;
     }
 
-    private byte[] toJpegBytes(BufferedImage img, float quality) throws Exception {
-        // 确保没有 Alpha 通道（JPEG 不支持透明）
-        if (img.getType() != BufferedImage.TYPE_INT_RGB) {
-            BufferedImage rgb = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_RGB);
-            Graphics2D g = rgb.createGraphics();
-            g.setColor(Color.WHITE);
-            g.fillRect(0, 0, img.getWidth(), img.getHeight());
-            g.drawImage(img, 0, 0, null);
-            g.dispose();
-            img = rgb;
+    /**
+     * Step 2：将 CDN URL 注册为 AtlasCloud 资产，轮询到 Active 后返回 atlas_asset_id。
+     * POST https://api.atlascloud.ai/api/v1/sd/assets  {"name":"...","url":"..."}
+     * 注意：首先尝试 api.atlascloud.ai（API Key），失败则 atlas_asset_id 不可用。
+     */
+    private String registerAndWaitAsset(String cdnUrl) throws Exception {
+        ObjectNode body = mapper.createObjectNode();
+        body.put("name", "avatar_" + UUID.randomUUID().toString().substring(0, 8));
+        body.put("url", cdnUrl);
+        String payload = mapper.writeValueAsString(body);
+
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(trimSlash(baseUrl) + "/api/v1/sd/assets"))
+                .timeout(Duration.ofSeconds(30))
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + requiredApiKey())
+                .POST(HttpRequest.BodyPublishers.ofString(payload))
+                .build();
+
+        HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+        log.info("[Seedance] sd/assets status={} body={}", resp.statusCode(), truncate(resp.body(), 400));
+
+        if (resp.statusCode() / 100 != 2) {
+            throw new RuntimeException("sd/assets 失败 " + resp.statusCode() + ": " + truncate(resp.body(), 300));
         }
-        Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("jpeg");
-        ImageWriter writer = writers.next();
-        ImageWriteParam param = writer.getDefaultWriteParam();
-        param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-        param.setCompressionQuality(quality);
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (ImageOutputStream ios = ImageIO.createImageOutputStream(baos)) {
-            writer.setOutput(ios);
-            writer.write(null, new IIOImage(img, null, null), param);
+
+        JsonNode root = mapper.readTree(resp.body());
+        JsonNode data = root.path("data");
+
+        // 如果已经是 Active 状态，直接返回
+        String status = data.path("status").asText("");
+        String atlasAssetId = data.path("atlas_asset_id").asText(null);
+
+        if (!isBlank(atlasAssetId) && "Active".equalsIgnoreCase(status)) {
+            return atlasAssetId;
         }
-        writer.dispose();
-        return baos.toByteArray();
+
+        // 资产处于 Processing 状态，需要轮询 GET /api/v1/sd/assets/{id}
+        String assetId = data.path("id").asText(null);
+        if (isBlank(assetId) && data.isNumber()) {
+            assetId = data.asText();
+        }
+        // id 字段可能是数字
+        if (isBlank(assetId)) {
+            JsonNode idNode = data.path("id");
+            assetId = idNode.isMissingNode() ? null : idNode.asText();
+        }
+
+        if (!isBlank(atlasAssetId) && isBlank(assetId)) {
+            // 没有 id 但有 atlas_asset_id，直接返回（可能已就绪）
+            return atlasAssetId;
+        }
+
+        if (isBlank(assetId)) {
+            throw new RuntimeException("sd/assets 响应中未找到 id: " + truncate(resp.body(), 300));
+        }
+
+        // 轮询等待 Active（最多 60 秒）
+        long deadline = System.nanoTime() + Duration.ofSeconds(60).toNanos();
+        while (System.nanoTime() < deadline) {
+            sleep(3);
+            HttpRequest pollReq = HttpRequest.newBuilder()
+                    .uri(URI.create(trimSlash(baseUrl) + "/api/v1/sd/assets/" + assetId))
+                    .timeout(Duration.ofSeconds(15))
+                    .header("Authorization", "Bearer " + requiredApiKey())
+                    .GET().build();
+            HttpResponse<String> pollResp = http.send(pollReq, HttpResponse.BodyHandlers.ofString());
+            log.debug("[Seedance] 轮询 asset {} status={}", assetId, pollResp.statusCode());
+
+            if (pollResp.statusCode() / 100 == 2) {
+                JsonNode pr = mapper.readTree(pollResp.body()).path("data");
+                String s = pr.path("status").asText("");
+                String aid = pr.path("atlas_asset_id").asText(null);
+                log.info("[Seedance] asset 状态={} atlas_asset_id={}", s, aid);
+                if ("Active".equalsIgnoreCase(s) && !isBlank(aid)) {
+                    return aid;
+                }
+                if ("Failed".equalsIgnoreCase(s)) {
+                    throw new RuntimeException("资产处理失败: " + truncate(pollResp.body(), 200));
+                }
+            }
+        }
+        throw new RuntimeException("资产轮询超时（60s），assetId=" + assetId);
     }
 
     private String requiredApiKey() {
