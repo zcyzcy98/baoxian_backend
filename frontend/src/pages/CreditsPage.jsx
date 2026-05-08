@@ -1,137 +1,208 @@
-import { useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import './CreditsPage.css'
 
 const PACKAGES = [
-  { id: 'p1', credits: 1000, price: 99, save: 0 },
+  { id: 'p1', credits: 1000, price: 99,  save: 0 },
   { id: 'p2', credits: 5000, price: 459, save: 36 },
-  { id: 'p3', credits: 10000, price: 859, save: 131 },
+  { id: 'p3', credits: 10000,price: 859, save: 131 },
 ]
 
 const FILTER_TABS = [
-  { id: 'all', label: '全部' },
+  { id: 'all',    label: '全部' },
   { id: 'create', label: '生成内容' },
-  { id: 'qa', label: '答疑' },
-  { id: 'topup', label: '充值' },
+  { id: 'qa',     label: '答疑' },
 ]
 
 const PLATFORM_LABEL = {
-  xhs: { label: '小红书', cls: 'plat-xhs' },
-  gzh: { label: '公众号', cls: 'plat-gzh' },
-  douyin: { label: '抖音', cls: 'plat-dy' },
-  video: { label: '视频号', cls: 'plat-video' },
+  xhs:    { label: '小红书', cls: 'plat-xhs' },
+  gzh:    { label: '公众号', cls: 'plat-gzh' },
+  douyin: { label: '抖音',   cls: 'plat-dy' },
+  video:  { label: '视频号', cls: 'plat-video' },
 }
 
-// Mock data — 后端目前没有 /api/credits/* 接口, 暂时用 mock + localStorage.
-const MOCK_RECORDS = [
-  { id: 1, kind: 'create', platform: 'xhs', title: '生成小红书笔记', detail: '给爸妈买重疾险的 3 个坑', cost: -5, time: '2026-05-04 14:22' },
-  { id: 2, kind: 'create', platform: 'gzh', title: '公众号长文', detail: '保险里的"小坑大病"系列', cost: -25, time: '2026-05-04 13:08' },
-  { id: 3, kind: 'qa', platform: null, title: '客户答疑', detail: '宝妈购险预算 5000 应该怎么配', cost: -3, time: '2026-05-04 11:50' },
-  { id: 4, kind: 'topup', platform: null, title: '充值', detail: '5000 积分套餐', cost: 5000, time: '2026-05-03 18:00' },
-  { id: 5, kind: 'create', platform: 'douyin', title: '拆解抖音爆款', detail: 'v.douyin.com/iJxxxx', cost: -2, time: '2026-05-03 17:12' },
-]
+const KIND_ICON = { create: '✦', qa: '💬', topup: '+' }
+
+async function fetchSummary() {
+  const res = await fetch('/api/credits/summary')
+  if (!res.ok) throw new Error('获取汇总失败')
+  return res.json()
+}
+
+async function fetchRecords(filter, page) {
+  const res = await fetch(`/api/credits/records?filter=${filter}&page=${page}&size=20`)
+  if (!res.ok) throw new Error('获取记录失败')
+  return res.json()
+}
 
 export default function CreditsPage() {
-  const [filter, setFilter] = useState('all')
-  const [showBuy, setShowBuy] = useState(false)
+  const [filter,      setFilter]      = useState('all')
+  const [records,     setRecords]     = useState([])
+  const [summary,     setSummary]     = useState(null)
+  const [loading,     setLoading]     = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [page,        setPage]        = useState(0)
+  const [hasMore,     setHasMore]     = useState(true)
+  const [showBuy,     setShowBuy]     = useState(false)
   const [selectedPkg, setSelectedPkg] = useState(PACKAGES[1].id)
-  const [payMethod, setPayMethod] = useState('wechat')
+  const [payMethod,   setPayMethod]   = useState('wechat')
+  const [payTip,      setPayTip]      = useState('')
 
-  const balance = 6847
-  const annualTotal = 8000
-  const annualUsed = annualTotal - balance
-  const annualPct = Math.round((annualUsed / annualTotal) * 100)
+  const loadRecords = useCallback(async (f, p, append = false) => {
+    try {
+      const data = await fetchRecords(f, p)
+      setRecords(prev => append ? [...prev, ...data] : data)
+      setHasMore(data.length === 20)
+    } catch (e) {
+      console.error('[Credits] 记录加载失败', e)
+    }
+  }, [])
 
-  const records = MOCK_RECORDS.filter((r) => filter === 'all' || r.kind === filter)
-  const pkg = PACKAGES.find((p) => p.id === selectedPkg)
+  useEffect(() => {
+    setLoading(true)
+    setPage(0)
+    Promise.all([
+      fetchSummary().then(setSummary).catch(console.error),
+      loadRecords(filter, 0),
+    ]).finally(() => setLoading(false))
+  }, [filter, loadRecords])
+
+  const handleLoadMore = async () => {
+    const next = page + 1
+    setLoadingMore(true)
+    await loadRecords(filter, next, true)
+    setPage(next)
+    setLoadingMore(false)
+  }
+
+  const handleFilterChange = (f) => {
+    if (f === filter) return
+    setFilter(f)
+  }
+
+  const totalCost   = summary?.totalCost   || 0
+  const totalQa     = summary?.totalQa     || 0
+  const typeCounts  = summary?.typeCounts  || {}
+  const totalCreate = Object.values(typeCounts).reduce((a, b) => a + b, 0)
+
+  const pkg = PACKAGES.find(p => p.id === selectedPkg)
+
+  const handlePay = () => {
+    setPayTip('支付功能正在对接中，请联系客服充值。')
+    setTimeout(() => setPayTip(''), 3000)
+  }
 
   return (
     <div className="credits-page">
       <header className="credits-header">
         <div>
           <h2>积分管理</h2>
-          <p className="credits-sub">查看积分余额、消耗记录, 不够用了可以加购</p>
+          <p className="credits-sub">查看 AI 使用记录，积分不够用可以加购</p>
         </div>
         <button className="btn-buy" onClick={() => setShowBuy(true)}>+ 加购积分</button>
       </header>
 
+      {/* 汇总卡片 */}
       <section className="balance-card">
         <div className="balance-main">
-          <div className="balance-label">当前余额</div>
-          <div className="balance-num">{balance.toLocaleString()}</div>
-          <div className="balance-tip">年卡到期前可用</div>
+          <div className="balance-label">累计消耗</div>
+          <div className="balance-num">{totalCost.toLocaleString()}</div>
+          <div className="balance-tip">积分</div>
         </div>
-        <div className="balance-progress">
-          <div className="prog-row">
-            <span>本年度已用 {annualUsed.toLocaleString()}</span>
-            <span>年卡总额 {annualTotal.toLocaleString()}</span>
+        <div className="balance-stats">
+          <div className="stat-item">
+            <div className="stat-num">{totalCreate}</div>
+            <div className="stat-label">内容生成次数</div>
           </div>
-          <div className="prog-bar">
-            <div className="prog-fill" style={{ width: `${annualPct}%` }} />
+          <div className="stat-divider" />
+          <div className="stat-item">
+            <div className="stat-num">{totalQa}</div>
+            <div className="stat-label">客户答疑次数</div>
+          </div>
+          <div className="stat-divider" />
+          <div className="stat-item">
+            <div className="stat-num">{totalCreate + Number(totalQa)}</div>
+            <div className="stat-label">总使用次数</div>
           </div>
         </div>
       </section>
 
+      {/* 记录列表 */}
       <section className="records-section">
         <div className="records-head">
-          <h3>消耗记录</h3>
+          <h3>使用记录</h3>
           <div className="records-tabs">
-            {FILTER_TABS.map((t) => (
+            {FILTER_TABS.map(t => (
               <button
                 key={t.id}
                 className={'records-tab' + (filter === t.id ? ' is-active' : '')}
-                onClick={() => setFilter(t.id)}
-              >
+                onClick={() => handleFilterChange(t.id)}>
                 {t.label}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="records-list">
-          {records.map((r) => {
-            const plat = r.platform ? PLATFORM_LABEL[r.platform] : null
-            return (
-              <div key={r.id} className="record-row">
-                <div className="record-icon">{r.cost > 0 ? '+' : '-'}</div>
-                <div className="record-main">
-                  <div className="record-title">
-                    <span>{r.title}</span>
-                    {plat && <span className={'plat-tag ' + plat.cls}>{plat.label}</span>}
+        {loading ? (
+          <div className="records-empty">加载中…</div>
+        ) : records.length === 0 ? (
+          <div className="records-empty">暂无记录，开始使用 AI 功能后会在这里展示</div>
+        ) : (
+          <div className="records-list">
+            {records.map(r => {
+              const plat = r.platform ? PLATFORM_LABEL[r.platform] : null
+              return (
+                <div key={r.id} className="record-row">
+                  <div className={'record-icon kind-' + r.kind}>
+                    {KIND_ICON[r.kind] || '-'}
                   </div>
-                  <div className="record-detail">{r.detail}</div>
-                </div>
-                <div className="record-side">
-                  <div className={'record-cost ' + (r.cost > 0 ? 'is-pos' : '')}>
-                    {r.cost > 0 ? '+' : ''}{r.cost}
+                  <div className="record-main">
+                    <div className="record-title">
+                      <span>{r.title}</span>
+                      {plat && <span className={'plat-tag ' + plat.cls}>{plat.label}</span>}
+                    </div>
+                    <div className="record-detail">{r.detail}</div>
                   </div>
-                  <div className="record-time">{r.time}</div>
+                  <div className="record-side">
+                    <div className={'record-cost' + (r.cost > 0 ? ' is-pos' : '')}>
+                      {r.cost > 0 ? '+' : ''}{r.cost}
+                    </div>
+                    <div className="record-time">{formatTime(r.time)}</div>
+                  </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        )}
 
-        <div className="records-foot">
-          <button className="btn-text">加载更多</button>
-          <a className="btn-text" href="#contact">联系客服</a>
-        </div>
+        {!loading && records.length > 0 && (
+          <div className="records-foot">
+            {hasMore ? (
+              <button className="btn-text" onClick={handleLoadMore} disabled={loadingMore}>
+                {loadingMore ? '加载中…' : '加载更多'}
+              </button>
+            ) : (
+              <span className="records-end">已加载全部记录</span>
+            )}
+            <a className="btn-text" href="mailto:support@example.com">联系客服</a>
+          </div>
+        )}
       </section>
 
+      {/* 加购弹窗 */}
       {showBuy && (
         <div className="modal-mask" onClick={() => setShowBuy(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-card" onClick={e => e.stopPropagation()}>
             <div className="modal-head">
               <h3>加购积分</h3>
               <button className="modal-close" onClick={() => setShowBuy(false)}>×</button>
             </div>
 
             <div className="pkg-grid">
-              {PACKAGES.map((p) => (
+              {PACKAGES.map(p => (
                 <button
                   key={p.id}
                   className={'pkg-card' + (selectedPkg === p.id ? ' is-active' : '')}
-                  onClick={() => setSelectedPkg(p.id)}
-                >
+                  onClick={() => setSelectedPkg(p.id)}>
                   <div className="pkg-credits">{p.credits.toLocaleString()} 积分</div>
                   <div className="pkg-price">¥{p.price}</div>
                   {p.save > 0 && <div className="pkg-save">省 ¥{p.save}</div>}
@@ -142,32 +213,32 @@ export default function CreditsPage() {
             <div className="pay-row">
               <div className="pay-label">支付方式</div>
               <div className="pay-methods">
-                {[
-                  { id: 'wechat', label: '微信支付' },
-                  { id: 'alipay', label: '支付宝' },
-                ].map((m) => (
+                {[{ id: 'wechat', label: '微信支付' }, { id: 'alipay', label: '支付宝' }].map(m => (
                   <label key={m.id} className={'pay-opt' + (payMethod === m.id ? ' is-active' : '')}>
-                    <input
-                      type="radio"
-                      name="pay"
-                      checked={payMethod === m.id}
-                      onChange={() => setPayMethod(m.id)}
-                    />
+                    <input type="radio" name="pay" checked={payMethod === m.id} onChange={() => setPayMethod(m.id)} />
                     {m.label}
                   </label>
                 ))}
               </div>
             </div>
 
+            {payTip && <div className="pay-tip">{payTip}</div>}
+
             <div className="modal-foot">
               <div className="modal-total">合计 ¥{pkg?.price || 0}</div>
-              <button className="btn-confirm" onClick={() => alert('支付功能尚未对接')}>
-                确认支付
-              </button>
+              <button className="btn-confirm" onClick={handlePay}>确认支付</button>
             </div>
           </div>
         </div>
       )}
     </div>
   )
+}
+
+function formatTime(str) {
+  if (!str) return ''
+  const d = new Date(str)
+  if (isNaN(d)) return str
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }

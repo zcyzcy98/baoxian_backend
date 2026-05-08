@@ -16,23 +16,29 @@
 
 /* Balance card */
 .balance-card {
-  display: grid; grid-template-columns: 240px 1fr; gap: 32px;
+  display: grid; grid-template-columns: 180px 1fr; gap: 0;
   padding: 24px 28px; background: var(--paper); border: 1px solid var(--line);
   border-radius: var(--r-lg); margin-bottom: 24px; align-items: center;
 }
 .balance-label { font-size: 12px; color: var(--ink-3); margin-bottom: 6px; }
 .balance-num {
   font-family: var(--serif); font-size: 44px; font-weight: 600;
-  color: var(--clay); line-height: 1; margin-bottom: 6px;
+  color: var(--clay); line-height: 1; margin-bottom: 4px;
 }
 .balance-tip { font-size: 11px; color: var(--ink-3); }
-.balance-progress { padding-left: 20px; border-left: 1px solid var(--line); }
-.prog-row {
-  display: flex; justify-content: space-between;
-  font-size: 12px; color: var(--ink-3); margin-bottom: 8px;
+
+/* 统计格子 */
+.balance-stats {
+  display: flex; align-items: center;
+  padding-left: 28px; border-left: 1px solid var(--line); gap: 0;
 }
-.prog-bar { height: 6px; background: var(--ivory); border-radius: 99px; overflow: hidden; }
-.prog-fill { height: 100%; background: linear-gradient(90deg, var(--clay), var(--clay-deep)); transition: width 0.4s; }
+.stat-item { flex: 1; text-align: center; }
+.stat-num {
+  font-family: var(--serif); font-size: 26px; font-weight: 600;
+  color: var(--ink); margin-bottom: 4px;
+}
+.stat-label { font-size: 11px; color: var(--ink-3); }
+.stat-divider { width: 1px; height: 36px; background: var(--line); margin: 0 8px; }
 
 /* Records */
 .records-section { background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 22px 24px; }
@@ -57,8 +63,16 @@
   width: 32px; height: 32px; border-radius: 50%;
   background: var(--clay-tint); color: var(--clay);
   display: flex; align-items: center; justify-content: center;
-  font-weight: 600;
+  font-weight: 600; font-size: 13px;
 }
+.record-icon.kind-qa { background: #e8f3ff; color: #1677ff; }
+.record-icon.kind-topup { background: #e1f4e7; color: var(--leaf); }
+
+.records-empty {
+  padding: 40px 0; text-align: center;
+  font-size: 13px; color: var(--ink-3);
+}
+.records-end { font-size: 12px; color: var(--ink-3); }
 .record-main { min-width: 0; }
 .record-title { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 500; margin-bottom: 4px; }
 .record-detail { font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -128,3 +142,9 @@
   background: var(--clay); color: #fff; font-weight: 600; cursor: pointer;
 }
 .btn-confirm:hover { background: var(--clay-deep); }
+
+.pay-tip {
+  padding: 10px 14px; border-radius: var(--r-sm);
+  background: #fff8e6; border: 1px solid #f0d070;
+  font-size: 12.5px; color: #7a5c00; margin-bottom: 16px;
+}

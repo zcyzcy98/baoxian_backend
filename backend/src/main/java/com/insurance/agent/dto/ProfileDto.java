@@ -13,6 +13,7 @@ public class ProfileDto {
     private List<String> targetAudiences;
     private String style;
     private String bio;
+    private String tags;
 
     // ---- 平台绑定（读取时附带） ----
     private List<PlatformBinding> platforms;
@@ -46,6 +47,9 @@ public class ProfileDto {
 
     public String getBio() { return bio; }
     public void setBio(String bio) { this.bio = bio; }
+
+    public String getTags() { return tags; }
+    public void setTags(String tags) { this.tags = tags; }
 
     public List<PlatformBinding> getPlatforms() { return platforms; }
     public void setPlatforms(List<PlatformBinding> platforms) { this.platforms = platforms; }

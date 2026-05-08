@@ -3,9 +3,9 @@ package com.insurance.agent.service;
 import com.insurance.agent.dto.ProfileDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import javax.sql.DataSource;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,17 +17,14 @@ public class UserProfileService {
     private static final Logger log = LoggerFactory.getLogger(UserProfileService.class);
     private static final long USER_ID = 1L;
 
-    @Value("${spring.datasource.url:}")
-    private String jdbcUrl;
+    private final DataSource dataSource;
 
-    @Value("${spring.datasource.username:}")
-    private String username;
-
-    @Value("${spring.datasource.password:}")
-    private String password;
+    public UserProfileService(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     private Connection getConn() throws SQLException {
-        return DriverManager.getConnection(jdbcUrl, username, password);
+        return dataSource.getConnection();
     }
 
     // ---- 读取 ----
@@ -36,7 +33,7 @@ public class UserProfileService {
         dto.setId(USER_ID);
 
         String sql = "SELECT name, phone, region, years, avatar_url, primary_products, " +
-                     "target_audiences, style, bio FROM user_profile WHERE id = ?";
+                     "target_audiences, style, bio, tags FROM user_profile WHERE id = ?";
         try (Connection c = getConn(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setLong(1, USER_ID);
             try (ResultSet rs = ps.executeQuery()) {
@@ -48,6 +45,7 @@ public class UserProfileService {
                     dto.setAvatarUrl(rs.getString("avatar_url"));
                     dto.setStyle(rs.getString("style"));
                     dto.setBio(rs.getString("bio"));
+                    dto.setTags(rs.getString("tags"));
                     dto.setPrimaryProducts(arrayToList(rs.getArray("primary_products")));
                     dto.setTargetAudiences(arrayToList(rs.getArray("target_audiences")));
                 }
@@ -64,8 +62,8 @@ public class UserProfileService {
     public ProfileDto saveProfile(ProfileDto req) {
         String sql = """
                 INSERT INTO user_profile
-                    (id, name, phone, region, years, avatar_url, primary_products, target_audiences, style, bio, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                    (id, name, phone, region, years, avatar_url, primary_products, target_audiences, style, bio, tags, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
                 ON CONFLICT (id) DO UPDATE SET
                     name             = EXCLUDED.name,
                     phone            = EXCLUDED.phone,
@@ -76,6 +74,7 @@ public class UserProfileService {
                     target_audiences = EXCLUDED.target_audiences,
                     style            = EXCLUDED.style,
                     bio              = EXCLUDED.bio,
+                    tags             = EXCLUDED.tags,
                     updated_at       = NOW()
                 """;
         try (Connection c = getConn(); PreparedStatement ps = c.prepareStatement(sql)) {
@@ -89,6 +88,7 @@ public class UserProfileService {
             ps.setArray(8, listToArray(c, req.getTargetAudiences()));
             ps.setString(9, req.getStyle());
             ps.setString(10, req.getBio());
+            ps.setString(11, req.getTags());
             ps.executeUpdate();
             log.info("[Profile] 保存成功 userId={}", USER_ID);
         } catch (SQLException e) {

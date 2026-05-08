@@ -118,7 +118,9 @@ douyin:
 
 logging:
   level:
-    com.insurance.agent: INFO
+    com.insurance.agent: DEBUG
+    org.springframework.jdbc: DEBUG
+    com.zaxxer.hikari: INFO
 
 postgres:
   import:

@@ -62,7 +62,7 @@ const ICONS = {
   book: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>,
 }
 
-export default function Sidebar({ activeId, onNavigate }) {
+export default function Sidebar({ activeId, onNavigate, profile }) {
   const [expanded, setExpanded] = useState(() => {
     // Auto-expand the group that contains activeId
     const initial = new Set()
@@ -155,11 +155,15 @@ export default function Sidebar({ activeId, onNavigate }) {
           <div className="mc-days">还剩 <b>327</b> 天到期</div>
           <span className="mc-renew">续费 / 加购积分</span>
         </div>
-        <div className="user-mini">
-          <div className="avatar">林</div>
+        <div className="user-mini" onClick={() => onNavigate('profile')} style={{ cursor: 'pointer' }}>
+          <div className="avatar" style={profile?.avatarUrl ? { padding: 0, overflow: 'hidden', background: 'transparent' } : {}}>
+            {profile?.avatarUrl
+              ? <img src={profile.avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+              : (profile?.name || '我')[0]}
+          </div>
           <div className="info">
-            <div className="uname">林老师</div>
-            <div className="role">中产家庭保障顾问</div>
+            <div className="uname">{profile?.name || '我的账号'}</div>
+            <div className="role">{profile?.title || '保险顾问'}</div>
           </div>
           <span className="more">⋯</span>
         </div>

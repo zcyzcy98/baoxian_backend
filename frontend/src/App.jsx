@@ -73,12 +73,36 @@ function useAuth() {
   return { auth, onAuthSuccess, onLogout }
 }
 
+async function loadProfile() {
+  try {
+    const token = localStorage.getItem('chengzhi:token')
+    const res = await fetch('/api/profile', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
+}
+
 export default function App() {
   const { auth, onAuthSuccess, onLogout } = useAuth()
   const [activeId, setActiveId] = useState(() => {
     return localStorage.getItem('chengzhi:active-page') || 'topic-square'
   })
   const [topicPrefill, setTopicPrefill] = useState(null)
+  const [userProfile, setUserProfile] = useState({ name: '', title: '', avatarUrl: null })
+
+  useEffect(() => {
+    if (auth.status === 'active') {
+      loadProfile().then(dto => {
+        if (dto) setUserProfile({ name: dto.name || '', title: dto.years || '', avatarUrl: dto.avatarUrl || null })
+      })
+    }
+  }, [auth.status])
+
+  const handleProfileUpdate = useCallback((patch) => {
+    setUserProfile(prev => ({ ...prev, ...patch }))
+  }, [])
 
   const navigate = useCallback((id, prefill) => {
     setActiveId(id)
@@ -110,9 +134,9 @@ export default function App() {
 
   return (
     <div className="app">
-      <Sidebar activeId={activeId} onNavigate={navigate} />
+      <Sidebar activeId={activeId} onNavigate={navigate} profile={userProfile} />
       <div className="main">
-        <Topbar breadcrumb={pageConfig.breadcrumb} onNavigate={navigate} onLogout={onLogout} phone={auth.phone} />
+        <Topbar breadcrumb={pageConfig.breadcrumb} onNavigate={navigate} onLogout={onLogout} phone={auth.phone} profile={userProfile} />
         <div className="content scroll-y">
           <div className="content-inner">
             <PageComponent
@@ -122,6 +146,7 @@ export default function App() {
               onPrefillConsumed={() => setTopicPrefill(null)}
               kbType={pageConfig.kbType}
               mode={activeId === 'video-rip' ? 'rip' : 'create'}
+              onProfileUpdate={handleProfileUpdate}
             />
           </div>
         </div>

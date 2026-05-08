@@ -4,9 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import javax.sql.DataSource;
 import java.sql.*;
 import java.time.Instant;
 import java.util.*;
@@ -17,21 +17,17 @@ public class StyleService {
     private static final Logger log = LoggerFactory.getLogger(StyleService.class);
     private static final long DEFAULT_USER_ID = 1L; // placeholder until auth is implemented
 
+    private final DataSource dataSource;
     private final DeepSeekService deepSeek;
     private final XhsExtractService xhsExtract;
     private final WechatExtractService wechatExtract;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    @Value("${spring.datasource.url:}")
-    private String jdbcUrl;
-    @Value("${spring.datasource.username:}")
-    private String dbUser;
-    @Value("${spring.datasource.password:}")
-    private String dbPass;
-
-    public StyleService(DeepSeekService deepSeek,
+    public StyleService(DataSource dataSource,
+                        DeepSeekService deepSeek,
                         XhsExtractService xhsExtract,
                         WechatExtractService wechatExtract) {
+        this.dataSource = dataSource;
         this.deepSeek = deepSeek;
         this.xhsExtract = xhsExtract;
         this.wechatExtract = wechatExtract;
@@ -39,7 +35,6 @@ public class StyleService {
 
     @PostConstruct
     public void initSchema() {
-        if (jdbcUrl == null || jdbcUrl.isBlank()) return;
         try (Connection c = conn(); Statement st = c.createStatement()) {
             st.execute("""
                 CREATE TABLE IF NOT EXISTS style_sources (
@@ -377,7 +372,7 @@ public class StyleService {
     // ─── Helpers ────────────────────────────────────────────────────────────
 
     private Connection conn() throws SQLException {
-        return DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
+        return dataSource.getConnection();
     }
 
     private String preview(String text) {

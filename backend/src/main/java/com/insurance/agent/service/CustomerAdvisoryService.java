@@ -5,9 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import javax.sql.DataSource;
 import java.sql.*;
 import java.util.*;
 
@@ -31,17 +31,12 @@ public class CustomerAdvisoryService {
             }
             """;
 
-    @Value("${spring.datasource.url:}")
-    private String jdbcUrl;
-    @Value("${spring.datasource.username:}")
-    private String username;
-    @Value("${spring.datasource.password:}")
-    private String password;
-
+    private final DataSource dataSource;
     private final DeepSeekService deepSeek;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public CustomerAdvisoryService(DeepSeekService deepSeek) {
+    public CustomerAdvisoryService(DataSource dataSource, DeepSeekService deepSeek) {
+        this.dataSource = dataSource;
         this.deepSeek = deepSeek;
     }
 
@@ -339,6 +334,6 @@ public class CustomerAdvisoryService {
     }
 
     private Connection openConnection() throws SQLException {
-        return DriverManager.getConnection(jdbcUrl, username, password);
+        return dataSource.getConnection();
     }
 }

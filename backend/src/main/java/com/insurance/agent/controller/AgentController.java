@@ -14,6 +14,7 @@ import com.insurance.agent.service.DouyinExtractService;
 import com.insurance.agent.service.KnowledgeQaService;
 import com.insurance.agent.service.MediaToDocService;
 import com.insurance.agent.service.XhsComplianceService;
+import com.insurance.agent.service.GeneratedContentService;
 import com.insurance.agent.service.XhsExtractService;
 import com.insurance.agent.service.XhsSampleRagService;
 import org.slf4j.Logger;
@@ -52,6 +53,7 @@ public class AgentController {
     private final MediaToDocService mediaToDoc;
     private final XhsExtractService xhsExtract;
     private final DouyinExtractService douyinExtract;
+    private final GeneratedContentService generatedContent;
 
     public AgentController(DeepSeekService deepSeek,
                            ComplianceCheckService complianceCheckService,
@@ -64,7 +66,8 @@ public class AgentController {
                            KnowledgeQaService knowledgeQa,
                            MediaToDocService mediaToDoc,
                            XhsExtractService xhsExtract,
-                           DouyinExtractService douyinExtract) {
+                           DouyinExtractService douyinExtract,
+                           GeneratedContentService generatedContent) {
         this.deepSeek = deepSeek;
         this.complianceCheckService = complianceCheckService;
         this.xhsCompliance = xhsCompliance;
@@ -77,6 +80,7 @@ public class AgentController {
         this.mediaToDoc = mediaToDoc;
         this.xhsExtract = xhsExtract;
         this.douyinExtract = douyinExtract;
+        this.generatedContent = generatedContent;
     }
 
     @GetMapping("/image-templates")
@@ -129,6 +133,7 @@ public class AgentController {
 
         AgentResponse resp = new AgentResponse(content, modelLabel);
         resp.setComplianceWarnings(toWarningMaps(xhsCompliance.check(content)));
+        generatedContent.save("xhs_title", req.getTopic(), content, null, null, null, modelLabel);
         return ResponseEntity.ok(resp);
     }
 
@@ -211,6 +216,7 @@ public class AgentController {
 
         AgentResponse resp = new AgentResponse(content, modelLabel);
         resp.setComplianceWarnings(toWarningMaps(xhsCompliance.check(content)));
+        generatedContent.save("xhs_post", req.getTopic(), content, null, null, null, modelLabel);
         return ResponseEntity.ok(resp);
     }
 
@@ -329,8 +335,10 @@ public class AgentController {
 
         AgentResponse resp = new AgentResponse(content, deepSeek.resolveModel(req.getModel()));
         resp.setImageUrl(imageUrl);
-        resp.setModel(deepSeek.resolveModel(req.getModel()) + " + "
-                + (useSeedream ? imageGeneration.seedreamModelLabel() : imageGeneration.modelLabel()));
+        String imageModel = deepSeek.resolveModel(req.getModel()) + " + "
+                + (useSeedream ? imageGeneration.seedreamModelLabel() : imageGeneration.modelLabel());
+        resp.setModel(imageModel);
+        generatedContent.save("image", req.getTopic(), content, imageUrl, null, null, imageModel);
         return ResponseEntity.ok(resp);
     }
 
@@ -358,6 +366,7 @@ public class AgentController {
         String user = "主题: " + req.getTopic()
                 + (isBlank(req.getStyle()) ? "" : "\n方向: " + req.getStyle());
         String content = deepSeek.chat(system, user, req.getModel());
+        generatedContent.save("gzh_title", req.getTopic(), content, null, null, null, deepSeek.resolveModel(req.getModel()));
         return ResponseEntity.ok(new AgentResponse(content, deepSeek.resolveModel(req.getModel())));
     }
 
@@ -394,6 +403,7 @@ public class AgentController {
         String user = "标题: " + req.getTopic()
                 + (isBlank(req.getStyle()) ? "" : "\n写作方向补充: " + req.getStyle());
         String content = deepSeek.chat(system, user, req.getModel());
+        generatedContent.save("gzh_article", req.getTopic(), content, null, null, null, deepSeek.resolveModel(req.getModel()));
         return ResponseEntity.ok(new AgentResponse(content, deepSeek.resolveModel(req.getModel())));
     }
 
@@ -516,6 +526,7 @@ public class AgentController {
         if (!isBlank(req.getStyle())) user.append("\n风格: ").append(req.getStyle());
         if (!isBlank(req.getDuration())) user.append("\n时长: ").append(req.getDuration());
         String content = deepSeek.chat(system, user.toString(), req.getModel());
+        generatedContent.save("video_script", req.getTopic(), content, null, null, null, deepSeek.resolveModel(req.getModel()));
         return ResponseEntity.ok(new AgentResponse(content, deepSeek.resolveModel(req.getModel())));
     }
 
