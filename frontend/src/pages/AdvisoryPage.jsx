@@ -25,24 +25,63 @@ const CHANNEL_OPTIONS = [
   { id: 'offline', label: '线下' },
 ]
 
-export default function AdvisoryPage() {
-  const [sessions, setSessions] = useState([])
-  const [activeId, setActiveId] = useState(null)
-  const [activeData, setActiveData] = useState(null)
-  const [loadingList, setLoadingList] = useState(false)
-  const [loadingDetail, setLoadingDetail] = useState(false)
-  const [showNew, setShowNew] = useState(false)
-  const [search, setSearch] = useState('')
+export default function AdvisoryPage({
+  contentPrefill, onContentPrefillConsumed,
+  onNavigate, onNavigateWithContentPrefill,
+}) {
+  const ST = {
+    sessions: [],
+    activeId: null,
+    activeData: null,
+    loadingList: false,
+    loadingDetail: false,
+    showNew: false,
+    search: '',
+    customerInfo: '',
+    question: '',
+    channel: '',
+    analyzing: false,
+    error: '',
+    tab: '',
+    pickedIdx: null,
+  }
+  const [sessions, setSessions] = useState(ST.sessions)
+  const [activeId, setActiveId] = useState(ST.activeId)
+  const [activeData, setActiveData] = useState(ST.activeData)
+  const [loadingList, setLoadingList] = useState(ST.loadingList)
+  const [loadingDetail, setLoadingDetail] = useState(ST.loadingDetail)
+  const [showNew, setShowNew] = useState(ST.showNew)
+  const [search, setSearch] = useState(ST.search)
+  const [customerInfo, setCustomerInfo] = useState(ST.customerInfo)
+  const [question, setQuestion] = useState(ST.question)
+  const [channel, setChannel] = useState(ST.channel)
+  const [analyzing, setAnalyzing] = useState(ST.analyzing)
+  const [error, setError] = useState(ST.error)
+  const [tab, setTab] = useState(ST.tab)
+  const [pickedIdx, setPickedIdx] = useState(ST.pickedIdx)
 
-  const [customerInfo, setCustomerInfo] = useState('')
-  const [question, setQuestion] = useState('')
-  const [channel, setChannel] = useState('')
-  const [analyzing, setAnalyzing] = useState(false)
-  const [error, setError] = useState('')
-  const [tab, setTab] = useState('')
+  const resetState = () => {
+    setActiveId(ST.activeId)
+    setActiveData(ST.activeData)
+    setCustomerInfo(ST.customerInfo)
+    setQuestion(ST.question)
+    setChannel(ST.channel)
+    setError(ST.error)
+    setTab(ST.tab)
+    setPickedIdx(ST.pickedIdx)
+    setShowNew(ST.showNew)
+  }
 
-  // 当前查看的消息(分析结果)索引, null 表示看最新一条
-  const [pickedIdx, setPickedIdx] = useState(null)
+  useEffect(() => {
+    if (contentPrefill) {
+      if (contentPrefill.activeId) setActiveId(contentPrefill.activeId)
+      if (contentPrefill.customerInfo) setCustomerInfo(contentPrefill.customerInfo)
+      if (contentPrefill.question) setQuestion(contentPrefill.question)
+      if (contentPrefill.channel) setChannel(contentPrefill.channel)
+      if (contentPrefill.tab) setTab(contentPrefill.tab)
+      onContentPrefillConsumed?.()
+    }
+  }, [contentPrefill])
 
   const reloadList = async () => {
     setLoadingList(true)
@@ -134,6 +173,9 @@ export default function AdvisoryPage() {
           <p className="page-sub">客户列表 · 沟通记录 · AI 给三版话术 + 后续行动建议</p>
         </div>
         <button className="btn-primary" onClick={() => setShowNew(true)}>+ 新建客户对话</button>
+        <button className="btn-ghost reset-btn" onClick={resetState} title="清除当前对话状态">
+          重新开始
+        </button>
       </header>
 
       {error && <div className="adv-error">{error} <button onClick={() => setError('')}>×</button></div>}

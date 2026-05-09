@@ -4,6 +4,8 @@ import com.insurance.agent.dto.AdvisoryRequest;
 import com.insurance.agent.service.AuthService;
 import com.insurance.agent.service.CreditsService;
 import com.insurance.agent.service.CustomerAdvisoryService;
+import com.insurance.agent.service.GeneratedContentService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,13 +18,19 @@ public class CustomerAdvisoryController {
     private final CustomerAdvisoryService service;
     private final AuthService authService;
     private final CreditsService creditsService;
+    private final GeneratedContentService generatedContent;
+    private final ObjectMapper objectMapper;
 
     public CustomerAdvisoryController(CustomerAdvisoryService service,
                                       AuthService authService,
-                                      CreditsService creditsService) {
+                                      CreditsService creditsService,
+                                      GeneratedContentService generatedContent,
+                                      ObjectMapper objectMapper) {
         this.service = service;
         this.authService = authService;
         this.creditsService = creditsService;
+        this.generatedContent = generatedContent;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping("/sessions")
@@ -64,8 +72,15 @@ public class CustomerAdvisoryController {
         int cost = 2;
         String q = req.getQuestion();
         String desc = q.length() > 50 ? q.substring(0, 50) + "…" : q;
-        creditsService.deduct(resolveUserId(auth), cost, "advisory", desc);
-        return ResponseEntity.ok(service.analyze(id, req.getCustomerInfo(), req.getQuestion(), req.getChannel()));
+        Map<String, Object> result = service.analyze(id, req.getCustomerInfo(), req.getQuestion(), req.getChannel());
+        try {
+            String resultJson = objectMapper.writeValueAsString(result);
+            Long contentId = generatedContent.save("advisory", desc, resultJson, null, null, null, "deepseek-chat");
+            creditsService.deduct(resolveUserId(auth), cost, "advisory", desc, contentId);
+        } catch (Exception e) {
+            creditsService.deduct(resolveUserId(auth), cost, "advisory", desc);
+        }
+        return ResponseEntity.ok(result);
     }
 
     private long resolveUserId(String auth) {

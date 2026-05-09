@@ -10,38 +10,85 @@ const RATIO_OPTIONS = [
   { value: '1:1', label: '方形 1:1' },
 ]
 
-export default function XhsCreatePage({ topicPrefill, onPrefillConsumed }) {
-  const [step, setStep] = useState(1)
-  const [loading, setLoading] = useState(false)
+export default function XhsCreatePage({
+  topicPrefill, onPrefillConsumed,
+  contentPrefill, onContentPrefillConsumed,
+  onNavigate, onNavigateWithContentPrefill,
+}) {
+  const ST = {
+    step: 1,
+    loading: false,
+    topic: '',
+    direction: '',
+    insuranceTypes: [],
+    audiences: [],
+    styleOption: '',
+    titles: [],
+    selectedTitle: 0,
+    bodyContent: '',
+    viewMode: 'preview',
+    titlesLoaded: false,
+    images: [],
+    imageLoading: false,
+    imageTemplates: [],
+    selectedTemplate: null,
+    useAIFree: false,
+    lightboxUrl: null,
+    batchImgCount: 3,
+    batchImgRatio: '3:4',
+    batchImgLoading: false,
+    batchImgResults: [],
+    batchImgError: '',
+  }
+  const [step, setStep] = useState(ST.step)
+  const [loading, setLoading] = useState(ST.loading)
+  const [topic, setTopic] = useState(ST.topic)
+  const [direction, setDirection] = useState(ST.direction)
+  const [insuranceTypes, setInsuranceTypes] = useState(ST.insuranceTypes)
+  const [audiences, setAudiences] = useState(ST.audiences)
+  const [styleOption, setStyleOption] = useState(ST.styleOption)
+  const [titles, setTitles] = useState(ST.titles)
+  const [selectedTitle, setSelectedTitle] = useState(ST.selectedTitle)
+  const [bodyContent, setBodyContent] = useState(ST.bodyContent)
+  const [viewMode, setViewMode] = useState(ST.viewMode)
+  const [titlesLoaded, setTitlesLoaded] = useState(ST.titlesLoaded)
+  const [images, setImages] = useState(ST.images)
+  const [imageLoading, setImageLoading] = useState(ST.imageLoading)
+  const [imageTemplates, setImageTemplates] = useState(ST.imageTemplates)
+  const [selectedTemplate, setSelectedTemplate] = useState(ST.selectedTemplate)
+  const [useAIFree, setUseAIFree] = useState(ST.useAIFree)
+  const [lightboxUrl, setLightboxUrl] = useState(ST.lightboxUrl)
+  const [batchImgCount, setBatchImgCount] = useState(ST.batchImgCount)
+  const [batchImgRatio, setBatchImgRatio] = useState(ST.batchImgRatio)
+  const [batchImgLoading, setBatchImgLoading] = useState(ST.batchImgLoading)
+  const [batchImgResults, setBatchImgResults] = useState(ST.batchImgResults)
+  const [batchImgError, setBatchImgError] = useState(ST.batchImgError)
 
-  // Step 1 form data
-  const [topic, setTopic] = useState('')
-  const [direction, setDirection] = useState('')
-  const [insuranceTypes, setInsuranceTypes] = useState([])
-  const [audiences, setAudiences] = useState([])
-  const [styleOption, setStyleOption] = useState('')
-
-  // Step 2 generated content
-  const [titles, setTitles] = useState([])
-  const [selectedTitle, setSelectedTitle] = useState(0)
-  const [bodyContent, setBodyContent] = useState('')
-  const [viewMode, setViewMode] = useState('preview') // 'edit' or 'preview'
-  const [titlesLoaded, setTitlesLoaded] = useState(false) // 是否已经生成了标题
-
-  // Step 3 images
-  const [images, setImages] = useState([])
-  const [imageLoading, setImageLoading] = useState(false)
-  const [imageTemplates, setImageTemplates] = useState([]) // 图片模板
-  const [selectedTemplate, setSelectedTemplate] = useState(null) // 选中的模板
-  const [useAIFree, setUseAIFree] = useState(false) // 是否使用AI自由创作
-  const [lightboxUrl, setLightboxUrl] = useState(null) // 放大预览
-
-  // 批量生成配图
-  const [batchImgCount, setBatchImgCount] = useState(3)
-  const [batchImgRatio, setBatchImgRatio] = useState('3:4')
-  const [batchImgLoading, setBatchImgLoading] = useState(false)
-  const [batchImgResults, setBatchImgResults] = useState([])
-  const [batchImgError, setBatchImgError] = useState('')
+  const resetState = () => {
+    setStep(ST.step)
+    setLoading(ST.loading)
+    setTopic(ST.topic)
+    setDirection(ST.direction)
+    setInsuranceTypes(ST.insuranceTypes)
+    setAudiences(ST.audiences)
+    setStyleOption(ST.styleOption)
+    setTitles(ST.titles)
+    setSelectedTitle(ST.selectedTitle)
+    setBodyContent(ST.bodyContent)
+    setViewMode(ST.viewMode)
+    setImages(ST.images)
+    setImageLoading(ST.imageLoading)
+    setImageTemplates(ST.imageTemplates)
+    setSelectedTemplate(ST.selectedTemplate)
+    setUseAIFree(ST.useAIFree)
+    setLightboxUrl(ST.lightboxUrl)
+    setBatchImgCount(ST.batchImgCount)
+    setBatchImgRatio(ST.batchImgRatio)
+    setBatchImgLoading(ST.batchImgLoading)
+    setBatchImgResults(ST.batchImgResults)
+    setBatchImgError(ST.batchImgError)
+    setTitlesLoaded(ST.titlesLoaded)
+  }
 
   useEffect(() => {
     if (topicPrefill) {
@@ -50,6 +97,23 @@ export default function XhsCreatePage({ topicPrefill, onPrefillConsumed }) {
       onPrefillConsumed?.()
     }
   }, [topicPrefill])
+
+  useEffect(() => {
+    if (contentPrefill) {
+      if (contentPrefill.step != null) setStep(contentPrefill.step)
+      if (contentPrefill.topic) setTopic(contentPrefill.topic)
+      if (contentPrefill.direction) setDirection(contentPrefill.direction)
+      if (contentPrefill.insuranceTypes) setInsuranceTypes(contentPrefill.insuranceTypes)
+      if (contentPrefill.audiences) setAudiences(contentPrefill.audiences)
+      if (contentPrefill.styleOption) setStyleOption(contentPrefill.styleOption)
+      if (contentPrefill.titles) { setTitles(contentPrefill.titles); setTitlesLoaded(true) }
+      if (contentPrefill.selectedTitle != null) setSelectedTitle(contentPrefill.selectedTitle)
+      if (contentPrefill.bodyContent) { setBodyContent(contentPrefill.bodyContent); setViewMode('preview') }
+      if (contentPrefill.images) setImages(contentPrefill.images)
+      if (contentPrefill.viewMode) setViewMode(contentPrefill.viewMode)
+      onContentPrefillConsumed?.()
+    }
+  }, [contentPrefill])
 
   // 获取图片模板
   useEffect(() => {
@@ -197,6 +261,9 @@ export default function XhsCreatePage({ topicPrefill, onPrefillConsumed }) {
               </span>
             )}
           </div>
+          <button className="btn-ghost reset-btn" onClick={resetState} title="清除所有内容重新开始">
+            重新开始
+          </button>
         </div>
         <div className="steps">
           <div className={`step ${step > 1 ? 'done' : ''} ${step === 1 ? 'active' : ''}`} onClick={() => goStep(1)}>

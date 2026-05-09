@@ -91,6 +91,17 @@ export default function App() {
   const routerNavigate = useRouterNavigate()
   const [topicPrefill, setTopicPrefill] = useState(null)
   const [userProfile, setUserProfile] = useState({ name: '', title: '', avatarUrl: null })
+  const [visitedPages, setVisitedPages] = useState(new Set(['topic-square']))
+  const [contentPrefill, setContentPrefill] = useState({})
+
+  const pageId = location.pathname.slice(1)
+
+  useEffect(() => {
+    setVisitedPages(prev => {
+      if (prev.has(pageId)) return prev
+      return new Set([...prev, pageId])
+    })
+  }, [pageId])
 
   useEffect(() => {
     if (auth.status === 'active') {
@@ -111,6 +122,15 @@ export default function App() {
   const navigate = useCallback((id, prefill) => {
     routerNavigate('/' + id)
     if (prefill) setTopicPrefill(prefill)
+  }, [routerNavigate])
+
+  const navigateWithContentPrefill = useCallback((id, prefillData) => {
+    setVisitedPages(prev => {
+      if (prev.has(id)) return prev
+      return new Set([...prev, id])
+    })
+    routerNavigate('/' + id)
+    setContentPrefill(prev => ({ ...prev, [id]: prefillData }))
   }, [routerNavigate])
 
   // ── 加载中 ──────────────────────────────────────────
@@ -143,9 +163,7 @@ export default function App() {
   }
 
   // ── 主应用 ───────────────────────────────────────────
-  const pageId = location.pathname.slice(1)
   const pageConfig = PAGE_MAP[pageId] || PAGE_MAP['topic-square']
-  const PageComponent = pageConfig.component
 
   return (
     <div className="app">
@@ -154,15 +172,34 @@ export default function App() {
         <Topbar breadcrumb={pageConfig.breadcrumb} onNavigate={navigate} onLogout={onLogout} phone={auth.phone} profile={userProfile} />
         <div className="content scroll-y">
           <div className="content-inner">
-            <PageComponent
-              key={pageId}
-              onNavigate={navigate}
-              topicPrefill={topicPrefill}
-              onPrefillConsumed={() => setTopicPrefill(null)}
-              kbType={pageConfig.kbType}
-              mode={pageId === 'video-rip' ? 'rip' : 'create'}
-              onProfileUpdate={handleProfileUpdate}
-            />
+            {[...visitedPages].map(vpId => {
+              const cfg = PAGE_MAP[vpId]
+              if (!cfg) return null
+              const Comp = cfg.component
+              const isActive = vpId === pageId
+              return (
+                <div key={vpId} style={{ display: isActive ? 'block' : 'none' }}>
+                  <Comp
+                    onNavigate={navigate}
+                    onNavigateWithContentPrefill={navigateWithContentPrefill}
+                    topicPrefill={isActive ? topicPrefill : null}
+                    onPrefillConsumed={isActive ? () => setTopicPrefill(null) : undefined}
+                    contentPrefill={contentPrefill[vpId]}
+                    onContentPrefillConsumed={() => {
+                      setContentPrefill(prev => {
+                        const next = { ...prev }
+                        delete next[vpId]
+                        return next
+                      })
+                    }}
+                    isActive={isActive}
+                    kbType={cfg.kbType}
+                    mode={vpId === 'video-rip' ? 'rip' : 'create'}
+                    onProfileUpdate={handleProfileUpdate}
+                  />
+                </div>
+              )
+            })}
           </div>
         </div>
       </div>

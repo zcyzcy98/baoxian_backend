@@ -128,6 +128,10 @@ export async function fetchCreditsRecords(filter = 'all', page = 0, size = 20) {
   return getJson(`/api/credits/records?filter=${filter}&page=${page}&size=${size}`)
 }
 
+export async function fetchCreditsRecordContent(recordId) {
+  return getJson(`/api/credits/records/${recordId}/content`)
+}
+
 // ─── 客户答疑 ────────────────────────────────────
 export async function fetchAdvisorySessions() {
   return getJson('/api/advisory/sessions')

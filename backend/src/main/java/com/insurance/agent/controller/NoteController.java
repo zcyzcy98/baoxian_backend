@@ -6,6 +6,7 @@ import com.insurance.agent.dto.WechatArticle;
 import com.insurance.agent.dto.XhsNote;
 import com.insurance.agent.service.AuthService;
 import com.insurance.agent.service.CreditsService;
+import com.insurance.agent.service.GeneratedContentService;
 import com.insurance.agent.service.NoteRewriteService;
 import com.insurance.agent.service.WechatExtractService;
 import com.insurance.agent.service.XhsExtractService;
@@ -30,15 +31,18 @@ public class NoteController {
     private final NoteRewriteService rewriteService;
     private final AuthService authService;
     private final CreditsService creditsService;
+    private final GeneratedContentService generatedContent;
 
     public NoteController(XhsExtractService xhs, WechatExtractService wechat,
                           NoteRewriteService rewriteService,
-                          AuthService authService, CreditsService creditsService) {
+                          AuthService authService, CreditsService creditsService,
+                          GeneratedContentService generatedContent) {
         this.xhs = xhs;
         this.wechat = wechat;
         this.rewriteService = rewriteService;
         this.authService = authService;
         this.creditsService = creditsService;
+        this.generatedContent = generatedContent;
     }
 
     private long resolveUserId(String auth) {
@@ -101,8 +105,9 @@ public class NoteController {
         if (req == null || req.getOriginalContent() == null || req.getOriginalContent().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "originalContent 不能为空"));
         }
-        creditsService.deduct(resolveUserId(auth), 12, "xhs_rewrite", "小红书仿写");
         RewriteResponse resp = rewriteService.rewrite(req);
+        Long contentId = generatedContent.save("xhs_post", resp.getTitle() != null ? resp.getTitle() : "小红书仿写", resp.getContent(), null, null, null, resp.getModel());
+        creditsService.deduct(resolveUserId(auth), 12, "xhs_rewrite", "小红书仿写", contentId);
         return ResponseEntity.ok(resp);
     }
 
@@ -150,11 +155,14 @@ public class NoteController {
         rewriteReq.setRequirements(req.getRequirements());
         rewriteReq.setModel(req.getModel());
 
-        // 3. 扣除积分
-        creditsService.deduct(resolveUserId(auth), 20, "gzh_rewrite", "公众号仿写");
-
-        // 4. 执行改写
+        // 3. 执行改写
         RewriteResponse result = rewriteService.rewrite(rewriteReq);
+
+        // 4. 保存生成内容并扣除积分
+        Long contentId = generatedContent.save("gzh_article",
+                result.getTitle() != null ? result.getTitle() : article.getTitle(),
+                result.getContent(), null, null, null, result.getModel());
+        creditsService.deduct(resolveUserId(auth), 20, "gzh_rewrite", "公众号仿写", contentId);
 
         // 5. 返回结果，包含原始文章信息
         return ResponseEntity.ok(Map.of(

@@ -4,23 +4,52 @@ import remarkGfm from 'remark-gfm'
 import { callAgent } from '../api'
 import './XhsCreatePage.css'
 
-export default function GzhCreatePage({ topicPrefill, onPrefillConsumed }) {
-  const [step, setStep] = useState(1)
-  const [loading, setLoading] = useState(false)
+export default function GzhCreatePage({
+  topicPrefill, onPrefillConsumed,
+  contentPrefill, onContentPrefillConsumed,
+  onNavigate, onNavigateWithContentPrefill,
+}) {
+  const ST = {
+    step: 1,
+    loading: false,
+    topic: '',
+    direction: '',
+    wordCount: '',
+    insuranceTypes: [],
+    audiences: [],
+    styleOption: '',
+    titles: [],
+    selectedTitle: 0,
+    bodyContent: '',
+    viewMode: 'preview',
+  }
+  const [step, setStep] = useState(ST.step)
+  const [loading, setLoading] = useState(ST.loading)
+  const [topic, setTopic] = useState(ST.topic)
+  const [direction, setDirection] = useState(ST.direction)
+  const [wordCount, setWordCount] = useState(ST.wordCount)
+  const [insuranceTypes, setInsuranceTypes] = useState(ST.insuranceTypes)
+  const [audiences, setAudiences] = useState(ST.audiences)
+  const [styleOption, setStyleOption] = useState(ST.styleOption)
+  const [titles, setTitles] = useState(ST.titles)
+  const [selectedTitle, setSelectedTitle] = useState(ST.selectedTitle)
+  const [bodyContent, setBodyContent] = useState(ST.bodyContent)
+  const [viewMode, setViewMode] = useState(ST.viewMode)
 
-  // Step 1 form
-  const [topic, setTopic] = useState('')
-  const [direction, setDirection] = useState('')
-  const [wordCount, setWordCount] = useState('')
-  const [insuranceTypes, setInsuranceTypes] = useState([])
-  const [audiences, setAudiences] = useState([])
-  const [styleOption, setStyleOption] = useState('')
-
-  // Step 2
-  const [titles, setTitles] = useState([])
-  const [selectedTitle, setSelectedTitle] = useState(0)
-  const [bodyContent, setBodyContent] = useState('')
-  const [viewMode, setViewMode] = useState('preview')
+  const resetState = () => {
+    setStep(ST.step)
+    setLoading(ST.loading)
+    setTopic(ST.topic)
+    setDirection(ST.direction)
+    setWordCount(ST.wordCount)
+    setInsuranceTypes(ST.insuranceTypes)
+    setAudiences(ST.audiences)
+    setStyleOption(ST.styleOption)
+    setTitles(ST.titles)
+    setSelectedTitle(ST.selectedTitle)
+    setBodyContent(ST.bodyContent)
+    setViewMode(ST.viewMode)
+  }
 
   useEffect(() => {
     if (topicPrefill) {
@@ -29,6 +58,23 @@ export default function GzhCreatePage({ topicPrefill, onPrefillConsumed }) {
       onPrefillConsumed?.()
     }
   }, [topicPrefill])
+
+  useEffect(() => {
+    if (contentPrefill) {
+      if (contentPrefill.step != null) setStep(contentPrefill.step)
+      if (contentPrefill.topic) setTopic(contentPrefill.topic)
+      if (contentPrefill.direction) setDirection(contentPrefill.direction)
+      if (contentPrefill.wordCount) setWordCount(contentPrefill.wordCount)
+      if (contentPrefill.insuranceTypes) setInsuranceTypes(contentPrefill.insuranceTypes)
+      if (contentPrefill.audiences) setAudiences(contentPrefill.audiences)
+      if (contentPrefill.styleOption) setStyleOption(contentPrefill.styleOption)
+      if (contentPrefill.titles) setTitles(contentPrefill.titles)
+      if (contentPrefill.selectedTitle != null) setSelectedTitle(contentPrefill.selectedTitle)
+      if (contentPrefill.bodyContent) { setBodyContent(contentPrefill.bodyContent); setViewMode('preview') }
+      if (contentPrefill.viewMode) setViewMode(contentPrefill.viewMode)
+      onContentPrefillConsumed?.()
+    }
+  }, [contentPrefill])
 
   const wordCountOptions = ['1500', '2000', '2500', '3000', '4000']
   const insuranceOptions = ['医疗险', '重疾险', '寿险', '意外险', '年金险', '储蓄险', '少儿险', '团险']
@@ -87,6 +133,9 @@ export default function GzhCreatePage({ topicPrefill, onPrefillConsumed }) {
               </span>
             )}
           </div>
+          <button className="btn-ghost reset-btn" onClick={resetState} title="清除所有内容重新开始">
+            重新开始
+          </button>
         </div>
         <div className="steps">
           <div className={`step ${step > 1 ? 'done' : ''} ${step === 1 ? 'active' : ''}`} onClick={() => goStep(1)}>

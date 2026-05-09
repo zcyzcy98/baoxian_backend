@@ -23,15 +23,9 @@ public class GeneratedContentService {
     /**
      * 保存一条生成记录，失败时只打日志不抛异常，不影响主流程。
      *
-     * @param type    内容类型：xhs_title / xhs_post / gzh_title / gzh_article / video_script / image
-     * @param title   标题（可为 null）
-     * @param content 正文（可为 null）
-     * @param imageUrl 图片 URL（可为 null）
-     * @param videoUrl 视频 URL（可为 null）
-     * @param coverUrl 封面 URL（可为 null）
-     * @param model   使用的模型标签（可为 null）
+     * @return 新记录的 id，失败时返回 null
      */
-    public void save(String type, String title, String content,
+    public Long save(String type, String title, String content,
                      String imageUrl, String videoUrl, String coverUrl, String model) {
         log.debug("[GeneratedContent] 准备保存 type={} title={} hasImage={} hasVideo={} model={}",
                 type, title, imageUrl != null, videoUrl != null, model);
@@ -54,12 +48,15 @@ public class GeneratedContentService {
             ps.setString(8, model);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    log.info("[GeneratedContent] 保存成功 id={} type={} title={}", rs.getLong("id"), type, title);
+                    long id = rs.getLong("id");
+                    log.info("[GeneratedContent] 保存成功 id={} type={} title={}", id, type, title);
+                    return id;
                 }
             }
         } catch (Exception e) {
             log.warn("[GeneratedContent] 保存记录失败（不影响主流程）type={} error={}", type, e.getMessage(), e);
         }
+        return null;
     }
 
     /** 查询历史记录，按时间倒序，默认最近 50 条 */

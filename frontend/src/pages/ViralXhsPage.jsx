@@ -7,11 +7,15 @@ import './ViralPage.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? ''
 
-export default function ViralXhsPage() {
-  return <ViralAnalysisPage platform="xhs" />
+export default function ViralXhsPage(props) {
+  return <ViralAnalysisPage platform="xhs" {...props} />
 }
 
-export function ViralAnalysisPage({ platform = 'xhs' }) {
+export function ViralAnalysisPage({
+  platform = 'xhs',
+  contentPrefill, onContentPrefillConsumed,
+  onNavigate, onNavigateWithContentPrefill,
+}) {
   const isXhs = platform === 'xhs'
   const isDouyin = platform === 'douyin'
   const meta = isXhs
@@ -32,17 +36,42 @@ export function ViralAnalysisPage({ platform = 'xhs' }) {
         useTextarea: true,
       }
 
-  const [url, setUrl] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState(null)
-  const [error, setError] = useState('')
+  const ST = {
+    url: '',
+    loading: false,
+    result: null,
+    error: '',
+    showCookiePanel: false,
+    cookieInput: '',
+    hasCookie: false,
+    cookieSaving: false,
+    cookieMsg: '',
+  }
+  const [url, setUrl] = useState(ST.url)
+  const [loading, setLoading] = useState(ST.loading)
+  const [result, setResult] = useState(ST.result)
+  const [error, setError] = useState(ST.error)
+  const [showCookiePanel, setShowCookiePanel] = useState(ST.showCookiePanel)
+  const [cookieInput, setCookieInput] = useState(ST.cookieInput)
+  const [hasCookie, setHasCookie] = useState(ST.hasCookie)
+  const [cookieSaving, setCookieSaving] = useState(ST.cookieSaving)
+  const [cookieMsg, setCookieMsg] = useState(ST.cookieMsg)
 
-  // Douyin cookie settings
-  const [showCookiePanel, setShowCookiePanel] = useState(false)
-  const [cookieInput, setCookieInput] = useState('')
-  const [hasCookie, setHasCookie] = useState(false)
-  const [cookieSaving, setCookieSaving] = useState(false)
-  const [cookieMsg, setCookieMsg] = useState('')
+  const resetState = () => {
+    setUrl(ST.url)
+    setLoading(ST.loading)
+    setResult(ST.result)
+    setError(ST.error)
+    setShowCookiePanel(ST.showCookiePanel)
+  }
+
+  useEffect(() => {
+    if (contentPrefill) {
+      if (contentPrefill.url) setUrl(contentPrefill.url)
+      if (contentPrefill.result) setResult(contentPrefill.result)
+      onContentPrefillConsumed?.()
+    }
+  }, [contentPrefill])
 
   useEffect(() => {
     if (!isDouyin) return
@@ -115,6 +144,9 @@ export function ViralAnalysisPage({ platform = 'xhs' }) {
             {hasCookie ? '🔑 Cookie 已设置' : '⚙ 设置 Cookie'}
           </button>
         )}
+        <button className="btn-ghost reset-btn" onClick={resetState} title="清除所有内容重新开始">
+          重新开始
+        </button>
       </header>
 
       {isDouyin && showCookiePanel && (

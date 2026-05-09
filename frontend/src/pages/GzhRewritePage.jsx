@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { rewriteWechat, extractAutoNote } from '../api'
@@ -27,19 +27,74 @@ const STEPS = [
   { id: 3, label: '配图 (4 张)' },
 ]
 
-export default function GzhRewritePage({ topicPrefill, onPrefillConsumed }) {
-  const [step, setStep] = useState(1)
-  const [url, setUrl] = useState('')
-  const [extracted, setExtracted] = useState(null)
-  const [extracting, setExtracting] = useState(false)
-  const [requirements, setRequirements] = useState('')
-  const [useStyle, setUseStyle] = useState(false)
-  const [audience, setAudience] = useState([])
-  const [products, setProducts] = useState([])
-  const [mode, setMode] = useState('')
-  const [rewriting, setRewriting] = useState(false)
-  const [result, setResult] = useState(null)
-  const [error, setError] = useState('')
+export default function GzhRewritePage({
+  topicPrefill, onPrefillConsumed,
+  contentPrefill, onContentPrefillConsumed,
+  onNavigate, onNavigateWithContentPrefill,
+}) {
+  const ST = {
+    step: 1,
+    url: '',
+    extracted: null,
+    extracting: false,
+    requirements: '',
+    useStyle: false,
+    audience: [],
+    products: [],
+    mode: '',
+    rewriting: false,
+    result: null,
+    error: '',
+  }
+  const [step, setStep] = useState(ST.step)
+  const [url, setUrl] = useState(ST.url)
+  const [extracted, setExtracted] = useState(ST.extracted)
+  const [extracting, setExtracting] = useState(ST.extracting)
+  const [requirements, setRequirements] = useState(ST.requirements)
+  const [useStyle, setUseStyle] = useState(ST.useStyle)
+  const [audience, setAudience] = useState(ST.audience)
+  const [products, setProducts] = useState(ST.products)
+  const [mode, setMode] = useState(ST.mode)
+  const [rewriting, setRewriting] = useState(ST.rewriting)
+  const [result, setResult] = useState(ST.result)
+  const [error, setError] = useState(ST.error)
+
+  const resetState = () => {
+    setStep(ST.step)
+    setUrl(ST.url)
+    setExtracted(ST.extracted)
+    setExtracting(ST.extracting)
+    setRequirements(ST.requirements)
+    setUseStyle(ST.useStyle)
+    setAudience(ST.audience)
+    setProducts(ST.products)
+    setMode(ST.mode)
+    setRewriting(ST.rewriting)
+    setResult(ST.result)
+    setError(ST.error)
+  }
+
+  useEffect(() => {
+    if (topicPrefill) {
+      setRequirements(topicPrefill.topic || '')
+      onPrefillConsumed?.()
+    }
+  }, [topicPrefill])
+
+  useEffect(() => {
+    if (contentPrefill) {
+      if (contentPrefill.step != null) setStep(contentPrefill.step)
+      if (contentPrefill.url) setUrl(contentPrefill.url)
+      if (contentPrefill.extracted) setExtracted(contentPrefill.extracted)
+      if (contentPrefill.requirements) setRequirements(contentPrefill.requirements)
+      if (contentPrefill.useStyle != null) setUseStyle(contentPrefill.useStyle)
+      if (contentPrefill.audience) setAudience(contentPrefill.audience)
+      if (contentPrefill.products) setProducts(contentPrefill.products)
+      if (contentPrefill.mode) setMode(contentPrefill.mode)
+      if (contentPrefill.result) { setResult(contentPrefill.result); if (contentPrefill.step == null) setStep(3) }
+      onContentPrefillConsumed?.()
+    }
+  }, [contentPrefill])
 
   const handleUrlChange = (e) => {
     const inputText = e.target.value
@@ -101,6 +156,9 @@ export default function GzhRewritePage({ topicPrefill, onPrefillConsumed }) {
           <h2><span className="platform-tag gzh">公众号</span> 仿写</h2>
           <p className="page-sub">提取一篇公众号文章 → 按要求改写 → 配图</p>
         </div>
+        <button className="btn-ghost reset-btn" onClick={resetState} title="清除所有内容重新开始">
+          重新开始
+        </button>
       </header>
 
       <div className="step-bar">

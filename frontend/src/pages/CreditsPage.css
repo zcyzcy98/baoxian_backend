@@ -67,6 +67,8 @@
   align-items: center;
 }
 .record-row:last-child { border-bottom: none; }
+.record-row.is-clickable { cursor: pointer; transition: background 0.12s; border-radius: var(--r-sm); padding-left: 10px; padding-right: 10px; margin: 0 -10px; }
+.record-row.is-clickable:hover { background: var(--clay-tint); }
 .record-icon {
   width: 32px; height: 32px; border-radius: 50%;
   background: var(--clay-tint); color: var(--clay);
@@ -156,3 +158,43 @@
   background: #fff8e6; border: 1px solid #f0d070;
   font-size: 12.5px; color: #7a5c00; margin-bottom: 16px;
 }
+
+/* ── Result View Modal ── */
+.rv-card { width: 600px; max-width: calc(100vw - 32px); max-height: 80vh; display: flex; flex-direction: column; }
+.rv-head > div { display: flex; align-items: center; gap: 10px; }
+.rv-type-tag {
+  font-size: 11px; padding: 2px 10px; border-radius: 99px;
+  background: var(--clay-tint); color: var(--clay); font-weight: 500;
+}
+.rv-body { flex: 1; overflow-y: auto; padding: 8px 0; max-height: 55vh; }
+.rv-loading, .rv-error { text-align: center; padding: 40px 0; font-size: 13px; color: var(--ink-3); }
+.rv-error { color: var(--xhs); }
+.rv-topic { font-size: 15px; font-weight: 600; margin-bottom: 12px; color: var(--ink); }
+.rv-pre {
+  white-space: pre-wrap; word-break: break-word;
+  font-family: var(--sans); font-size: 13px; line-height: 1.65;
+  color: var(--ink-2); margin: 0; padding: 12px 14px;
+  background: var(--ivory); border-radius: var(--r-sm);
+  max-height: 40vh; overflow-y: auto;
+}
+.rv-foot {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding-top: 14px; border-top: 1px solid var(--line); margin-top: 8px;
+}
+.rv-edit-btn { color: var(--clay); border-color: var(--clay); }
+.rv-edit-btn:hover { background: var(--clay-tint); }
+
+/* Advisory */
+.rv-advisory { display: flex; flex-direction: column; gap: 14px; }
+.rv-ad-q, .rv-ad-a { display: flex; flex-direction: column; gap: 6px; }
+.rv-label { font-size: 11px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.5px; }
+.rv-ad-q { font-size: 14px; color: var(--ink); }
+
+/* Viral */
+.rv-viral { display: flex; flex-direction: column; gap: 14px; }
+.rv-v-url { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--clay); word-break: break-all; }
+
+/* Image */
+.rv-image { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+.rv-img { max-width: 100%; max-height: 300px; border-radius: var(--r-sm); border: 1px solid var(--line); }
+.rv-noimg { padding: 40px 0; text-align: center; font-size: 13px; color: var(--ink-3); }

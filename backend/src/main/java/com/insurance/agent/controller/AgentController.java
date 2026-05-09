@@ -98,7 +98,8 @@ public class AgentController {
     }
 
     @PostMapping("/title")
-    public ResponseEntity<AgentResponse> generateTitle(@RequestBody AgentRequest req) {
+    public ResponseEntity<AgentResponse> generateTitle(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
         if (isBlank(req.getTopic())) {
             return ResponseEntity.badRequest().body(new AgentResponse("主题不能为空", null));
         }
@@ -142,7 +143,8 @@ public class AgentController {
 
         AgentResponse resp = new AgentResponse(content, modelLabel);
         resp.setComplianceWarnings(toWarningMaps(xhsCompliance.check(content)));
-        generatedContent.save("xhs_title", req.getTopic(), content, null, null, null, modelLabel);
+        Long contentId = generatedContent.save("xhs_title", req.getTopic(), content, null, null, null, modelLabel);
+        creditsService.deduct(resolveUserId(auth), 1, "xhs_title", req.getTopic(), contentId);
         return ResponseEntity.ok(resp);
     }
 
@@ -226,8 +228,8 @@ public class AgentController {
 
         AgentResponse resp = new AgentResponse(content, modelLabel);
         resp.setComplianceWarnings(toWarningMaps(xhsCompliance.check(content)));
-        generatedContent.save("xhs_post", req.getTopic(), content, null, null, null, modelLabel);
-        creditsService.deduct(resolveUserId(auth), 3, "xhs_text", req.getTopic());
+        Long contentId = generatedContent.save("xhs_post", req.getTopic(), content, null, null, null, modelLabel);
+        creditsService.deduct(resolveUserId(auth), 3, "xhs_text", req.getTopic(), contentId);
         return ResponseEntity.ok(resp);
     }
 
@@ -351,13 +353,14 @@ public class AgentController {
         String imageModel = deepSeek.resolveModel(req.getModel()) + " + "
                 + (useSeedream ? imageGeneration.seedreamModelLabel() : imageGeneration.modelLabel());
         resp.setModel(imageModel);
-        generatedContent.save("image", req.getTopic(), content, imageUrl, null, null, imageModel);
-        creditsService.deduct(resolveUserId(auth), 3, "xhs_images", "单张 AI 配图");
+        Long contentId = generatedContent.save("image", req.getTopic(), content, imageUrl, null, null, imageModel);
+        creditsService.deduct(resolveUserId(auth), 3, "xhs_images", "单张 AI 配图", contentId);
         return ResponseEntity.ok(resp);
     }
 
     @PostMapping("/gzh-title")
-    public ResponseEntity<AgentResponse> generateGzhTitle(@RequestBody AgentRequest req) {
+    public ResponseEntity<AgentResponse> generateGzhTitle(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
         if (isBlank(req.getTopic())) {
             return ResponseEntity.badRequest().body(new AgentResponse("主题不能为空", null));
         }
@@ -380,8 +383,10 @@ public class AgentController {
         String user = "主题: " + req.getTopic()
                 + (isBlank(req.getStyle()) ? "" : "\n方向: " + req.getStyle());
         String content = deepSeek.chat(system, user, req.getModel());
-        generatedContent.save("gzh_title", req.getTopic(), content, null, null, null, deepSeek.resolveModel(req.getModel()));
-        return ResponseEntity.ok(new AgentResponse(content, deepSeek.resolveModel(req.getModel())));
+        String modelLabel = deepSeek.resolveModel(req.getModel());
+        Long contentId = generatedContent.save("gzh_title", req.getTopic(), content, null, null, null, modelLabel);
+        creditsService.deduct(resolveUserId(auth), 1, "gzh_title", req.getTopic(), contentId);
+        return ResponseEntity.ok(new AgentResponse(content, modelLabel));
     }
 
     @PostMapping("/gzh-text")
@@ -418,8 +423,8 @@ public class AgentController {
         String user = "标题: " + req.getTopic()
                 + (isBlank(req.getStyle()) ? "" : "\n写作方向补充: " + req.getStyle());
         String content = deepSeek.chat(system, user, req.getModel());
-        generatedContent.save("gzh_article", req.getTopic(), content, null, null, null, deepSeek.resolveModel(req.getModel()));
-        creditsService.deduct(resolveUserId(auth), 5, "gzh_text", req.getTopic());
+        Long contentId = generatedContent.save("gzh_article", req.getTopic(), content, null, null, null, deepSeek.resolveModel(req.getModel()));
+        creditsService.deduct(resolveUserId(auth), 5, "gzh_text", req.getTopic(), contentId);
         return ResponseEntity.ok(new AgentResponse(content, deepSeek.resolveModel(req.getModel())));
     }
 
@@ -511,7 +516,8 @@ public class AgentController {
             }
         }
 
-        creditsService.deduct(resolveUserId(auth), 5, "gzh_text", req.getTopic());
+        Long contentId = generatedContent.save("gzh_article", req.getTopic(), content, null, null, null, deepSeek.resolveModel(req.getModel()));
+        creditsService.deduct(resolveUserId(auth), 5, "gzh_text", req.getTopic(), contentId);
         return ResponseEntity.ok(resp);
     }
 
@@ -545,8 +551,8 @@ public class AgentController {
         if (!isBlank(req.getStyle())) user.append("\n风格: ").append(req.getStyle());
         if (!isBlank(req.getDuration())) user.append("\n时长: ").append(req.getDuration());
         String content = deepSeek.chat(system, user.toString(), req.getModel());
-        generatedContent.save("video_script", req.getTopic(), content, null, null, null, deepSeek.resolveModel(req.getModel()));
-        creditsService.deduct(resolveUserId(auth), 8, "video_script", req.getTopic());
+        Long contentId = generatedContent.save("video_script", req.getTopic(), content, null, null, null, deepSeek.resolveModel(req.getModel()));
+        creditsService.deduct(resolveUserId(auth), 8, "video_script", req.getTopic(), contentId);
         return ResponseEntity.ok(new AgentResponse(content, deepSeek.resolveModel(req.getModel())));
     }
 
@@ -710,7 +716,9 @@ public class AgentController {
 
                 %s
                 """.formatted(result.document(), result.script());
-        creditsService.deduct(resolveUserId(auth), 15, "video_rip", "视频仿做分析");
+        String videoTopic = !isBlank(req.getVideoUrl()) ? req.getVideoUrl() : (!isBlank(req.getContent()) ? req.getContent().substring(0, Math.min(req.getContent().length(), 80)) : "视频转写");
+        Long contentId = generatedContent.save("video_script", videoTopic, content, null, null, null, result.modelLabel());
+        creditsService.deduct(resolveUserId(auth), 15, "video_rip", "视频仿做分析", contentId);
         return ResponseEntity.ok(new AgentResponse(content, result.modelLabel() + " + media2doc-workflow"));
     }
 
@@ -769,12 +777,14 @@ public class AgentController {
         String content = deepSeek.chat(system, user.toString(), req.getModel());
         // 清洗 JSON：去掉可能的代码块标记
         String cleaned = content.replaceAll("(?s)```[a-zA-Z]*\\s*", "").replaceAll("```", "").trim();
-        creditsService.deduct(resolveUserId(auth), 12, "drama_script", req.getTopic());
+        Long contentId = generatedContent.save("drama_script", req.getTopic(), cleaned, null, null, null, deepSeek.resolveModel(req.getModel()));
+        creditsService.deduct(resolveUserId(auth), 12, "drama_script", req.getTopic(), contentId);
         return ResponseEntity.ok(new AgentResponse(cleaned, deepSeek.resolveModel(req.getModel())));
     }
 
     @PostMapping("/video-title")
-    public ResponseEntity<AgentResponse> generateVideoTitle(@RequestBody AgentRequest req) {
+    public ResponseEntity<AgentResponse> generateVideoTitle(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
         if (isBlank(req.getTopic())) {
             return ResponseEntity.badRequest().body(new AgentResponse("视频主题不能为空", null));
         }
@@ -817,11 +827,15 @@ public class AgentController {
         StringBuilder user = new StringBuilder("视频主题: ").append(req.getTopic());
         if (!isBlank(req.getStyle())) user.append("\n风格: ").append(req.getStyle());
         String content = deepSeek.chat(system, user.toString(), req.getModel());
-        return ResponseEntity.ok(new AgentResponse(content, deepSeek.resolveModel(req.getModel())));
+        String modelLabel = deepSeek.resolveModel(req.getModel());
+        Long contentId = generatedContent.save("video_script", req.getTopic(), content, null, null, null, modelLabel);
+        creditsService.deduct(resolveUserId(auth), 1, "video_title", req.getTopic(), contentId);
+        return ResponseEntity.ok(new AgentResponse(content, modelLabel));
     }
 
     @PostMapping("/video-cover")
-    public ResponseEntity<AgentResponse> generateVideoCover(@RequestBody AgentRequest req) {
+    public ResponseEntity<AgentResponse> generateVideoCover(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
         if (isBlank(req.getTopic())) {
             return ResponseEntity.badRequest().body(new AgentResponse("视频主题不能为空", null));
         }
@@ -865,14 +879,24 @@ public class AgentController {
 
         AgentResponse resp = new AgentResponse(content, deepSeek.resolveModel(req.getModel()));
         resp.setImageUrl(imageUrl);
-        resp.setModel(deepSeek.resolveModel(req.getModel()) + " + "
-                + (useSeedream ? imageGeneration.seedreamModelLabel() : imageGeneration.modelLabel()));
+        String coverModelLabel = deepSeek.resolveModel(req.getModel()) + " + "
+                + (useSeedream ? imageGeneration.seedreamModelLabel() : imageGeneration.modelLabel());
+        resp.setModel(coverModelLabel);
+        Long coverContentId = generatedContent.save("image", req.getTopic(), content, imageUrl, null, null, coverModelLabel);
+        creditsService.deduct(resolveUserId(auth), 3, "video_cover", req.getTopic(), coverContentId);
         return ResponseEntity.ok(resp);
     }
 
     @PostMapping("/video-generate")
-    public ResponseEntity<AgentResponse> generateVideo(@RequestBody AgentRequest req) {
+    public ResponseEntity<AgentResponse> generateVideo(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
         AgentResponse resp = libTv.generateVideo(req);
+        String videoTopic = !isBlank(req.getTopic()) ? req.getTopic()
+                : (!isBlank(req.getScript()) ? req.getScript().substring(0, Math.min(req.getScript().length(), 50)) : "视频生成");
+        String videoDesc = resp.getContent() != null ? resp.getContent() : videoTopic;
+        Long videoContentId = generatedContent.save("video_script", videoTopic, videoDesc, null,
+                resp.getVideoUrl(), resp.getImageUrl(), resp.getModel() != null ? resp.getModel() : "libTv");
+        creditsService.deduct(resolveUserId(auth), 20, "video_render", videoTopic, videoContentId);
         return ResponseEntity.ok(resp);
     }
 
@@ -921,7 +945,9 @@ public class AgentController {
                 m.put("videoUrl", r.videoUrl());
                 segments.add(m);
             }
-            creditsService.deduct(resolveUserId(auth), 80, "video_render", "口播视频成片");
+            String seedanceTopic = !isBlank(req.getTopic()) ? req.getTopic() : (!isBlank(req.getScript()) ? req.getScript().substring(0, Math.min(req.getScript().length(), 50)) : "口播视频");
+            Long contentId = generatedContent.save("video_script", seedanceTopic, script, null, null, null, "seedance");
+            creditsService.deduct(resolveUserId(auth), 80, "video_render", "口播视频成片", contentId);
             return ResponseEntity.ok(Map.of("segments", segments, "total", results.size()));
         } catch (Exception e) {
             log.error("[Seedance] 视频生成失败: {}", e.getMessage(), e);
@@ -1042,7 +1068,9 @@ public class AgentController {
         }
         
         String modelLabel = deepSeek.resolveModel(req.getModel()) + (transcript != null ? " + 视频转写" : " + 文案分析");
-        creditsService.deduct(resolveUserId(auth), 6, "viral_xhs", "拆解小红书爆款");
+        String viralXhsTopic = !isBlank(note.getTitle()) ? note.getTitle() : req.getVideoUrl();
+        Long contentId = generatedContent.save("viral_xhs", viralXhsTopic, content, null, null, null, modelLabel);
+        creditsService.deduct(resolveUserId(auth), 6, "viral_xhs", "拆解小红书爆款", contentId);
         return ResponseEntity.ok(new AgentResponse(content, modelLabel));
     }
 
@@ -1178,7 +1206,9 @@ public class AgentController {
         }
         
         String modelLabel = deepSeek.resolveModel(req.getModel()) + (transcript != null ? " + 视频转写" : " + 文案分析");
-        creditsService.deduct(resolveUserId(auth), 15, "viral_douyin", "拆解抖音爆款");
+        String viralDyTopic = !isBlank(note.getTitle()) ? note.getTitle() : req.getVideoUrl();
+        Long contentId = generatedContent.save("viral_douyin", viralDyTopic, content, null, null, null, modelLabel);
+        creditsService.deduct(resolveUserId(auth), 15, "viral_douyin", "拆解抖音爆款", contentId);
         return ResponseEntity.ok(new AgentResponse(content, modelLabel));
     }
 
@@ -1466,7 +1496,9 @@ public class AgentController {
         List<Map<String, Object>> results = futures.stream()
                 .map(CompletableFuture::join)
                 .toList();
-        creditsService.deduct(resolveUserId(auth), 5, "xhs_images", "小红书配图");
+        String batchImgTopic = req.getContent().length() > 80 ? req.getContent().substring(0, 80) : req.getContent();
+        Long contentId = generatedContent.save("xhs_post", batchImgTopic, req.getContent(), null, null, null, deepSeek.resolveModel(req.getModel()));
+        creditsService.deduct(resolveUserId(auth), 5, "xhs_images", "小红书配图", contentId);
         return ResponseEntity.ok(results);
     }
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { extractAutoNote, rewriteXhsNote, generateXhsBatchImages } from '../api'
@@ -18,22 +18,67 @@ function extractUrlFromText(text) {
   return urlMatch ? urlMatch[0] : ''
 }
 
-export default function XhsRewritePage() {
-  const [step, setStep] = useState(1)
-  const [url, setUrl] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [extractedNote, setExtractedNote] = useState(null)
-  const [rewriteMode, setRewriteMode] = useState('')
-  const [requirements, setRequirements] = useState('')
-  const [result, setResult] = useState('')
-  const [viewMode, setViewMode] = useState('preview') // 'edit' or 'preview'
+export default function XhsRewritePage({
+  contentPrefill, onContentPrefillConsumed,
+  onNavigate, onNavigateWithContentPrefill,
+}) {
+  const ST = {
+    step: 1,
+    url: '',
+    loading: false,
+    extractedNote: null,
+    rewriteMode: '',
+    requirements: '',
+    result: '',
+    viewMode: 'preview',
+    imgCount: 3,
+    imgRatio: '3:4',
+    imgLoading: false,
+    imgResults: [],
+    imgError: '',
+  }
+  const [step, setStep] = useState(ST.step)
+  const [url, setUrl] = useState(ST.url)
+  const [loading, setLoading] = useState(ST.loading)
+  const [extractedNote, setExtractedNote] = useState(ST.extractedNote)
+  const [rewriteMode, setRewriteMode] = useState(ST.rewriteMode)
+  const [requirements, setRequirements] = useState(ST.requirements)
+  const [result, setResult] = useState(ST.result)
+  const [viewMode, setViewMode] = useState(ST.viewMode)
+  const [imgCount, setImgCount] = useState(ST.imgCount)
+  const [imgRatio, setImgRatio] = useState(ST.imgRatio)
+  const [imgLoading, setImgLoading] = useState(ST.imgLoading)
+  const [imgResults, setImgResults] = useState(ST.imgResults)
+  const [imgError, setImgError] = useState(ST.imgError)
 
-  // 配图
-  const [imgCount, setImgCount] = useState(3)
-  const [imgRatio, setImgRatio] = useState('3:4')
-  const [imgLoading, setImgLoading] = useState(false)
-  const [imgResults, setImgResults] = useState([])
-  const [imgError, setImgError] = useState('')
+  const resetState = () => {
+    setStep(ST.step)
+    setUrl(ST.url)
+    setLoading(ST.loading)
+    setExtractedNote(ST.extractedNote)
+    setRewriteMode(ST.rewriteMode)
+    setRequirements(ST.requirements)
+    setResult(ST.result)
+    setViewMode(ST.viewMode)
+    setImgCount(ST.imgCount)
+    setImgRatio(ST.imgRatio)
+    setImgLoading(ST.imgLoading)
+    setImgResults(ST.imgResults)
+    setImgError(ST.imgError)
+  }
+
+  useEffect(() => {
+    if (contentPrefill) {
+      if (contentPrefill.step != null) setStep(contentPrefill.step)
+      if (contentPrefill.url) setUrl(contentPrefill.url)
+      if (contentPrefill.extractedNote) setExtractedNote(contentPrefill.extractedNote)
+      if (contentPrefill.rewriteMode) setRewriteMode(contentPrefill.rewriteMode)
+      if (contentPrefill.requirements) setRequirements(contentPrefill.requirements)
+      if (contentPrefill.result) { setResult(contentPrefill.result); if (contentPrefill.step == null) setStep(3) }
+      if (contentPrefill.viewMode) setViewMode(contentPrefill.viewMode)
+      onContentPrefillConsumed?.()
+    }
+  }, [contentPrefill])
 
   const handleUrlChange = (e) => {
     const inputText = e.target.value
@@ -104,6 +149,9 @@ export default function XhsRewritePage() {
             <span className="platform-tag xhs">仿</span>
             <h2>小红书仿写</h2>
           </div>
+          <button className="btn-ghost reset-btn" onClick={resetState} title="清除所有内容重新开始">
+            重新开始
+          </button>
         </div>
         <div className="steps">
           <div className={`step ${step > 1 ? 'done' : ''} ${step === 1 ? 'active' : ''}`}>

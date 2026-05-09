@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
 
 @RestController
 @RequestMapping("/api/credits")
@@ -40,6 +41,30 @@ public class CreditsController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return creditsService.getRecords(resolveUserId(auth), filter, page, size);
+    }
+
+    @GetMapping("/records/{id}/content")
+    public Map<String, Object> recordContent(
+            @RequestHeader(value = "Authorization", required = false) String auth,
+            @PathVariable long id) {
+        long uid = resolveUserId(auth);
+        Map<String, Object> raw = creditsService.getRecordContent(uid, id);
+        if (raw == null) throw new RuntimeException("记录不存在或未关联内容");
+        Map<String, Object> mapped = new LinkedHashMap<>();
+        mapped.put("id", raw.get("id"));
+        mapped.put("content_type", raw.get("type"));
+        mapped.put("topic", raw.get("title"));
+        mapped.put("content", raw.get("content"));
+        mapped.put("model", raw.get("model"));
+        mapped.put("created_at", raw.get("createdAt"));
+        @SuppressWarnings("unchecked")
+        List<String> imageUrls = (List<String>) raw.get("imageUrls");
+        if (imageUrls != null && !imageUrls.isEmpty()) {
+            mapped.put("image_url", imageUrls.get(0));
+        }
+        mapped.put("video_url", raw.get("videoUrl"));
+        mapped.put("cover_url", raw.get("coverUrl"));
+        return mapped;
     }
 
     private long resolveUserId(String auth) {

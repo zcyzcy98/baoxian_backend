@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react'
-import { fetchCreditsSummary, fetchCreditsRecords } from '../api'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { fetchCreditsSummary, fetchCreditsRecords, fetchCreditsRecordContent } from '../api'
 import './CreditsPage.css'
 
 const PACKAGES = [
@@ -23,8 +23,33 @@ const PLATFORM_LABEL = {
 
 const KIND_ICON = { create: '✦', qa: '💬', topup: '+' }
 
+const CONTENT_TYPE_LABEL = {
+  xhs_post: '小红书正文', xhs_title: '小红书标题', gzh_article: '公众号文章',
+  gzh_title: '公众号标题', video_script: '视频脚本', drama_script: '短剧脚本',
+  image: 'AI 配图', viral_xhs: '小红书爆款拆解', viral_douyin: '抖音爆款拆解',
+  advisory: '客户答疑',
+}
 
-export default function CreditsPage() {
+const CONTENT_PAGE_MAP = {
+  xhs_post:       { page: 'xhs-create',     build: c => ({ content: c.content, topic: c.topic }) },
+  xhs_title:      { page: 'xhs-create',     build: c => ({ titles: safeSplit(c.content), topic: c.topic }) },
+  gzh_article:    { page: 'gzh-create',     build: c => ({ content: c.content, topic: c.topic }) },
+  gzh_title:      { page: 'gzh-create',     build: c => ({ titles: safeSplit(c.content), topic: c.topic }) },
+  video_script:   { page: 'video-rip',      build: c => ({ content: c.content, topic: c.topic }) },
+  drama_script:   { page: 'video-create',   build: c => ({ content: c.content, topic: c.topic }) },
+  viral_xhs:      { page: 'viral-xhs',      build: c => ({ result: c.content, url: c.topic }) },
+  viral_douyin:   { page: 'viral-douyin',   build: c => ({ result: c.content, url: c.topic }) },
+  advisory:       { page: 'advisory',       build: c => ({ question: c.topic, content: c.content }) },
+  image:          { page: 'xhs-create',     build: c => ({ images: [{ url: c.image_url }], topic: c.topic }) },
+}
+
+function safeSplit(str) {
+  if (!str) return []
+  return str.split('\n').filter(Boolean)
+}
+
+
+export default function CreditsPage({ onNavigate, onNavigateWithContentPrefill, isActive }) {
   const [filter,      setFilter]      = useState('all')
   const [records,     setRecords]     = useState([])
   const [summary,     setSummary]     = useState(null)
@@ -36,6 +61,9 @@ export default function CreditsPage() {
   const [selectedPkg, setSelectedPkg] = useState(PACKAGES[1].id)
   const [payMethod,   setPayMethod]   = useState('wechat')
   const [payTip,      setPayTip]      = useState('')
+  const [viewingRecord, setViewingRecord] = useState(null)
+  const [viewingContent, setViewingContent] = useState(null)
+  const [viewingLoading, setViewingLoading] = useState(false)
 
   const loadRecords = useCallback(async (f, p, append = false) => {
     try {
@@ -55,6 +83,19 @@ export default function CreditsPage() {
       loadRecords(filter, 0),
     ]).finally(() => setLoading(false))
   }, [filter, loadRecords])
+
+  const prevActive = useRef(isActive)
+  useEffect(() => {
+    if (isActive && !prevActive.current) {
+      setLoading(true)
+      setPage(0)
+      Promise.all([
+        fetchCreditsSummary().then(setSummary).catch(console.error),
+        loadRecords(filter, 0),
+      ]).finally(() => setLoading(false))
+    }
+    prevActive.current = isActive
+  }, [isActive, filter, loadRecords])
 
   const handleLoadMore = async () => {
     const next = page + 1
@@ -83,6 +124,36 @@ export default function CreditsPage() {
   const handlePay = () => {
     setPayTip('支付功能正在对接中，请联系客服充值。')
     setTimeout(() => setPayTip(''), 3000)
+  }
+
+  const handleViewContent = async (record) => {
+    if (record.kind === 'topup') return
+    setViewingRecord(record)
+    setViewingContent(null)
+    setViewingLoading(true)
+    try {
+      const data = await fetchCreditsRecordContent(record.id)
+      setViewingContent(data)
+    } catch (e) {
+      console.error('[Credits] 加载内容失败', e)
+      setViewingContent({ error: '加载内容失败' })
+    } finally {
+      setViewingLoading(false)
+    }
+  }
+
+  const handleOpenInEditor = () => {
+    if (!viewingContent || !viewingContent.content_type) return
+    const mapping = CONTENT_PAGE_MAP[viewingContent.content_type]
+    if (!mapping) return
+    const prefill = mapping.build(viewingContent)
+    setViewingRecord(null)
+    setViewingContent(null)
+    if (onNavigateWithContentPrefill) {
+      onNavigateWithContentPrefill(mapping.page, prefill)
+    } else if (onNavigate) {
+      onNavigate(mapping.page)
+    }
   }
 
   return (
@@ -147,8 +218,15 @@ export default function CreditsPage() {
           <div className="records-list">
             {records.map(r => {
               const plat = r.platform ? PLATFORM_LABEL[r.platform] : null
+              const canClick = r.kind !== 'topup'
               return (
-                <div key={r.id} className="record-row">
+                <div
+                  key={r.id}
+                  className={'record-row' + (canClick ? ' is-clickable' : '')}
+                  onClick={() => canClick && handleViewContent(r)}
+                  role={canClick ? 'button' : undefined}
+                  tabIndex={canClick ? 0 : undefined}
+                  onKeyDown={e => canClick && e.key === 'Enter' && handleViewContent(r)}>
                   <div className={'record-icon kind-' + r.kind}>
                     {KIND_ICON[r.kind] || '-'}
                   </div>
@@ -228,6 +306,17 @@ export default function CreditsPage() {
           </div>
         </div>
       )}
+
+      {/* 结果查看弹窗 */}
+      {viewingRecord && (
+        <ResultViewModal
+          record={viewingRecord}
+          content={viewingContent}
+          loading={viewingLoading}
+          onClose={() => { setViewingRecord(null); setViewingContent(null) }}
+          onOpenInEditor={handleOpenInEditor}
+        />
+      )}
     </div>
   )
 }
@@ -238,4 +327,83 @@ function formatTime(str) {
   if (isNaN(d)) return str
   const pad = n => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function ResultViewModal({ record, content, loading, onClose, onOpenInEditor }) {
+  const typeLabel = (content && content.content_type) ? (CONTENT_TYPE_LABEL[content.content_type] || content.content_type) : ''
+  const hasEditorMapping = content && content.content_type && CONTENT_PAGE_MAP[content.content_type]
+
+  const renderContent = () => {
+    if (loading) return <div className="rv-loading">加载中…</div>
+    if (!content) return <div className="rv-loading">无法加载内容</div>
+    if (content.error) return <div className="rv-error">{content.error}</div>
+
+    const ct = content.content_type
+    const text = content.content || ''
+
+    if (ct === 'advisory') {
+      return (
+        <div className="rv-advisory">
+          <div className="rv-ad-q"><span className="rv-label">问题</span>{record.title || content.topic}</div>
+          <div className="rv-ad-a"><span className="rv-label">分析</span><pre className="rv-pre">{text}</pre></div>
+        </div>
+      )
+    }
+
+    if (ct === 'viral_xhs' || ct === 'viral_douyin') {
+      return (
+        <div className="rv-viral">
+          <div className="rv-v-url"><span className="rv-label">来源</span>{content.topic || record.title}</div>
+          <div className="rv-v-result"><pre className="rv-pre">{text}</pre></div>
+        </div>
+      )
+    }
+
+    if (ct === 'image') {
+      return (
+        <div className="rv-image">
+          {content.image_url ? (
+            <img src={content.image_url} alt={content.topic || '配图'} className="rv-img" />
+          ) : (
+            <div className="rv-noimg">暂无图片预览</div>
+          )}
+          {content.content && <pre className="rv-pre">{content.content}</pre>}
+        </div>
+      )
+    }
+
+    return (
+      <div className="rv-text">
+        {content.topic && <h4 className="rv-topic">{content.topic}</h4>}
+        <pre className="rv-pre">{text}</pre>
+      </div>
+    )
+  }
+
+  return (
+    <div className="modal-mask" onClick={onClose}>
+      <div className="modal-card rv-card" onClick={e => e.stopPropagation()}>
+        <div className="modal-head rv-head">
+          <div>
+            <h3>生成结果</h3>
+            {typeLabel && <span className="rv-type-tag">{typeLabel}</span>}
+          </div>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+
+        <div className="rv-body">
+          {renderContent()}
+        </div>
+
+        <div className="rv-foot">
+          {hasEditorMapping && (
+            <button className="btn-ghost rv-edit-btn" onClick={onOpenInEditor}>
+              ✎ 在编辑器中打开
+            </button>
+          )}
+          <button className="btn-ghost" onClick={onClose}>关闭</button>
+        </div>
+      </div>
+    </div>
+  )
 }

@@ -33,7 +33,11 @@ public class CreditsService {
         Map.entry("viral_douyin",  "拆解抖音爆款"),
         Map.entry("advisory",      "客户答疑"),
         Map.entry("topic_refresh", "手动刷新选题"),
-        Map.entry("topup",         "积分充值")
+        Map.entry("topup",         "积分充值"),
+        Map.entry("xhs_title",    "小红书标题生成"),
+        Map.entry("gzh_title",    "公众号标题生成"),
+        Map.entry("video_title",  "视频标题文案"),
+        Map.entry("video_cover",  "视频封面图")
     );
 
     // Action codes → platform tags for display
@@ -50,7 +54,11 @@ public class CreditsService {
         Map.entry("gzh_rewrite",  "gzh"),
         Map.entry("video_rip",    "video"),
         Map.entry("viral_xhs",    "xhs"),
-        Map.entry("viral_douyin", "douyin")
+        Map.entry("viral_douyin", "douyin"),
+        Map.entry("xhs_title",   "xhs"),
+        Map.entry("gzh_title",   "gzh"),
+        Map.entry("video_title", "video"),
+        Map.entry("video_cover", "video")
     );
 
     private final DataSource dataSource;
@@ -87,6 +95,15 @@ public class CreditsService {
                 ALTER TABLE generated_contents
                 ALTER COLUMN model TYPE VARCHAR(300)
                 """);
+            // 添加 content_id 列，关联 generated_contents
+            st.execute("""
+                ALTER TABLE credit_transactions
+                ADD COLUMN IF NOT EXISTS content_id BIGINT
+                """);
+            st.execute("""
+                CREATE INDEX IF NOT EXISTS idx_credit_tx_content
+                ON credit_transactions(content_id)
+                """);
             log.info("[Credits] schema ready");
         } catch (Exception e) {
             log.warn("[Credits] schema init: {}", e.getMessage());
@@ -117,6 +134,13 @@ public class CreditsService {
      * Records the transaction.
      */
     public void deduct(long userId, int amount, String action, String description) {
+        deduct(userId, amount, action, description, null);
+    }
+
+    /**
+     * Deduct with content association.
+     */
+    public void deduct(long userId, int amount, String action, String description, Long contentId) {
         if (amount <= 0) return;
         Connection c = null;
         try {
@@ -141,14 +165,27 @@ public class CreditsService {
             }
 
             // Record transaction
-            try (PreparedStatement ps = c.prepareStatement(
-                "INSERT INTO credit_transactions(user_id, delta, balance_after, action, description) VALUES(?,?,?,?,?)")) {
-                ps.setLong(1, userId);
-                ps.setInt(2, -amount);
-                ps.setInt(3, newBalance);
-                ps.setString(4, action);
-                ps.setString(5, description);
-                ps.executeUpdate();
+            if (contentId != null) {
+                try (PreparedStatement ps = c.prepareStatement(
+                    "INSERT INTO credit_transactions(user_id, delta, balance_after, action, description, content_id) VALUES(?,?,?,?,?,?)")) {
+                    ps.setLong(1, userId);
+                    ps.setInt(2, -amount);
+                    ps.setInt(3, newBalance);
+                    ps.setString(4, action);
+                    ps.setString(5, description);
+                    ps.setLong(6, contentId);
+                    ps.executeUpdate();
+                }
+            } else {
+                try (PreparedStatement ps = c.prepareStatement(
+                    "INSERT INTO credit_transactions(user_id, delta, balance_after, action, description) VALUES(?,?,?,?,?)")) {
+                    ps.setLong(1, userId);
+                    ps.setInt(2, -amount);
+                    ps.setInt(3, newBalance);
+                    ps.setString(4, action);
+                    ps.setString(5, description);
+                    ps.executeUpdate();
+                }
             }
 
             c.commit();
@@ -206,7 +243,7 @@ public class CreditsService {
             case "qa"     -> "AND action = 'advisory'";
             default       -> "";
         };
-        String sql = "SELECT id, delta, balance_after, action, description, created_at " +
+        String sql = "SELECT id, delta, balance_after, action, description, content_id, created_at " +
                      "FROM credit_transactions WHERE user_id = ? " + where +
                      " ORDER BY created_at DESC LIMIT ? OFFSET ?";
         try (Connection c = dataSource.getConnection();
@@ -226,6 +263,8 @@ public class CreditsService {
                     row.put("detail",   rs.getString("description"));
                     row.put("cost",     rs.getInt("delta"));
                     row.put("time",     rs.getString("created_at"));
+                    Long ctId = rs.getLong("content_id");
+                    if (!rs.wasNull()) row.put("contentId", ctId);
                     list.add(row);
                 }
             }
@@ -233,6 +272,45 @@ public class CreditsService {
             log.warn("[Credits] getRecords failed: {}", e.getMessage());
         }
         return list;
+    }
+
+    // ── Content Lookup ────────────────────────────────────────────────────
+
+    /**
+     * Query generated content linked to a credit transaction.
+     */
+    public Map<String, Object> getRecordContent(long userId, long recordId) {
+        String sql = """
+            SELECT gc.id, gc.type, gc.title, gc.content, gc.image_urls,
+                   gc.video_url, gc.cover_url, gc.model, gc.created_at
+            FROM credit_transactions ct
+            JOIN generated_contents gc ON ct.content_id = gc.id
+            WHERE ct.id = ? AND ct.user_id = ?
+            """;
+        try (Connection c = dataSource.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setLong(1, recordId);
+            ps.setLong(2, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("id", rs.getLong("id"));
+                    row.put("type", rs.getString("type"));
+                    row.put("title", rs.getString("title"));
+                    row.put("content", rs.getString("content"));
+                    Array arr = rs.getArray("image_urls");
+                    row.put("imageUrls", arr != null ? Arrays.asList((String[]) arr.getArray()) : List.of());
+                    row.put("videoUrl", rs.getString("video_url"));
+                    row.put("coverUrl", rs.getString("cover_url"));
+                    row.put("model", rs.getString("model"));
+                    row.put("createdAt", rs.getString("created_at"));
+                    return row;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("[Credits] getRecordContent failed recordId={}: {}", recordId, e.getMessage());
+        }
+        return null;
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────

@@ -53,48 +53,97 @@ const STEPS_RIP = [
  *   - create (空白创作): 输入主题 → 脚本 → 分镜 → Seedance 口播生成
  *   - rip (爆款仿写): 给一个视频链接 → 分析爆款原因 → 仿写剧本 → Seedance 口播生成
  */
-export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'create' }) {
-  const [activeMode, setActiveMode] = useState(mode) // 'create' or 'rip'
-  const [step, setStep] = useState(1)
-
-  // 当mode参数变化时（比如从侧边栏切换），同步更新activeMode
-  useEffect(() => {
-    setActiveMode(mode)
-    setStep(1)
-  }, [mode])
-  
-  // 空白创作模式
-  const [topic, setTopic] = useState('')
-  const [direction, setDirection] = useState('')
-  const [platform, setPlatform] = useState('')
-  const [duration, setDuration] = useState('')
-  
-  // 爆款仿写模式
-  const [refUrl, setRefUrl] = useState('')
-  const [analysisResult, setAnalysisResult] = useState('')
-  const [analyzing, setAnalyzing] = useState(false)
-  
-  // 通用
-  const [scriptTab, setScriptTab] = useState('full')
-  const [script, setScript] = useState('')
-  const [storyboardSegs, setStoryboardSegs] = useState([]) // parsed JSON segments
-  const [genLoading, setGenLoading] = useState(false)
-  const [genError, setGenError] = useState('')
-
-  const [videoLoading, setVideoLoading] = useState(false)
-  const [videoError, setVideoError] = useState('')
-  const [seedanceSegments, setSeedanceSegments] = useState([])
-  const [characterImageUrl, setCharacterImageUrl] = useState('')
-  const [characterPreview, setCharacterPreview] = useState(null)
-  const [characterUploading, setCharacterUploading] = useState(false)
-  const [backgroundImageUrl, setBackgroundImageUrl] = useState('')
-  const [backgroundPreview, setBackgroundPreview] = useState(null)
-  const [backgroundUploading, setBackgroundUploading] = useState(false)
-  const [licenseChecked, setLicenseChecked] = useState(false)
-  const [videoRatio, setVideoRatio] = useState('')
-  const [videoResolution, setVideoResolution] = useState('')
+export default function DramaPage({
+  topicPrefill, onPrefillConsumed,
+  contentPrefill, onContentPrefillConsumed,
+  onNavigate, onNavigateWithContentPrefill,
+  mode = 'create',
+}) {
+  const ST = {
+    activeMode: mode,
+    step: 1,
+    topic: '',
+    direction: '',
+    platform: '',
+    duration: '',
+    refUrl: '',
+    analysisResult: '',
+    analyzing: false,
+    scriptTab: 'full',
+    script: '',
+    storyboardSegs: [],
+    genLoading: false,
+    genError: '',
+    videoLoading: false,
+    videoError: '',
+    seedanceSegments: [],
+    characterImageUrl: '',
+    characterPreview: null,
+    characterUploading: false,
+    backgroundImageUrl: '',
+    backgroundPreview: null,
+    backgroundUploading: false,
+    licenseChecked: false,
+    videoRatio: '',
+    videoResolution: '',
+  }
+  const [activeMode, setActiveMode] = useState(mode)
+  const [step, setStep] = useState(ST.step)
+  const [topic, setTopic] = useState(ST.topic)
+  const [direction, setDirection] = useState(ST.direction)
+  const [platform, setPlatform] = useState(ST.platform)
+  const [duration, setDuration] = useState(ST.duration)
+  const [refUrl, setRefUrl] = useState(ST.refUrl)
+  const [analysisResult, setAnalysisResult] = useState(ST.analysisResult)
+  const [analyzing, setAnalyzing] = useState(ST.analyzing)
+  const [scriptTab, setScriptTab] = useState(ST.scriptTab)
+  const [script, setScript] = useState(ST.script)
+  const [storyboardSegs, setStoryboardSegs] = useState(ST.storyboardSegs)
+  const [genLoading, setGenLoading] = useState(ST.genLoading)
+  const [genError, setGenError] = useState(ST.genError)
+  const [videoLoading, setVideoLoading] = useState(ST.videoLoading)
+  const [videoError, setVideoError] = useState(ST.videoError)
+  const [seedanceSegments, setSeedanceSegments] = useState(ST.seedanceSegments)
+  const [characterImageUrl, setCharacterImageUrl] = useState(ST.characterImageUrl)
+  const [characterPreview, setCharacterPreview] = useState(ST.characterPreview)
+  const [characterUploading, setCharacterUploading] = useState(ST.characterUploading)
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState(ST.backgroundImageUrl)
+  const [backgroundPreview, setBackgroundPreview] = useState(ST.backgroundPreview)
+  const [backgroundUploading, setBackgroundUploading] = useState(ST.backgroundUploading)
+  const [licenseChecked, setLicenseChecked] = useState(ST.licenseChecked)
+  const [videoRatio, setVideoRatio] = useState(ST.videoRatio)
+  const [videoResolution, setVideoResolution] = useState(ST.videoResolution)
   const charFileRef = useRef(null)
   const bgFileRef = useRef(null)
+
+  const resetState = () => {
+    setActiveMode(mode)
+    setStep(ST.step)
+    setTopic(ST.topic)
+    setDirection(ST.direction)
+    setPlatform(ST.platform)
+    setDuration(ST.duration)
+    setRefUrl(ST.refUrl)
+    setAnalysisResult(ST.analysisResult)
+    setAnalyzing(ST.analyzing)
+    setScriptTab(ST.scriptTab)
+    setScript(ST.script)
+    setStoryboardSegs(ST.storyboardSegs)
+    setGenLoading(ST.genLoading)
+    setGenError(ST.genError)
+    setVideoLoading(ST.videoLoading)
+    setVideoError(ST.videoError)
+    setSeedanceSegments(ST.seedanceSegments)
+    setCharacterImageUrl(ST.characterImageUrl)
+    setCharacterPreview(ST.characterPreview)
+    setCharacterUploading(ST.characterUploading)
+    setBackgroundImageUrl(ST.backgroundImageUrl)
+    setBackgroundPreview(ST.backgroundPreview)
+    setBackgroundUploading(ST.backgroundUploading)
+    setLicenseChecked(ST.licenseChecked)
+    setVideoRatio(ST.videoRatio)
+    setVideoResolution(ST.videoResolution)
+  }
 
   // 选题广场预填
   useEffect(() => {
@@ -104,6 +153,25 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
       onPrefillConsumed?.()
     }
   }, [topicPrefill])
+
+  useEffect(() => {
+    if (contentPrefill) {
+      if (contentPrefill.activeMode) setActiveMode(contentPrefill.activeMode)
+      if (contentPrefill.step != null) setStep(contentPrefill.step)
+      if (contentPrefill.topic) setTopic(contentPrefill.topic)
+      if (contentPrefill.direction) setDirection(contentPrefill.direction)
+      if (contentPrefill.platform) setPlatform(contentPrefill.platform)
+      if (contentPrefill.duration) setDuration(contentPrefill.duration)
+      if (contentPrefill.refUrl) setRefUrl(contentPrefill.refUrl)
+      if (contentPrefill.analysisResult) setAnalysisResult(contentPrefill.analysisResult)
+      if (contentPrefill.script) { setScript(contentPrefill.script); if (contentPrefill.step == null) setStep(2) }
+      if (contentPrefill.storyboardSegs) setStoryboardSegs(contentPrefill.storyboardSegs)
+      if (contentPrefill.seedanceSegments) setSeedanceSegments(contentPrefill.seedanceSegments)
+      if (contentPrefill.videoRatio) setVideoRatio(contentPrefill.videoRatio)
+      if (contentPrefill.videoResolution) setVideoResolution(contentPrefill.videoResolution)
+      onContentPrefillConsumed?.()
+    }
+  }, [contentPrefill])
 
   // 处理链接输入
   const handleUrlChange = (e) => {
@@ -339,6 +407,9 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
             </button>
           </div>
         )}
+        <button className="btn-ghost reset-btn" onClick={resetState} title="清除所有内容重新开始">
+          重新开始
+        </button>
       </header>
 
       <div className="step-bar">
