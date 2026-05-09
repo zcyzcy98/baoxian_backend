@@ -198,3 +198,23 @@
 .rv-image { display: flex; flex-direction: column; gap: 12px; align-items: center; }
 .rv-img { max-width: 100%; max-height: 300px; border-radius: var(--r-sm); border: 1px solid var(--line); }
 .rv-noimg { padding: 40px 0; text-align: center; font-size: 13px; color: var(--ink-3); }
+.btn-confirm:disabled { opacity: .5; cursor: not-allowed; }
+
+/* 二维码区域 */
+.qr-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 16px 0 8px; }
+.qr-tip  { font-size: 15px; font-weight: 600; margin: 0; }
+.qr-sub  { font-size: 12px; color: var(--ink-3); margin: 0; }
+.qr-amount { font-size: 13px; color: var(--clay); margin: 0; }
+
+/* 支付成功 */
+.pay-success { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 24px 0; }
+.success-icon { width: 56px; height: 56px; border-radius: 50%; background: #22c55e;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 28px; font-weight: 700; }
+.success-text { font-size: 18px; font-weight: 700; }
+.success-sub  { font-size: 13px; color: var(--ink-3); }
+
+/* 错误提示 */
+.pay-error { color: #ef4444; font-size: 13px; margin-bottom: 8px; }
+.pay-error-page { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 24px 0; }
+.error-text { font-size: 15px; color: #ef4444; }

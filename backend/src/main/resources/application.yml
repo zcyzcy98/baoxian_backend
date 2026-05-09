@@ -126,3 +126,17 @@ postgres:
   import:
     enabled: ${POSTGRES_IMPORT_ENABLED:true}
     auto-run: ${POSTGRES_IMPORT_AUTO_RUN:false}
+
+wxpay:
+  # 微信支付商户号，在 pay.weixin.qq.com 申请
+  mch-id: ${WXPAY_MCH_ID:}
+  # 与商户号绑定的 AppID（公众号/开放平台 App）
+  app-id: ${WXPAY_APP_ID:}
+  # API v3 密钥（32位，在商户平台 → 账户中心 → API安全 里设置）
+  api-v3-key: ${WXPAY_API_V3_KEY:}
+  # 商户私钥文件路径（apiclient_key.pem），绝对路径
+  private-key-path: ${WXPAY_PRIVATE_KEY_PATH:}
+  # 商户证书序列号（在商户平台 → API安全 → 查看证书里复制）
+  mch-serial-no: ${WXPAY_MCH_SERIAL_NO:}
+  # 支付成功后微信回调的地址（必须是公网可访问的 HTTPS 地址）
+  notify-url: ${WXPAY_NOTIFY_URL:https://你的域名/api/pay/notify}

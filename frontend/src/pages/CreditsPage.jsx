@@ -1,12 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import { fetchCreditsSummary, fetchCreditsRecords, fetchCreditsRecordContent } from '../api'
+import { getToken } from '../auth'
 import './CreditsPage.css'
 
-const PACKAGES = [
-  { id: 'p1', credits: 1000, price: 99,  save: 0 },
-  { id: 'p2', credits: 5000, price: 459, save: 36 },
-  { id: 'p3', credits: 10000,price: 859, save: 131 },
-]
 
 const FILTER_TABS = [
   { id: 'all',    label: '全部' },
@@ -58,12 +55,106 @@ export default function CreditsPage({ onNavigate, onNavigateWithContentPrefill, 
   const [page,        setPage]        = useState(0)
   const [hasMore,     setHasMore]     = useState(true)
   const [showBuy,     setShowBuy]     = useState(false)
-  const [selectedPkg, setSelectedPkg] = useState(PACKAGES[1].id)
+  const [packages,    setPackages]    = useState([])
+  const [selectedPkg, setSelectedPkg] = useState('')
   const [payMethod,   setPayMethod]   = useState('wechat')
-  const [payTip,      setPayTip]      = useState('')
   const [viewingRecord, setViewingRecord] = useState(null)
   const [viewingContent, setViewingContent] = useState(null)
   const [viewingLoading, setViewingLoading] = useState(false)
+
+  // 支付流程状态: select → qr → success
+  const [payStep,    setPayStep]    = useState('select')
+  const [codeUrl,    setCodeUrl]    = useState('')
+  const [outTradeNo, setOutTradeNo] = useState('')
+  const [payLoading, setPayLoading] = useState(false)
+  const [payErr,     setPayErr]     = useState('')
+  const pollRef = useRef(null)
+
+  useEffect(() => {
+    fetch('/api/pay/products')
+      .then(r => r.json())
+      .then(data => {
+        const pkgs = data.products || []
+        setPackages(pkgs)
+        if (pkgs.length > 0) setSelectedPkg(pkgs[Math.min(1, pkgs.length - 1)].id)
+      })
+      .catch(() => {})
+  }, [])
+
+  const stopPolling = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+  }
+
+  const closeBuy = () => {
+    stopPolling()
+    setShowBuy(false)
+    setPayStep('select')
+    setCodeUrl('')
+    setOutTradeNo('')
+    setPayErr('')
+    setPayLoading(false)
+  }
+
+  const startPolling = useCallback((tradeNo) => {
+    stopPolling()
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/pay/status/${tradeNo}`, {
+          headers: { Authorization: `Bearer ${getToken()}` },
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        if (data.status === 'PAID') {
+          stopPolling()
+          setPayStep('success')
+          // 刷新积分余额
+          fetchCreditsSummary().then(setSummary).catch(() => {})
+        }
+      } catch {
+        // 网络抖动，继续轮询
+      }
+    }, 2000)
+  }, [])
+
+  // 弹窗关闭时清理
+  useEffect(() => {
+    return () => stopPolling()
+  }, [])
+
+  const handlePay = async () => {
+    if (payMethod !== 'wechat') {
+      setPayErr('目前仅支持微信支付，支付宝敬请期待。')
+      return
+    }
+    setPayErr('')
+    setPayLoading(true)
+    try {
+      const res = await fetch('/api/pay/order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({ product: selectedPkg }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setPayErr(data.error || '创建订单失败，请稍后重试。')
+        return
+      }
+      setCodeUrl(data.codeUrl)
+      setOutTradeNo(data.outTradeNo)
+      setPayStep('qr')
+      startPolling(data.outTradeNo)
+    } catch {
+      setPayErr('网络异常，请检查连接后重试。')
+    } finally {
+      setPayLoading(false)
+    }
+  }
 
   const loadRecords = useCallback(async (f, p, append = false) => {
     try {
@@ -119,12 +210,7 @@ export default function CreditsPage({ onNavigate, onNavigateWithContentPrefill, 
     .reduce((a, [,v]) => a + Number(v), 0)
   const totalQa      = actionCounts['advisory'] || 0
 
-  const pkg = PACKAGES.find(p => p.id === selectedPkg)
-
-  const handlePay = () => {
-    setPayTip('支付功能正在对接中，请联系客服充值。')
-    setTimeout(() => setPayTip(''), 3000)
-  }
+  const pkg = packages.find(p => p.id === selectedPkg)
 
   const handleViewContent = async (record) => {
     if (record.kind === 'topup') return
@@ -163,7 +249,7 @@ export default function CreditsPage({ onNavigate, onNavigateWithContentPrefill, 
           <h2>积分管理</h2>
           <p className="credits-sub">查看 AI 使用记录，积分不够用可以加购</p>
         </div>
-        <button className="btn-buy" onClick={() => setShowBuy(true)}>+ 加购积分</button>
+        <button className="btn-buy" onClick={() => { setPayStep('select'); setShowBuy(true) }}>+ 加购积分</button>
       </header>
 
       {/* 汇总卡片 */}
@@ -265,44 +351,85 @@ export default function CreditsPage({ onNavigate, onNavigateWithContentPrefill, 
 
       {/* 加购弹窗 */}
       {showBuy && (
-        <div className="modal-mask" onClick={() => setShowBuy(false)}>
+        <div className="modal-mask" onClick={closeBuy}>
           <div className="modal-card" onClick={e => e.stopPropagation()}>
             <div className="modal-head">
-              <h3>加购积分</h3>
-              <button className="modal-close" onClick={() => setShowBuy(false)}>×</button>
+              <h3>{payStep === 'success' ? '充值成功' : payStep === 'qr' ? '扫码支付' : '加购积分'}</h3>
+              <button className="modal-close" onClick={closeBuy}>×</button>
             </div>
 
-            <div className="pkg-grid">
-              {PACKAGES.map(p => (
-                <button
-                  key={p.id}
-                  className={'pkg-card' + (selectedPkg === p.id ? ' is-active' : '')}
-                  onClick={() => setSelectedPkg(p.id)}>
-                  <div className="pkg-credits">{p.credits.toLocaleString()} 积分</div>
-                  <div className="pkg-price">¥{p.price}</div>
-                  {p.save > 0 && <div className="pkg-save">省 ¥{p.save}</div>}
-                </button>
-              ))}
-            </div>
+            {/* ── 选套餐 ── */}
+            {payStep === 'select' && (
+              <>
+                <div className="pkg-grid">
+                  {packages.map(p => (
+                    <button
+                      key={p.id}
+                      className={'pkg-card' + (selectedPkg === p.id ? ' is-active' : '')}
+                      onClick={() => setSelectedPkg(p.id)}>
+                      <div className="pkg-credits">{p.credits.toLocaleString()} 积分</div>
+                      <div className="pkg-price">¥{p.priceYuan}</div>
+                      {p.saveFen > 0 && <div className="pkg-save">省 ¥{p.saveYuan}</div>}
+                    </button>
+                  ))}
+                </div>
 
-            <div className="pay-row">
-              <div className="pay-label">支付方式</div>
-              <div className="pay-methods">
-                {[{ id: 'wechat', label: '微信支付' }, { id: 'alipay', label: '支付宝' }].map(m => (
-                  <label key={m.id} className={'pay-opt' + (payMethod === m.id ? ' is-active' : '')}>
-                    <input type="radio" name="pay" checked={payMethod === m.id} onChange={() => setPayMethod(m.id)} />
-                    {m.label}
-                  </label>
-                ))}
+                <div className="pay-row">
+                  <div className="pay-label">支付方式</div>
+                  <div className="pay-methods">
+                    {[{ id: 'wechat', label: '微信支付' }, { id: 'alipay', label: '支付宝' }].map(m => (
+                      <label key={m.id} className={'pay-opt' + (payMethod === m.id ? ' is-active' : '')}>
+                        <input type="radio" name="pay" checked={payMethod === m.id} onChange={() => setPayMethod(m.id)} />
+                        {m.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {payErr && <div className="pay-error">{payErr}</div>}
+
+                <div className="modal-foot">
+                  <div className="modal-total">合计 ¥{pkg?.priceYuan ?? '--'}</div>
+                  <button className="btn-confirm" onClick={handlePay} disabled={payLoading}>
+                    {payLoading ? '创建订单中…' : '确认支付'}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* ── 二维码 ── */}
+            {payStep === 'qr' && (
+              <>
+                <div className="qr-wrap">
+                  <p className="qr-tip">请使用微信扫一扫</p>
+                  {codeUrl ? (
+                    <QRCodeSVG value={codeUrl} size={200} />
+                  ) : (
+                    <div className="rv-loading">生成二维码中…</div>
+                  )}
+                  <p className="qr-sub">支付后页面将自动更新，请勿关闭</p>
+                  <p className="qr-amount">实付 ¥0.01（测试）· {pkg?.credits?.toLocaleString()} 积分</p>
+                </div>
+                {payErr && <div className="pay-error">{payErr}</div>}
+                <div className="modal-foot" style={{ justifyContent: 'center' }}>
+                  <button className="btn-text" onClick={() => { stopPolling(); setPayStep('select') }}>
+                    返回重选
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* ── 支付成功 ── */}
+            {payStep === 'success' && (
+              <div className="pay-success">
+                <div className="success-icon">✓</div>
+                <div className="success-text">支付成功！</div>
+                <div className="success-sub">
+                  {pkg?.credits?.toLocaleString()} 积分已到账，感谢支持
+                </div>
+                <button className="btn-confirm" onClick={closeBuy}>完成</button>
               </div>
-            </div>
-
-            {payTip && <div className="pay-tip">{payTip}</div>}
-
-            <div className="modal-foot">
-              <div className="modal-total">合计 ¥{pkg?.price || 0}</div>
-              <button className="btn-confirm" onClick={handlePay}>确认支付</button>
-            </div>
+            )}
           </div>
         </div>
       )}
