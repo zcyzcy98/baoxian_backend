@@ -12,9 +12,15 @@ import org.springframework.stereotype.Component;
 public class DouyinSettings {
 
     private volatile String cookie;
+    private final String jlwzApiId;
+    private final String jlwzApiKey;
 
-    public DouyinSettings(@Value("${douyin.cookie:}") String initialCookie) {
+    public DouyinSettings(@Value("${douyin.cookie:}") String initialCookie,
+                          @Value("${douyin.jlwz.api-id:}") String jlwzApiId,
+                          @Value("${douyin.jlwz.api-key:}") String jlwzApiKey) {
         this.cookie = initialCookie != null ? initialCookie.trim() : "";
+        this.jlwzApiId = jlwzApiId != null ? jlwzApiId.trim() : "";
+        this.jlwzApiKey = jlwzApiKey != null ? jlwzApiKey.trim() : "";
     }
 
     public String getCookie() { return cookie; }
@@ -25,5 +31,14 @@ public class DouyinSettings {
 
     public boolean hasCookie() {
         return cookie != null && !cookie.isBlank();
+    }
+
+    public String getJlwzApiId() { return jlwzApiId; }
+
+    public String getJlwzApiKey() { return jlwzApiKey; }
+
+    public boolean hasJlwzApi() {
+        return jlwzApiId != null && !jlwzApiId.isBlank()
+                && jlwzApiKey != null && !jlwzApiKey.isBlank();
     }
 }

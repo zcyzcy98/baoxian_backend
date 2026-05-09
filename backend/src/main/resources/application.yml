@@ -115,6 +115,9 @@ tophubdata:
 
 douyin:
   cookie: ${DOUYIN_COOKIE:}
+  jlwz:
+    api-id: ${DOUYIN_JLWZ_API_ID:}
+    api-key: ${DOUYIN_JLWZ_API_KEY:}
 
 logging:
   level:
