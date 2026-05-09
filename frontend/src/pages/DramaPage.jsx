@@ -66,8 +66,8 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
   // 空白创作模式
   const [topic, setTopic] = useState('')
   const [direction, setDirection] = useState('')
-  const [platform, setPlatform] = useState('douyin')
-  const [duration, setDuration] = useState('60秒')
+  const [platform, setPlatform] = useState('')
+  const [duration, setDuration] = useState('')
   
   // 爆款仿写模式
   const [refUrl, setRefUrl] = useState('')
@@ -91,8 +91,8 @@ export default function DramaPage({ topicPrefill, onPrefillConsumed, mode = 'cre
   const [backgroundPreview, setBackgroundPreview] = useState(null)
   const [backgroundUploading, setBackgroundUploading] = useState(false)
   const [licenseChecked, setLicenseChecked] = useState(false)
-  const [videoRatio, setVideoRatio] = useState('9:16')
-  const [videoResolution, setVideoResolution] = useState('720p')
+  const [videoRatio, setVideoRatio] = useState('')
+  const [videoResolution, setVideoResolution] = useState('')
   const charFileRef = useRef(null)
   const bgFileRef = useRef(null)
 

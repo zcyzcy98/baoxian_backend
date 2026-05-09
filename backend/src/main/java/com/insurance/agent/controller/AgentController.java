@@ -14,6 +14,8 @@ import com.insurance.agent.service.DouyinExtractService;
 import com.insurance.agent.service.KnowledgeQaService;
 import com.insurance.agent.service.MediaToDocService;
 import com.insurance.agent.service.XhsComplianceService;
+import com.insurance.agent.service.AuthService;
+import com.insurance.agent.service.CreditsService;
 import com.insurance.agent.service.GeneratedContentService;
 import com.insurance.agent.service.XhsExtractService;
 import com.insurance.agent.service.XhsSampleRagService;
@@ -32,6 +34,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -54,6 +57,8 @@ public class AgentController {
     private final XhsExtractService xhsExtract;
     private final DouyinExtractService douyinExtract;
     private final GeneratedContentService generatedContent;
+    private final AuthService authService;
+    private final CreditsService creditsService;
 
     public AgentController(DeepSeekService deepSeek,
                            ComplianceCheckService complianceCheckService,
@@ -67,7 +72,9 @@ public class AgentController {
                            MediaToDocService mediaToDoc,
                            XhsExtractService xhsExtract,
                            DouyinExtractService douyinExtract,
-                           GeneratedContentService generatedContent) {
+                           GeneratedContentService generatedContent,
+                           AuthService authService,
+                           CreditsService creditsService) {
         this.deepSeek = deepSeek;
         this.complianceCheckService = complianceCheckService;
         this.xhsCompliance = xhsCompliance;
@@ -81,6 +88,8 @@ public class AgentController {
         this.xhsExtract = xhsExtract;
         this.douyinExtract = douyinExtract;
         this.generatedContent = generatedContent;
+        this.authService = authService;
+        this.creditsService = creditsService;
     }
 
     @GetMapping("/image-templates")
@@ -138,7 +147,8 @@ public class AgentController {
     }
 
     @PostMapping("/text")
-    public ResponseEntity<AgentResponse> generateText(@RequestBody AgentRequest req) {
+    public ResponseEntity<AgentResponse> generateText(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
         if (isBlank(req.getTopic())) {
             return ResponseEntity.badRequest().body(new AgentResponse("主题不能为空", null));
         }
@@ -217,6 +227,7 @@ public class AgentController {
         AgentResponse resp = new AgentResponse(content, modelLabel);
         resp.setComplianceWarnings(toWarningMaps(xhsCompliance.check(content)));
         generatedContent.save("xhs_post", req.getTopic(), content, null, null, null, modelLabel);
+        creditsService.deduct(resolveUserId(auth), 3, "xhs_text", req.getTopic());
         return ResponseEntity.ok(resp);
     }
 
@@ -301,16 +312,18 @@ public class AgentController {
     }
 
     @PostMapping("/image")
-    public ResponseEntity<AgentResponse> generateImage(@RequestBody AgentRequest req) {
-        return generateImageWithProvider(req, false);
+    public ResponseEntity<AgentResponse> generateImage(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
+        return generateImageWithProvider(req, false, auth);
     }
 
     @PostMapping("/image/seedream")
-    public ResponseEntity<AgentResponse> generateSeedreamImage(@RequestBody AgentRequest req) {
-        return generateImageWithProvider(req, true);
+    public ResponseEntity<AgentResponse> generateSeedreamImage(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
+        return generateImageWithProvider(req, true, auth);
     }
 
-    private ResponseEntity<AgentResponse> generateImageWithProvider(AgentRequest req, boolean useSeedream) {
+    private ResponseEntity<AgentResponse> generateImageWithProvider(AgentRequest req, boolean useSeedream, String auth) {
         if (isBlank(req.getTopic())) {
             return ResponseEntity.badRequest().body(new AgentResponse("画面主题不能为空", null));
         }
@@ -339,6 +352,7 @@ public class AgentController {
                 + (useSeedream ? imageGeneration.seedreamModelLabel() : imageGeneration.modelLabel());
         resp.setModel(imageModel);
         generatedContent.save("image", req.getTopic(), content, imageUrl, null, null, imageModel);
+        creditsService.deduct(resolveUserId(auth), 3, "xhs_images", "单张 AI 配图");
         return ResponseEntity.ok(resp);
     }
 
@@ -371,7 +385,8 @@ public class AgentController {
     }
 
     @PostMapping("/gzh-text")
-    public ResponseEntity<AgentResponse> generateGzhText(@RequestBody AgentRequest req) {
+    public ResponseEntity<AgentResponse> generateGzhText(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
         if (isBlank(req.getTopic())) {
             return ResponseEntity.badRequest().body(new AgentResponse("主题不能为空", null));
         }
@@ -404,11 +419,13 @@ public class AgentController {
                 + (isBlank(req.getStyle()) ? "" : "\n写作方向补充: " + req.getStyle());
         String content = deepSeek.chat(system, user, req.getModel());
         generatedContent.save("gzh_article", req.getTopic(), content, null, null, null, deepSeek.resolveModel(req.getModel()));
+        creditsService.deduct(resolveUserId(auth), 5, "gzh_text", req.getTopic());
         return ResponseEntity.ok(new AgentResponse(content, deepSeek.resolveModel(req.getModel())));
     }
 
     @PostMapping("/wechat-create")
-    public ResponseEntity<AgentResponse> generateWechatArticle(@RequestBody AgentRequest req) {
+    public ResponseEntity<AgentResponse> generateWechatArticle(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
         if (isBlank(req.getTopic())) {
             return ResponseEntity.badRequest().body(new AgentResponse("主题不能为空", null));
         }
@@ -493,12 +510,14 @@ public class AgentController {
                 System.err.println("图片生成失败: " + e.getMessage());
             }
         }
-        
+
+        creditsService.deduct(resolveUserId(auth), 5, "gzh_text", req.getTopic());
         return ResponseEntity.ok(resp);
     }
 
     @PostMapping("/video-script")
-    public ResponseEntity<AgentResponse> generateVideoScript(@RequestBody AgentRequest req) {
+    public ResponseEntity<AgentResponse> generateVideoScript(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
         if (isBlank(req.getTopic())) {
             return ResponseEntity.badRequest().body(new AgentResponse("视频主题不能为空", null));
         }
@@ -527,11 +546,13 @@ public class AgentController {
         if (!isBlank(req.getDuration())) user.append("\n时长: ").append(req.getDuration());
         String content = deepSeek.chat(system, user.toString(), req.getModel());
         generatedContent.save("video_script", req.getTopic(), content, null, null, null, deepSeek.resolveModel(req.getModel()));
+        creditsService.deduct(resolveUserId(auth), 8, "video_script", req.getTopic());
         return ResponseEntity.ok(new AgentResponse(content, deepSeek.resolveModel(req.getModel())));
     }
 
     @PostMapping("/video-to-script")
-    public ResponseEntity<AgentResponse> generateVideoToScript(@RequestBody AgentRequest req) {
+    public ResponseEntity<AgentResponse> generateVideoToScript(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
         boolean hasVideoUrl = !isBlank(req.getVideoUrl());
         boolean hasTranscript = !isBlank(req.getContent());
         if (!hasVideoUrl && !hasTranscript) {
@@ -689,6 +710,7 @@ public class AgentController {
 
                 %s
                 """.formatted(result.document(), result.script());
+        creditsService.deduct(resolveUserId(auth), 15, "video_rip", "视频仿做分析");
         return ResponseEntity.ok(new AgentResponse(content, result.modelLabel() + " + media2doc-workflow"));
     }
 
@@ -705,7 +727,8 @@ public class AgentController {
     }
 
     @PostMapping("/video-storyboard")
-    public ResponseEntity<AgentResponse> generateVideoStoryboard(@RequestBody AgentRequest req) {
+    public ResponseEntity<AgentResponse> generateVideoStoryboard(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
         boolean hasTopic = !isBlank(req.getTopic());
         boolean hasScript = !isBlank(req.getScript());
         if (!hasTopic && !hasScript) {
@@ -746,6 +769,7 @@ public class AgentController {
         String content = deepSeek.chat(system, user.toString(), req.getModel());
         // 清洗 JSON：去掉可能的代码块标记
         String cleaned = content.replaceAll("(?s)```[a-zA-Z]*\\s*", "").replaceAll("```", "").trim();
+        creditsService.deduct(resolveUserId(auth), 12, "drama_script", req.getTopic());
         return ResponseEntity.ok(new AgentResponse(cleaned, deepSeek.resolveModel(req.getModel())));
     }
 
@@ -857,7 +881,8 @@ public class AgentController {
      * 流程：DeepSeek 拆分脚本 → 逐段调用 Seedance API → 返回所有片段 URL。
      */
     @PostMapping("/video-generate-seedance")
-    public ResponseEntity<?> generateVideoSeedance(@RequestBody AgentRequest req) {
+    public ResponseEntity<?> generateVideoSeedance(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
         boolean hasSegments = req.getStoryboardSegments() != null && !req.getStoryboardSegments().isEmpty();
         if (!hasSegments && isBlank(req.getScript()) && isBlank(req.getTopic())) {
             return ResponseEntity.badRequest().body(Map.of("error", "口播脚本不能为空"));
@@ -896,6 +921,7 @@ public class AgentController {
                 m.put("videoUrl", r.videoUrl());
                 segments.add(m);
             }
+            creditsService.deduct(resolveUserId(auth), 80, "video_render", "口播视频成片");
             return ResponseEntity.ok(Map.of("segments", segments, "total", results.size()));
         } catch (Exception e) {
             log.error("[Seedance] 视频生成失败: {}", e.getMessage(), e);
@@ -973,7 +999,8 @@ public class AgentController {
     // ─── 爆款拆解 ───────────────────────────────────────────────────────────
 
     @PostMapping("/viral-xhs")
-    public ResponseEntity<AgentResponse> analyzeViralXhs(@RequestBody AgentRequest req) {
+    public ResponseEntity<AgentResponse> analyzeViralXhs(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
         if (isBlank(req.getVideoUrl())) {
             return ResponseEntity.badRequest().body(new AgentResponse("请粘贴小红书笔记链接", null));
         }
@@ -1015,6 +1042,7 @@ public class AgentController {
         }
         
         String modelLabel = deepSeek.resolveModel(req.getModel()) + (transcript != null ? " + 视频转写" : " + 文案分析");
+        creditsService.deduct(resolveUserId(auth), 6, "viral_xhs", "拆解小红书爆款");
         return ResponseEntity.ok(new AgentResponse(content, modelLabel));
     }
 
@@ -1101,7 +1129,8 @@ public class AgentController {
     }
 
     @PostMapping("/viral-douyin")
-    public ResponseEntity<AgentResponse> analyzeViralDouyin(@RequestBody AgentRequest req) {
+    public ResponseEntity<AgentResponse> analyzeViralDouyin(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
         if (isBlank(req.getVideoUrl())) {
             return ResponseEntity.badRequest().body(new AgentResponse("请粘贴抖音作品链接", null));
         }
@@ -1149,6 +1178,7 @@ public class AgentController {
         }
         
         String modelLabel = deepSeek.resolveModel(req.getModel()) + (transcript != null ? " + 视频转写" : " + 文案分析");
+        creditsService.deduct(resolveUserId(auth), 15, "viral_douyin", "拆解抖音爆款");
         return ResponseEntity.ok(new AgentResponse(content, modelLabel));
     }
 
@@ -1329,7 +1359,8 @@ public class AgentController {
     private static final ExecutorService IMAGE_POOL = Executors.newFixedThreadPool(9);
 
     @PostMapping("/xhs-batch-images")
-    public ResponseEntity<List<Map<String, Object>>> generateXhsBatchImages(@RequestBody AgentRequest req) {
+    public ResponseEntity<List<Map<String, Object>>> generateXhsBatchImages(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
         if (isBlank(req.getContent())) {
             return ResponseEntity.badRequest().body(List.of(Map.of("error", "文章内容不能为空")));
         }
@@ -1435,7 +1466,13 @@ public class AgentController {
         List<Map<String, Object>> results = futures.stream()
                 .map(CompletableFuture::join)
                 .toList();
+        creditsService.deduct(resolveUserId(auth), 5, "xhs_images", "小红书配图");
         return ResponseEntity.ok(results);
+    }
+
+    private long resolveUserId(String auth) {
+        if (auth == null || !auth.startsWith("Bearer ")) throw new IllegalArgumentException("未登录");
+        return authService.userIdByToken(auth.substring(7));
     }
 
     private static List<Map<String, String>> toWarningMaps(List<XhsComplianceService.Violation> violations) {

@@ -40,6 +40,19 @@ export async function sendCode(phone) {
   return data
 }
 
+export async function logout() {
+  const token = getToken()
+  if (token) {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    } catch { /* ignore network errors on logout */ }
+  }
+  clearToken()
+}
+
 export async function verifyCode(phone, code) {
   const res = await fetch('/api/auth/verify', {
     method: 'POST',

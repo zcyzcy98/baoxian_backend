@@ -15,8 +15,6 @@ import java.util.*;
 public class StyleService {
 
     private static final Logger log = LoggerFactory.getLogger(StyleService.class);
-    private static final long DEFAULT_USER_ID = 1L; // placeholder until auth is implemented
-
     private final DataSource dataSource;
     private final DeepSeekService deepSeek;
     private final XhsExtractService xhsExtract;
@@ -69,7 +67,7 @@ public class StyleService {
 
     // ─── Sources ────────────────────────────────────────────────────────────
 
-    public Map<String, Object> addSource(String title, String type, String url, String rawText, String model) {
+    public Map<String, Object> addSource(long userId, String title, String type, String url, String rawText, String model) {
         String resolvedText = rawText;
         String resolvedType = type;
         String resolvedUrl  = url;
@@ -106,7 +104,7 @@ public class StyleService {
         try (Connection c = conn();
              PreparedStatement ps = c.prepareStatement(
                 "INSERT INTO style_sources(user_id,title,content_type,url,raw_text,word_count) VALUES(?,?,?,?,?,?) RETURNING id,created_at")) {
-            ps.setLong(1, DEFAULT_USER_ID);
+            ps.setLong(1, userId);
             ps.setString(2, title);
             ps.setString(3, resolvedType);
             ps.setString(4, resolvedUrl);
@@ -131,23 +129,23 @@ public class StyleService {
         throw new RuntimeException("添加素材失败");
     }
 
-    public void deleteSource(long id) {
+    public void deleteSource(long userId, long id) {
         try (Connection c = conn();
              PreparedStatement ps = c.prepareStatement("DELETE FROM style_sources WHERE id=? AND user_id=?")) {
             ps.setLong(1, id);
-            ps.setLong(2, DEFAULT_USER_ID);
+            ps.setLong(2, userId);
             ps.executeUpdate();
         } catch (Exception e) {
             throw new RuntimeException("删除素材失败: " + e.getMessage(), e);
         }
     }
 
-    public List<Map<String, Object>> listSources() {
+    public List<Map<String, Object>> listSources(long userId) {
         List<Map<String, Object>> list = new ArrayList<>();
         try (Connection c = conn();
              PreparedStatement ps = c.prepareStatement(
                 "SELECT id,title,content_type,url,raw_text,word_count,created_at FROM style_sources WHERE user_id=? ORDER BY created_at DESC")) {
-            ps.setLong(1, DEFAULT_USER_ID);
+            ps.setLong(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     Map<String, Object> row = new LinkedHashMap<>();
@@ -169,11 +167,11 @@ public class StyleService {
 
     // ─── Profile ────────────────────────────────────────────────────────────
 
-    public Map<String, Object> getProfile() {
+    public Map<String, Object> getProfile(long userId) {
         try (Connection c = conn();
              PreparedStatement ps = c.prepareStatement(
                 "SELECT version,source_count,total_words,signature,radar,traits,trained_at FROM style_profiles WHERE user_id=?")) {
-            ps.setLong(1, DEFAULT_USER_ID);
+            ps.setLong(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     Map<String, Object> m = new LinkedHashMap<>();
@@ -195,8 +193,8 @@ public class StyleService {
 
     // ─── Train ──────────────────────────────────────────────────────────────
 
-    public Map<String, Object> train(String model) {
-        List<Map<String, Object>> sources = listSources();
+    public Map<String, Object> train(long userId, String model) {
+        List<Map<String, Object>> sources = listSources(userId);
         if (sources.isEmpty()) throw new RuntimeException("请先添加至少一篇素材");
 
         // Re-query with full raw_text (listSources only returns preview snippets)
@@ -206,7 +204,7 @@ public class StyleService {
         try (Connection c = conn();
              PreparedStatement ps = c.prepareStatement(
                 "SELECT raw_text, word_count FROM style_sources WHERE user_id=? AND raw_text IS NOT NULL ORDER BY created_at DESC")) {
-            ps.setLong(1, DEFAULT_USER_ID);
+            ps.setLong(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     String t = rs.getString("raw_text");
@@ -282,7 +280,7 @@ public class StyleService {
         try (Connection c = conn()) {
             // Get current version
             try (PreparedStatement ps = c.prepareStatement("SELECT version FROM style_profiles WHERE user_id=?")) {
-                ps.setLong(1, DEFAULT_USER_ID);
+                ps.setLong(1, userId);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) version = rs.getInt(1) + 1;
                 }
@@ -297,7 +295,7 @@ public class StyleService {
                       total_words=EXCLUDED.total_words, signature=EXCLUDED.signature,
                       radar=EXCLUDED.radar, traits=EXCLUDED.traits, trained_at=NOW()
                     """)) {
-                ps.setLong(1, DEFAULT_USER_ID);
+                ps.setLong(1, userId);
                 ps.setInt(2, version);
                 ps.setInt(3, texts.size());
                 ps.setInt(4, totalWords);
@@ -322,8 +320,8 @@ public class StyleService {
 
     // ─── Preview ────────────────────────────────────────────────────────────
 
-    public String preview(String topic, String model) {
-        Map<String, Object> profile = getProfile();
+    public String preview(long userId, String topic, String model) {
+        Map<String, Object> profile = getProfile(userId);
         if (profile == null) throw new RuntimeException("请先训练风格");
 
         String signature = (String) profile.get("signature");

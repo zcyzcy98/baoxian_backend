@@ -36,10 +36,10 @@ export default function AdvisoryPage() {
 
   const [customerInfo, setCustomerInfo] = useState('')
   const [question, setQuestion] = useState('')
-  const [channel, setChannel] = useState('weixin')
+  const [channel, setChannel] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
   const [error, setError] = useState('')
-  const [tab, setTab] = useState('stable')
+  const [tab, setTab] = useState('')
 
   // 当前查看的消息(分析结果)索引, null 表示看最新一条
   const [pickedIdx, setPickedIdx] = useState(null)

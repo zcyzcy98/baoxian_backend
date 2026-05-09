@@ -1,6 +1,8 @@
 package com.insurance.agent.controller;
 
 import com.insurance.agent.dto.AdvisoryRequest;
+import com.insurance.agent.service.AuthService;
+import com.insurance.agent.service.CreditsService;
 import com.insurance.agent.service.CustomerAdvisoryService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,9 +14,15 @@ import java.util.Map;
 public class CustomerAdvisoryController {
 
     private final CustomerAdvisoryService service;
+    private final AuthService authService;
+    private final CreditsService creditsService;
 
-    public CustomerAdvisoryController(CustomerAdvisoryService service) {
+    public CustomerAdvisoryController(CustomerAdvisoryService service,
+                                      AuthService authService,
+                                      CreditsService creditsService) {
         this.service = service;
+        this.authService = authService;
+        this.creditsService = creditsService;
     }
 
     @GetMapping("/sessions")
@@ -42,13 +50,26 @@ public class CustomerAdvisoryController {
     }
 
     @PostMapping("/sessions/{id}/analyze")
-    public ResponseEntity<?> analyze(@PathVariable long id, @RequestBody AdvisoryRequest req) {
+    public ResponseEntity<?> analyze(
+            @PathVariable long id,
+            @RequestBody AdvisoryRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
         if (req.getQuestion() == null || req.getQuestion().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "客户问题不能为空"));
         }
         if (req.getCustomerInfo() == null || req.getCustomerInfo().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "客户基本情况不能为空"));
         }
+        // 基础答疑 2 积分；如果有图片分析额外 +1 积分
+        int cost = 2;
+        String q = req.getQuestion();
+        String desc = q.length() > 50 ? q.substring(0, 50) + "…" : q;
+        creditsService.deduct(resolveUserId(auth), cost, "advisory", desc);
         return ResponseEntity.ok(service.analyze(id, req.getCustomerInfo(), req.getQuestion(), req.getChannel()));
+    }
+
+    private long resolveUserId(String auth) {
+        if (auth == null || !auth.startsWith("Bearer ")) throw new IllegalArgumentException("未登录");
+        return authService.userIdByToken(auth.substring(7));
     }
 }

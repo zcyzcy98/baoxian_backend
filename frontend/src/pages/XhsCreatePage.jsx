@@ -17,9 +17,9 @@ export default function XhsCreatePage({ topicPrefill, onPrefillConsumed }) {
   // Step 1 form data
   const [topic, setTopic] = useState('')
   const [direction, setDirection] = useState('')
-  const [insuranceTypes, setInsuranceTypes] = useState(['医疗险', '重疾险'])
-  const [audiences, setAudiences] = useState(['中产', '宝妈'])
-  const [styleOption, setStyleOption] = useState('personal')
+  const [insuranceTypes, setInsuranceTypes] = useState([])
+  const [audiences, setAudiences] = useState([])
+  const [styleOption, setStyleOption] = useState('')
 
   // Step 2 generated content
   const [titles, setTitles] = useState([])

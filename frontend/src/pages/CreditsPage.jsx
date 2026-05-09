@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { fetchCreditsSummary, fetchCreditsRecords } from '../api'
 import './CreditsPage.css'
 
 const PACKAGES = [
@@ -22,17 +23,6 @@ const PLATFORM_LABEL = {
 
 const KIND_ICON = { create: '✦', qa: '💬', topup: '+' }
 
-async function fetchSummary() {
-  const res = await fetch('/api/credits/summary')
-  if (!res.ok) throw new Error('获取汇总失败')
-  return res.json()
-}
-
-async function fetchRecords(filter, page) {
-  const res = await fetch(`/api/credits/records?filter=${filter}&page=${page}&size=20`)
-  if (!res.ok) throw new Error('获取记录失败')
-  return res.json()
-}
 
 export default function CreditsPage() {
   const [filter,      setFilter]      = useState('all')
@@ -49,7 +39,7 @@ export default function CreditsPage() {
 
   const loadRecords = useCallback(async (f, p, append = false) => {
     try {
-      const data = await fetchRecords(f, p)
+      const data = await fetchCreditsRecords(f, p, 20)
       setRecords(prev => append ? [...prev, ...data] : data)
       setHasMore(data.length === 20)
     } catch (e) {
@@ -61,7 +51,7 @@ export default function CreditsPage() {
     setLoading(true)
     setPage(0)
     Promise.all([
-      fetchSummary().then(setSummary).catch(console.error),
+      fetchCreditsSummary().then(setSummary).catch(console.error),
       loadRecords(filter, 0),
     ]).finally(() => setLoading(false))
   }, [filter, loadRecords])
@@ -79,10 +69,14 @@ export default function CreditsPage() {
     setFilter(f)
   }
 
-  const totalCost   = summary?.totalCost   || 0
-  const totalQa     = summary?.totalQa     || 0
-  const typeCounts  = summary?.typeCounts  || {}
-  const totalCreate = Object.values(typeCounts).reduce((a, b) => a + b, 0)
+  const balance      = summary?.balance      ?? null
+  const totalCredits = summary?.total        || 8000
+  const totalConsumed = summary?.totalConsumed || 0
+  const actionCounts = summary?.actionCounts || {}
+  const totalCreate  = Object.entries(actionCounts)
+    .filter(([k]) => !['advisory','topic_refresh','topup'].includes(k))
+    .reduce((a, [,v]) => a + Number(v), 0)
+  const totalQa      = actionCounts['advisory'] || 0
 
   const pkg = PACKAGES.find(p => p.id === selectedPkg)
 
@@ -104,11 +98,19 @@ export default function CreditsPage() {
       {/* 汇总卡片 */}
       <section className="balance-card">
         <div className="balance-main">
-          <div className="balance-label">累计消耗</div>
-          <div className="balance-num">{totalCost.toLocaleString()}</div>
-          <div className="balance-tip">积分</div>
+          <div className="balance-label">剩余积分</div>
+          <div className="balance-num">{balance !== null ? balance.toLocaleString() : '—'}</div>
+          <div className="balance-tip">/ {totalCredits.toLocaleString()} 积分</div>
+          <div className="balance-bar">
+            <div className="balance-bar-fill" style={{ width: balance !== null ? `${(balance / totalCredits * 100).toFixed(1)}%` : '0%' }} />
+          </div>
         </div>
         <div className="balance-stats">
+          <div className="stat-item">
+            <div className="stat-num">{totalConsumed.toLocaleString()}</div>
+            <div className="stat-label">累计消耗</div>
+          </div>
+          <div className="stat-divider" />
           <div className="stat-item">
             <div className="stat-num">{totalCreate}</div>
             <div className="stat-label">内容生成次数</div>
@@ -117,11 +119,6 @@ export default function CreditsPage() {
           <div className="stat-item">
             <div className="stat-num">{totalQa}</div>
             <div className="stat-label">客户答疑次数</div>
-          </div>
-          <div className="stat-divider" />
-          <div className="stat-item">
-            <div className="stat-num">{totalCreate + Number(totalQa)}</div>
-            <div className="stat-label">总使用次数</div>
           </div>
         </div>
       </section>

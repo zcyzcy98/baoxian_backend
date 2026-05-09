@@ -1,12 +1,20 @@
+import { getToken } from './auth'
+
+function authHeaders() {
+  const token = getToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 export async function callAgent(endpoint, payload, model) {
   const res = await fetch(`/api/agents/${endpoint}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ ...payload, model }),
   })
   if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`接口调用失败 (${res.status}): ${text || res.statusText}`)
+    let msg = `接口调用失败 (${res.status})`
+    try { const d = await res.json(); if (d?.error) msg = d.error } catch {}
+    throw new Error(msg)
   }
   return res.json()
 }
@@ -14,7 +22,7 @@ export async function callAgent(endpoint, payload, model) {
 async function postJson(path, payload) {
   const res = await fetch(path, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(payload),
   })
   if (!res.ok) {
@@ -25,8 +33,20 @@ async function postJson(path, payload) {
     } catch {
       // Keep the HTTP status message when the response body is not JSON.
     }
+    // HTTP 402 = 积分不足，抛出带特殊标记的错误
+    if (res.status === 402) {
+      const err = new Error(msg)
+      err.code = 'INSUFFICIENT_CREDITS'
+      throw err
+    }
     throw new Error(msg)
   }
+  return res.json()
+}
+
+async function getJson(path) {
+  const res = await fetch(path, { headers: authHeaders() })
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
   return res.json()
 }
 
@@ -55,9 +75,7 @@ export async function createWechatDraft(payload) {
 }
 
 export async function fetchRewriteModes() {
-  const res = await fetch('/api/notes/rewrite-modes')
-  if (!res.ok) throw new Error('加载改写模式列表失败')
-  return res.json()
+  return getJson('/api/notes/rewrite-modes')
 }
 
 export async function rewriteWechat(payload) {
@@ -65,9 +83,7 @@ export async function rewriteWechat(payload) {
 }
 
 export async function fetchImageTemplates() {
-  const res = await fetch('/api/agents/image-templates')
-  if (!res.ok) throw new Error('加载图片模板失败')
-  return res.json()
+  return getJson('/api/agents/image-templates')
 }
 
 export async function generateImage(payload) {
@@ -96,16 +112,25 @@ export async function searchHotTopics(keyword, limit = 50, hashid = '') {
 }
 
 export async function fetchSearchOptions() {
-  const res = await fetch('/api/topics/search-options')
-  if (!res.ok) throw new Error('加载搜索选项失败')
-  return res.json()
+  return getJson('/api/topics/search-options')
+}
+
+// ─── 积分 ────────────────────────────────────────────────────────────────────
+export async function fetchCreditsBalance() {
+  return getJson('/api/credits/balance')
+}
+
+export async function fetchCreditsSummary() {
+  return getJson('/api/credits/summary')
+}
+
+export async function fetchCreditsRecords(filter = 'all', page = 0, size = 20) {
+  return getJson(`/api/credits/records?filter=${filter}&page=${page}&size=${size}`)
 }
 
 // ─── 客户答疑 ────────────────────────────────────
 export async function fetchAdvisorySessions() {
-  const res = await fetch('/api/advisory/sessions')
-  if (!res.ok) throw new Error('加载客户列表失败')
-  return res.json()
+  return getJson('/api/advisory/sessions')
 }
 
 export async function createAdvisorySession(name, summary = '') {
@@ -113,9 +138,7 @@ export async function createAdvisorySession(name, summary = '') {
 }
 
 export async function fetchAdvisorySession(id) {
-  const res = await fetch(`/api/advisory/sessions/${id}`)
-  if (!res.ok) throw new Error('加载客户会话失败')
-  return res.json()
+  return getJson(`/api/advisory/sessions/${id}`)
 }
 
 export async function analyzeCustomer(sessionId, customerInfo, question, channel) {
@@ -123,7 +146,7 @@ export async function analyzeCustomer(sessionId, customerInfo, question, channel
 }
 
 export async function deleteAdvisorySession(id) {
-  const res = await fetch(`/api/advisory/sessions/${id}`, { method: 'DELETE' })
+  const res = await fetch(`/api/advisory/sessions/${id}`, { method: 'DELETE', headers: authHeaders() })
   if (!res.ok) throw new Error('删除失败')
   return res.json()
 }
@@ -131,9 +154,7 @@ export async function deleteAdvisorySession(id) {
 // ─── 个人风格 ──────────────────────────────────────────────────────────────
 
 export async function fetchStyleProfile() {
-  const res = await fetch('/api/style/profile')
-  if (!res.ok) throw new Error('加载风格档案失败')
-  return res.json()
+  return getJson('/api/style/profile')
 }
 
 export async function addStyleSource(payload) {
@@ -141,7 +162,7 @@ export async function addStyleSource(payload) {
 }
 
 export async function deleteStyleSource(id) {
-  const res = await fetch(`/api/style/sources/${id}`, { method: 'DELETE' })
+  const res = await fetch(`/api/style/sources/${id}`, { method: 'DELETE', headers: authHeaders() })
   if (!res.ok) throw new Error('删除素材失败')
   return res.json()
 }

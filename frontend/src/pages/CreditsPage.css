@@ -26,6 +26,14 @@
   color: var(--clay); line-height: 1; margin-bottom: 4px;
 }
 .balance-tip { font-size: 11px; color: var(--ink-3); }
+.balance-bar {
+  margin-top: 10px; height: 4px; background: var(--bone);
+  border-radius: 2px; overflow: hidden; width: 120px;
+}
+.balance-bar-fill {
+  height: 100%; background: linear-gradient(90deg, var(--clay), var(--sand));
+  border-radius: 2px; transition: width 0.4s ease;
+}
 
 /* 统计格子 */
 .balance-stats {

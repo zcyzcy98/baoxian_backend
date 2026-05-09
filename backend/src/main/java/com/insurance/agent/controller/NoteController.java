@@ -4,6 +4,8 @@ import com.insurance.agent.dto.RewriteRequest;
 import com.insurance.agent.dto.RewriteResponse;
 import com.insurance.agent.dto.WechatArticle;
 import com.insurance.agent.dto.XhsNote;
+import com.insurance.agent.service.AuthService;
+import com.insurance.agent.service.CreditsService;
 import com.insurance.agent.service.NoteRewriteService;
 import com.insurance.agent.service.WechatExtractService;
 import com.insurance.agent.service.XhsExtractService;
@@ -11,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,11 +28,22 @@ public class NoteController {
     private final XhsExtractService xhs;
     private final WechatExtractService wechat;
     private final NoteRewriteService rewriteService;
+    private final AuthService authService;
+    private final CreditsService creditsService;
 
-    public NoteController(XhsExtractService xhs, WechatExtractService wechat, NoteRewriteService rewriteService) {
+    public NoteController(XhsExtractService xhs, WechatExtractService wechat,
+                          NoteRewriteService rewriteService,
+                          AuthService authService, CreditsService creditsService) {
         this.xhs = xhs;
         this.wechat = wechat;
         this.rewriteService = rewriteService;
+        this.authService = authService;
+        this.creditsService = creditsService;
+    }
+
+    private long resolveUserId(String auth) {
+        if (auth == null || !auth.startsWith("Bearer ")) throw new IllegalArgumentException("未登录");
+        return authService.userIdByToken(auth.substring(7));
     }
 
     public static class ExtractRequest {
@@ -82,10 +96,12 @@ public class NoteController {
     }
 
     @PostMapping("/rewrite")
-    public ResponseEntity<?> rewrite(@RequestBody RewriteRequest req) {
+    public ResponseEntity<?> rewrite(@RequestBody RewriteRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
         if (req == null || req.getOriginalContent() == null || req.getOriginalContent().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "originalContent 不能为空"));
         }
+        creditsService.deduct(resolveUserId(auth), 12, "xhs_rewrite", "小红书仿写");
         RewriteResponse resp = rewriteService.rewrite(req);
         return ResponseEntity.ok(resp);
     }
@@ -105,7 +121,8 @@ public class NoteController {
      *       → RewriteRequest(从 toRewritableText() 拿内容) → NoteRewriteService → RewriteResponse
      */
     @PostMapping("/wechat/rewrite")
-    public ResponseEntity<?> rewriteWechat(@RequestBody WechatRewriteRequest req) {
+    public ResponseEntity<?> rewriteWechat(@RequestBody WechatRewriteRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
         if (req == null || (req.getUrl() == null && req.getContent() == null)) {
             return ResponseEntity.badRequest().body(Map.of("error", "请提供公众号链接或文章内容"));
         }
@@ -133,10 +150,13 @@ public class NoteController {
         rewriteReq.setRequirements(req.getRequirements());
         rewriteReq.setModel(req.getModel());
 
-        // 3. 执行改写
+        // 3. 扣除积分
+        creditsService.deduct(resolveUserId(auth), 20, "gzh_rewrite", "公众号仿写");
+
+        // 4. 执行改写
         RewriteResponse result = rewriteService.rewrite(rewriteReq);
 
-        // 4. 返回结果，包含原始文章信息
+        // 5. 返回结果，包含原始文章信息
         return ResponseEntity.ok(Map.of(
                 "original", article,
                 "rewritten", result

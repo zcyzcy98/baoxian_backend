@@ -42,6 +42,16 @@ public class AuthController {
         return res;
     }
 
+    @PostMapping("/logout")
+    public Map<String, Object> logout(@RequestHeader(value = "Authorization", required = false) String auth) {
+        if (auth != null && auth.startsWith("Bearer ")) {
+            authService.logout(auth.substring(7));
+        }
+        Map<String, Object> res = new HashMap<>();
+        res.put("ok", true);
+        return res;
+    }
+
     @GetMapping("/me")
     public Map<String, Object> me(@RequestHeader(value = "Authorization", required = false) String auth) {
         String phone = resolvePhone(auth);

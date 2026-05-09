@@ -15,8 +15,6 @@ import java.util.List;
 public class UserProfileService {
 
     private static final Logger log = LoggerFactory.getLogger(UserProfileService.class);
-    private static final long USER_ID = 1L;
-
     private final DataSource dataSource;
 
     public UserProfileService(DataSource dataSource) {
@@ -28,14 +26,14 @@ public class UserProfileService {
     }
 
     // ---- 读取 ----
-    public ProfileDto getProfile() {
+    public ProfileDto getProfile(long userId) {
         ProfileDto dto = new ProfileDto();
-        dto.setId(USER_ID);
+        dto.setId(userId);
 
         String sql = "SELECT name, phone, region, years, avatar_url, primary_products, " +
                      "target_audiences, style, bio, tags FROM user_profile WHERE id = ?";
         try (Connection c = getConn(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setLong(1, USER_ID);
+            ps.setLong(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     dto.setName(rs.getString("name"));
@@ -54,12 +52,12 @@ public class UserProfileService {
             log.error("[Profile] 读取失败", e);
         }
 
-        dto.setPlatforms(getPlatforms());
+        dto.setPlatforms(getPlatforms(userId));
         return dto;
     }
 
     // ---- 保存 ----
-    public ProfileDto saveProfile(ProfileDto req) {
+    public ProfileDto saveProfile(long userId, ProfileDto req) {
         String sql = """
                 INSERT INTO user_profile
                     (id, name, phone, region, years, avatar_url, primary_products, target_audiences, style, bio, tags, updated_at)
@@ -78,7 +76,7 @@ public class UserProfileService {
                     updated_at       = NOW()
                 """;
         try (Connection c = getConn(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setLong(1, USER_ID);
+            ps.setLong(1, userId);
             ps.setString(2, req.getName());
             ps.setString(3, req.getPhone());
             ps.setString(4, req.getRegion());
@@ -90,20 +88,20 @@ public class UserProfileService {
             ps.setString(10, req.getBio());
             ps.setString(11, req.getTags());
             ps.executeUpdate();
-            log.info("[Profile] 保存成功 userId={}", USER_ID);
+            log.info("[Profile] 保存成功 userId={}", userId);
         } catch (SQLException e) {
             log.error("[Profile] 保存失败", e);
             throw new RuntimeException("保存个人信息失败", e);
         }
-        return getProfile();
+        return getProfile(userId);
     }
 
     // ---- 平台绑定列表 ----
-    public List<ProfileDto.PlatformBinding> getPlatforms() {
+    public List<ProfileDto.PlatformBinding> getPlatforms(long userId) {
         List<ProfileDto.PlatformBinding> list = new ArrayList<>();
         String sql = "SELECT platform, account_name, account_id FROM platform_binding WHERE user_id = ?";
         try (Connection c = getConn(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setLong(1, USER_ID);
+            ps.setLong(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     ProfileDto.PlatformBinding b = new ProfileDto.PlatformBinding();
@@ -120,7 +118,7 @@ public class UserProfileService {
     }
 
     // ---- 绑定平台 ----
-    public void bindPlatform(ProfileDto.PlatformBinding req) {
+    public void bindPlatform(long userId, ProfileDto.PlatformBinding req) {
         String sql = """
                 INSERT INTO platform_binding (user_id, platform, account_name, account_id, bound_at)
                 VALUES (?, ?, ?, ?, NOW())
@@ -130,7 +128,7 @@ public class UserProfileService {
                     bound_at     = NOW()
                 """;
         try (Connection c = getConn(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setLong(1, USER_ID);
+            ps.setLong(1, userId);
             ps.setString(2, req.getPlatform());
             ps.setString(3, req.getAccountName());
             ps.setString(4, req.getAccountId());
@@ -143,10 +141,10 @@ public class UserProfileService {
     }
 
     // ---- 解绑平台 ----
-    public void unbindPlatform(String platform) {
+    public void unbindPlatform(long userId, String platform) {
         String sql = "DELETE FROM platform_binding WHERE user_id = ? AND platform = ?";
         try (Connection c = getConn(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setLong(1, USER_ID);
+            ps.setLong(1, userId);
             ps.setString(2, platform);
             ps.executeUpdate();
             log.info("[Platform] 解绑成功: {}", platform);

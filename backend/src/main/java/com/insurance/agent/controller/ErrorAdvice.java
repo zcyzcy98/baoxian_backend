@@ -26,6 +26,17 @@ public class ErrorAdvice {
                 .body(Map.of("error", e.getMessage()));
     }
 
+    @ExceptionHandler(com.insurance.agent.exception.InsufficientCreditsException.class)
+    public ResponseEntity<Map<String, Object>> handleInsufficientCredits(
+            com.insurance.agent.exception.InsufficientCreditsException e) {
+        return ResponseEntity.status(402)
+                .body(Map.of(
+                    "error", e.getMessage(),
+                    "balance", e.getBalance(),
+                    "required", e.getRequired()
+                ));
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntime(RuntimeException e) {
         log.error("Runtime error", e);

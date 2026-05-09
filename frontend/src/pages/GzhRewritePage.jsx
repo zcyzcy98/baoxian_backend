@@ -36,7 +36,7 @@ export default function GzhRewritePage({ topicPrefill, onPrefillConsumed }) {
   const [useStyle, setUseStyle] = useState(false)
   const [audience, setAudience] = useState([])
   const [products, setProducts] = useState([])
-  const [mode, setMode] = useState('mp_rewrite')
+  const [mode, setMode] = useState('')
   const [rewriting, setRewriting] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')

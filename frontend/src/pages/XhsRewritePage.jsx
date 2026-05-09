@@ -23,7 +23,7 @@ export default function XhsRewritePage() {
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [extractedNote, setExtractedNote] = useState(null)
-  const [rewriteMode, setRewriteMode] = useState('synonym')
+  const [rewriteMode, setRewriteMode] = useState('')
   const [requirements, setRequirements] = useState('')
   const [result, setResult] = useState('')
   const [viewMode, setViewMode] = useState('preview') // 'edit' or 'preview'

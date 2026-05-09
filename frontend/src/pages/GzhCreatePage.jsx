@@ -11,10 +11,10 @@ export default function GzhCreatePage({ topicPrefill, onPrefillConsumed }) {
   // Step 1 form
   const [topic, setTopic] = useState('')
   const [direction, setDirection] = useState('')
-  const [wordCount, setWordCount] = useState('2000')
-  const [insuranceTypes, setInsuranceTypes] = useState(['医疗险', '重疾险'])
-  const [audiences, setAudiences] = useState(['中产'])
-  const [styleOption, setStyleOption] = useState('personal')
+  const [wordCount, setWordCount] = useState('')
+  const [insuranceTypes, setInsuranceTypes] = useState([])
+  const [audiences, setAudiences] = useState([])
+  const [styleOption, setStyleOption] = useState('')
 
   // Step 2
   const [titles, setTitles] = useState([])

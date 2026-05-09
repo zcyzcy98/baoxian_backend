@@ -108,6 +108,23 @@ public class AuthService {
         }
     }
 
+    public long userIdByToken(String token) {
+        try (Connection c = dataSource.getConnection();
+             PreparedStatement ps = c.prepareStatement(
+                "SELECT user_id FROM auth_tokens WHERE token = ? AND expires_at > NOW()")) {
+            ps.setString(1, token);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getLong("user_id");
+                throw new IllegalArgumentException("登录已过期，请重新登录");
+            }
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (SQLException e) {
+            log.error("[Auth] userIdByToken 失败: {}", e.getMessage(), e);
+            throw new RuntimeException("token查询失败", e);
+        }
+    }
+
     public String phoneByToken(String token) {
         log.debug("[Auth] phoneByToken token={}...", token.length() > 8 ? token.substring(0, 8) : token);
         try (Connection c = dataSource.getConnection();
@@ -156,6 +173,17 @@ public class AuthService {
             log.info("[ADMIN] granted access to phone={}", phone);
         } catch (SQLException e) {
             log.error("[Auth] grantAccess 失败: {}", e.getMessage());
+        }
+    }
+
+    public void logout(String token) {
+        try (Connection c = dataSource.getConnection();
+             PreparedStatement ps = c.prepareStatement("DELETE FROM auth_tokens WHERE token = ?")) {
+            ps.setString(1, token);
+            ps.executeUpdate();
+            log.info("[Auth] token 已注销 token={}...", token.length() > 8 ? token.substring(0, 8) : token);
+        } catch (SQLException e) {
+            log.error("[Auth] logout 失败: {}", e.getMessage());
         }
     }
 

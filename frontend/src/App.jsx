@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect } from 'react'
+import { useNavigate as useRouterNavigate, useLocation, Navigate } from 'react-router-dom'
 import './index.css'
 import './App.css'
-import { fetchMe, clearToken } from './auth'
+import { fetchMe, logout as authLogout } from './auth'
 import LandingPage from './pages/LandingPage'
 import Sidebar from './components/Sidebar'
 import Topbar from './components/Topbar'
@@ -65,8 +66,8 @@ function useAuth() {
     }
   }
 
-  function onLogout() {
-    clearToken()
+  async function onLogout() {
+    await authLogout()
     setAuth({ status: 'guest', phone: '' })
   }
 
@@ -86,17 +87,20 @@ async function loadProfile() {
 
 export default function App() {
   const { auth, onAuthSuccess, onLogout } = useAuth()
-  const [activeId, setActiveId] = useState(() => {
-    return localStorage.getItem('chengzhi:active-page') || 'topic-square'
-  })
+  const location = useLocation()
+  const routerNavigate = useRouterNavigate()
   const [topicPrefill, setTopicPrefill] = useState(null)
   const [userProfile, setUserProfile] = useState({ name: '', title: '', avatarUrl: null })
 
   useEffect(() => {
     if (auth.status === 'active') {
       loadProfile().then(dto => {
-        if (dto) setUserProfile({ name: dto.name || '', title: dto.years || '', avatarUrl: dto.avatarUrl || null })
+        setUserProfile(dto
+          ? { name: dto.name || '', title: dto.years || '', avatarUrl: dto.avatarUrl || null }
+          : { name: '', title: '', avatarUrl: null })
       })
+    } else if (auth.status === 'guest') {
+      setUserProfile({ name: '', title: '', avatarUrl: null })
     }
   }, [auth.status])
 
@@ -105,11 +109,11 @@ export default function App() {
   }, [])
 
   const navigate = useCallback((id, prefill) => {
-    setActiveId(id)
-    localStorage.setItem('chengzhi:active-page', id)
+    routerNavigate('/' + id)
     if (prefill) setTopicPrefill(prefill)
-  }, [])
+  }, [routerNavigate])
 
+  // ── 加载中 ──────────────────────────────────────────
   if (auth.status === 'loading') {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'var(--sans)', color: 'var(--ink-3, #6B6862)', fontSize: 14 }}>
@@ -118,7 +122,11 @@ export default function App() {
     )
   }
 
+  // ── 未登录 / 无权限 ──────────────────────────────────
   if (auth.status === 'guest' || auth.status === 'no-access') {
+    if (location.pathname !== '/login') {
+      return <Navigate to="/login" replace />
+    }
     return (
       <LandingPage
         onAuthSuccess={onAuthSuccess}
@@ -129,23 +137,30 @@ export default function App() {
     )
   }
 
-  const pageConfig = PAGE_MAP[activeId] || PAGE_MAP['topic-square']
+  // ── 已登录：从 /login 或 / 跳转到主页 ────────────────
+  if (location.pathname === '/login' || location.pathname === '/') {
+    return <Navigate to="/topic-square" replace />
+  }
+
+  // ── 主应用 ───────────────────────────────────────────
+  const pageId = location.pathname.slice(1)
+  const pageConfig = PAGE_MAP[pageId] || PAGE_MAP['topic-square']
   const PageComponent = pageConfig.component
 
   return (
     <div className="app">
-      <Sidebar activeId={activeId} onNavigate={navigate} profile={userProfile} />
+      <Sidebar activeId={pageId} onNavigate={navigate} profile={userProfile} />
       <div className="main">
         <Topbar breadcrumb={pageConfig.breadcrumb} onNavigate={navigate} onLogout={onLogout} phone={auth.phone} profile={userProfile} />
         <div className="content scroll-y">
           <div className="content-inner">
             <PageComponent
-              key={activeId}
+              key={pageId}
               onNavigate={navigate}
               topicPrefill={topicPrefill}
               onPrefillConsumed={() => setTopicPrefill(null)}
               kbType={pageConfig.kbType}
-              mode={activeId === 'video-rip' ? 'rip' : 'create'}
+              mode={pageId === 'video-rip' ? 'rip' : 'create'}
               onProfileUpdate={handleProfileUpdate}
             />
           </div>
