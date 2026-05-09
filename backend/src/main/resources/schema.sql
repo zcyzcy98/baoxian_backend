@@ -109,4 +109,48 @@ CREATE TABLE IF NOT EXISTS usage_records (
 CREATE INDEX IF NOT EXISTS idx_usage_records_user_id ON usage_records(user_id);
 CREATE INDEX IF NOT EXISTS idx_usage_records_created_at ON usage_records(created_at DESC);
 
-ALTER TABLE user_profile ADD COLUMN IF NOT EXISTS tags TEXT;
+CREATE TABLE IF NOT EXISTS user_profile (
+    id         BIGSERIAL PRIMARY KEY,
+    user_id    BIGINT UNIQUE REFERENCES users(id),
+    tags       TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 用户认证
+CREATE TABLE IF NOT EXISTS users (
+    id         BIGSERIAL PRIMARY KEY,
+    phone      VARCHAR(20) UNIQUE NOT NULL,
+    has_access BOOLEAN NOT NULL DEFAULT FALSE,
+    credits    INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS sms_codes (
+    phone      VARCHAR(20) PRIMARY KEY,
+    code       VARCHAR(10) NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS auth_tokens (
+    token      VARCHAR(64) PRIMARY KEY,
+    user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_auth_tokens_user_id ON auth_tokens(user_id);
+
+-- 积分套餐
+CREATE TABLE IF NOT EXISTS credit_packages (
+    id          VARCHAR(50) PRIMARY KEY,
+    name        VARCHAR(100) NOT NULL,
+    credits     INTEGER NOT NULL,
+    price_fen   INTEGER NOT NULL,
+    save_fen    INTEGER NOT NULL DEFAULT 0,
+    sort_order  INTEGER DEFAULT 0,
+    enabled     BOOLEAN DEFAULT TRUE
+);
+
+INSERT INTO credit_packages (id, name, credits, price_fen, save_fen, sort_order) VALUES
+    ('credits_1000',  '基础包',   1000,  9900,     0,    1),
+    ('credits_5000',  '进阶包',   5000,  45900,  3600,  2),
+    ('credits_10000', '专业包',  10000,  85900, 13100,  3)
+ON CONFLICT (id) DO NOTHING;
