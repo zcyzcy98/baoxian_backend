@@ -14,6 +14,7 @@ import java.net.CookieManager;
 import java.net.CookiePolicy;
 import java.net.URI;
 import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -98,6 +99,29 @@ public class DouyinExtractService {
         if (awemeId != null) {
             result.setAwemeId(awemeId);
             result.setWorkUrl("https://www.douyin.com/video/" + awemeId);
+        }
+
+        // 策略 Jlwz：调用第三方解析 API（机领网），可靠获取视频直链和基础信息
+        if (awemeId != null && douyinSettings.hasJlwzApi()) {
+            try {
+                String workUrl = "https://www.douyin.com/video/" + awemeId;
+                DouyinNote jlwzNote = extractViaJlwzApi(workUrl);
+                if (jlwzNote != null) {
+                    if (!isBlank(jlwzNote.getVideoDownloadUrl()))
+                        result.setVideoDownloadUrl(jlwzNote.getVideoDownloadUrl());
+                    if (isBlank(result.getTitle()) && !isBlank(jlwzNote.getTitle()))
+                        result.setTitle(jlwzNote.getTitle());
+                    if (isBlank(result.getNickname())) result.setNickname(jlwzNote.getNickname());
+                    if (isBlank(result.getLikeCount())) result.setLikeCount(jlwzNote.getLikeCount());
+                    if (isBlank(result.getCommentCount())) result.setCommentCount(jlwzNote.getCommentCount());
+                    if (isBlank(result.getCollectCount())) result.setCollectCount(jlwzNote.getCollectCount());
+                    if (isBlank(result.getShareCount())) result.setShareCount(jlwzNote.getShareCount());
+                    if (isBlank(result.getUserId())) result.setUserId(jlwzNote.getUserId());
+                    log.info("[Douyin] Jlwz API 提取成功，videoUrl={}", result.getVideoDownloadUrl() != null ? "有" : "无");
+                }
+            } catch (Exception e) {
+                log.warn("[Douyin] Jlwz API 提取失败: {}", e.getMessage());
+            }
         }
 
         // 策略 B：Douyin Web API + X-Bogus 签名（最准确，可获取视频直链）
@@ -210,13 +234,116 @@ public class DouyinExtractService {
         // 4. 多余空白
         rawDesc = rawDesc.replaceAll("[\\r\\n]+", " ").replaceAll("\\s{2,}", " ").trim();
 
-        if (rawDesc.isBlank()) return null;
+        if (isBlank(rawDesc) || rawDesc.contains("douyin.com") || rawDesc.startsWith("//")) return null;
 
         DouyinNote note = new DouyinNote();
         note.setTitle(rawDesc);
         if (!topics.isEmpty()) note.setTopics(topics);
         note.setWorkType("视频");
         return note;
+    }
+
+    // ─── 策略 Jlwz：机领网第三方 API ──────────────────────────────────────────
+
+    /**
+     * 调用机领网抖音解析 API（https://api.jlwz.cn/dy/api.php），可靠获取视频直链和基础信息。
+     */
+    @SuppressWarnings("unchecked")
+    private DouyinNote extractViaJlwzApi(String douyinUrl) throws Exception {
+        String apiUrl = "https://api.jlwz.cn/dy/api.php"
+                + "?id=" + douyinSettings.getJlwzApiId()
+                + "&key=" + douyinSettings.getJlwzApiKey()
+                + "&type=dy"
+                + "&url=" + URLEncoder.encode(douyinUrl, StandardCharsets.UTF_8);
+
+        log.info("[Douyin] Jlwz API 请求开始");
+
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(apiUrl))
+                .timeout(Duration.ofSeconds(15))
+                .header("User-Agent", UA)
+                .GET()
+                .build();
+
+        HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+
+        if (resp.statusCode() != 200) {
+            throw new RuntimeException("Jlwz API HTTP " + resp.statusCode());
+        }
+        String rawBody = resp.body();
+        if (rawBody == null || rawBody.isBlank()) {
+            throw new RuntimeException("Jlwz API 返回空 body");
+        }
+
+        log.info("[Douyin] Jlwz API 返回前300字: {}", rawBody.substring(0, Math.min(300, rawBody.length())));
+
+        Map<String, Object> json;
+        try {
+            json = mapper.readValue(rawBody, new TypeReference<>() {});
+        } catch (Exception jsonEx) {
+            log.warn("[Douyin] Jlwz API JSON解析失败，尝试正则提取: {}", jsonEx.getMessage());
+            json = extractJlwzFieldsByRegex(rawBody);
+            if (json.isEmpty()) {
+                throw new RuntimeException("Jlwz API 返回无法解析，原始内容前500字: "
+                        + rawBody.substring(0, Math.min(500, rawBody.length())));
+            }
+        }
+
+        Object code = json.get("code");
+        if (!(code instanceof Number) || ((Number) code).intValue() != 200) {
+            throw new RuntimeException("Jlwz API code=" + code + " msg=" + json.get("msg"));
+        }
+
+        DouyinNote note = new DouyinNote();
+        note.setVideoDownloadUrl(str(json.get("video")));
+        note.setTitle(str(json.get("desc")));
+        note.setNickname(str(json.get("nickname")));
+        note.setUserId(str(json.get("uid")));
+        note.setCommentCount(str(json.get("comment_count")));
+        note.setLikeCount(str(json.get("digg_count")));
+        note.setShareCount(str(json.get("share_count")));
+        note.setCollectCount(str(json.get("collect_count")));
+
+        return note;
+    }
+
+    /**
+     * 当 Jlwz API 返回的 JSON 格式有误时（如 desc 字段含未转义特殊字符），
+     * 用正则逐个提取字段值。
+     */
+    private Map<String, Object> extractJlwzFieldsByRegex(String raw) {
+        Map<String, Object> map = new java.util.LinkedHashMap<>();
+        map.put("code", regexGroup(raw, "\"code\"\\s*:\\s*(\\d+)", 200));
+
+        if (!"200".equals(String.valueOf(map.get("code")))) {
+            return map;
+        }
+
+        map.put("video", regexGroup(raw, "\"video\"\\s*:\\s*\"(https?:[^\"]+)", null));
+        map.put("desc", regexGroup(raw, "\"desc\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)", null));
+        map.put("nickname", regexGroup(raw, "\"nickname\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)", null));
+        map.put("uid", regexGroup(raw, "\"uid\"\\s*:\\s*\"([^\"]*)", null));
+        map.put("comment_count", regexGroup(raw, "\"comment_count\"\\s*:\\s*\"([^\"]*)", null));
+        map.put("digg_count", regexGroup(raw, "\"digg_count\"\\s*:\\s*\"([^\"]*)", null));
+        map.put("share_count", regexGroup(raw, "\"share_count\"\\s*:\\s*\"([^\"]*)", null));
+        map.put("collect_count", regexGroup(raw, "\"collect_count\"\\s*:\\s*\"([^\"]*)", null));
+        map.put("msg", regexGroup(raw, "\"msg\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)", "成功"));
+
+        return map;
+    }
+
+    private Object regexGroup(String input, String regex, Object defaultVal) {
+        Matcher m = Pattern.compile(regex).matcher(input);
+        if (m.find()) {
+            String val = m.group(1);
+            if (val != null && !val.isBlank()) {
+                if (defaultVal instanceof Integer) {
+                    try { return Integer.parseInt(val); } catch (NumberFormatException ignored) {}
+                }
+                return val;
+            }
+        }
+        return defaultVal;
     }
 
     // ─── 策略 B：Douyin Web API + X-Bogus 签名 ──────────────────────────────
