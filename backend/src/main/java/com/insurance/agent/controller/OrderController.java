@@ -119,9 +119,8 @@ public class OrderController {
 
         OrderInfo paid = wechatPayService.handleNotify(body, timestamp, nonce, signature, serialNo);
         if (paid != null) {
-            // 支付成功：给用户开通访问权限（后续可改为加积分）
-            authService.grantAccess(paid.phone());
             int credits = wechatPayService.getCredits(paid.product());
+            authService.addCredits(paid.phone(), credits);
             log.info("[WechatPay] 支付成功，phone={} product={} credits={}", paid.phone(), paid.product(), credits);
         }
 

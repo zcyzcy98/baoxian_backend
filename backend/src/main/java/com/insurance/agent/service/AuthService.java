@@ -187,6 +187,21 @@ public class AuthService {
         }
     }
 
+    public void addCredits(String phone, int amount) {
+        try (Connection c = dataSource.getConnection();
+             PreparedStatement ps = c.prepareStatement("""
+                INSERT INTO users (phone, credits) VALUES (?, ?)
+                ON CONFLICT (phone) DO UPDATE SET credits = users.credits + EXCLUDED.credits
+                """)) {
+            ps.setString(1, phone);
+            ps.setInt(2, amount);
+            ps.executeUpdate();
+            log.info("[Auth] 积分到账 phone={} amount={}", phone, amount);
+        } catch (SQLException e) {
+            log.error("[Auth] addCredits 失败: {}", e.getMessage());
+        }
+    }
+
     public void revokeAccess(String phone) {
         try (Connection c = dataSource.getConnection();
              PreparedStatement ps = c.prepareStatement(
