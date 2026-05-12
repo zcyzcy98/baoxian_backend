@@ -173,6 +173,23 @@ export async function addStyleSource(payload) {
   return postJson('/api/style/sources', payload)
 }
 
+export async function uploadStyleSourceFile(file, title) {
+  const fd = new FormData()
+  fd.append('file', file)
+  if (title) fd.append('title', title)
+  const res = await fetch('/api/style/sources/upload', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: fd,
+  })
+  if (!res.ok) {
+    let msg = `上传失败 (${res.status})`
+    try { const d = await res.json(); if (d?.error) msg = d.error } catch {}
+    throw new Error(msg)
+  }
+  return res.json()
+}
+
 export async function deleteStyleSource(id) {
   const res = await fetch(`/api/style/sources/${id}`, { method: 'DELETE', headers: authHeaders() })
   if (!res.ok) throw new Error('删除素材失败')

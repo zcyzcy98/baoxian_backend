@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { fetchStyleProfile, addStyleSource, deleteStyleSource, trainStyle, previewStyle } from '../api'
+import { fetchStyleProfile, addStyleSource, deleteStyleSource, trainStyle, previewStyle, uploadStyleSourceFile } from '../api'
 import './StylePage.css'
 
 const RADAR_KEYS = ['语气温度', '专业密度', '句式节奏', '情绪强度', '修辞偏好', '结构习惯']
@@ -305,6 +305,7 @@ function typeIcon(type) {
     case 'xhs':  return '小'
     case 'gzh':  return '公'
     case 'link': return '🔗'
+    case 'file': return '📄'
     default:     return '文'
   }
 }
@@ -337,11 +338,42 @@ function AddSourceModal({ onDone, onClose }) {
   const [text, setText]         = useState('')
   const [rawPaste, setRawPaste] = useState('')   // 原始粘贴内容（可能含乱七八糟的文字）
   const [cleanUrl, setCleanUrl] = useState('')   // 提取出的干净 URL
+  const [file, setFile]         = useState(null)  // 选择的文件
+  const [dragOver, setDragOver] = useState(false)
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
 
   const platform = detectPlatform(cleanUrl)
-  const canSubmit = !loading && ((tab === 'text' && text.trim()) || (tab === 'link' && cleanUrl))
+  const canSubmit = !loading && (
+    (tab === 'text' && text.trim()) ||
+    (tab === 'link' && cleanUrl) ||
+    (tab === 'file' && file)
+  )
+
+  const handleFileDrop = (e) => {
+    e.preventDefault()
+    setDragOver(false)
+    const f = e.dataTransfer?.files?.[0] || e.target?.files?.[0]
+    if (!f) return
+    const name = f.name.toLowerCase()
+    if (!name.endsWith('.pdf') && !name.endsWith('.docx')) {
+      setError('仅支持 PDF 和 DOCX 格式')
+      return
+    }
+    setFile(f)
+    setError('')
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    setDragOver(true)
+  }
+
+  const handleDragLeave = () => setDragOver(false)
+
+  const removeFile = () => {
+    setFile(null)
+  }
 
   const handlePasteChange = (val) => {
     setRawPaste(val)
@@ -353,10 +385,14 @@ function AddSourceModal({ onDone, onClose }) {
     setLoading(true)
     setError('')
     try {
-      const payload = tab === 'link'
-        ? { type: 'link', title, url: rawPaste }   // 传原始文本，后端自己提取
-        : { type: 'text', title, rawText: text }
-      const source = await addStyleSource(payload)
+      let source
+      if (tab === 'file' && file) {
+        source = await uploadStyleSourceFile(file, title)
+      } else if (tab === 'link') {
+        source = await addStyleSource({ type: 'link', title, url: rawPaste })
+      } else {
+        source = await addStyleSource({ type: 'text', title, rawText: text })
+      }
       onDone(source)
     } catch (e) {
       setError(e.message)
@@ -380,6 +416,10 @@ function AddSourceModal({ onDone, onClose }) {
           <button className={`mtab ${tab === 'link' ? 'active' : ''}`} onClick={() => setTab('link')}>
             添加链接
             <span className="mtab-badge">自动提取</span>
+          </button>
+          <button className={`mtab ${tab === 'file' ? 'active' : ''}`} onClick={() => setTab('file')}>
+            上传文件
+            <span className="mtab-badge">PDF/DOCX</span>
           </button>
         </div>
 
@@ -434,6 +474,53 @@ function AddSourceModal({ onDone, onClose }) {
             )}
             {!rawPaste && (
               <p className="field-tip">系统自动从分享文本中提取链接，如提取失败请改用「粘贴文字」</p>
+            )}
+          </div>
+        )}
+
+        {tab === 'file' && (
+          <div className="modal-field">
+            <label>上传文件 <span className="field-hint">支持 PDF / DOCX 格式</span></label>
+            {!file ? (
+              <div
+                className={`file-drop-zone ${dragOver ? 'drag-over' : ''}`}
+                onDrop={handleFileDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+              >
+                <div className="file-drop-icon">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                </div>
+                <p className="file-drop-text">拖拽文件到此处，或 <span className="file-drop-browse">点击选择文件</span></p>
+                <p className="file-drop-hint">PDF / DOCX，建议单文件 20MB 以内</p>
+                <input
+                  type="file"
+                  accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  className="file-input-hidden"
+                  onChange={handleFileDrop}
+                />
+              </div>
+            ) : (
+              <div className="file-selected-card">
+                <div className="file-selected-icon">
+                  {file.name.toLowerCase().endsWith('.pdf') ? '📕' : '📘'}
+                </div>
+                <div className="file-selected-info">
+                  <div className="file-selected-name">{file.name}</div>
+                  <div className="file-selected-size">
+                    {(file.size / 1024 / 1024).toFixed(1)} MB
+                  </div>
+                </div>
+                <button className="file-remove-btn" onClick={removeFile} title="移除文件">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
             )}
           </div>
         )}

@@ -335,6 +335,7 @@
 .type-xhs  { background: var(--xhs, #ff2442); }
 .type-gzh  { background: var(--gzh, #07c160); }
 .type-link { background: var(--leaf, #5a9e6f); font-size: 14px; }
+.type-file { background: var(--clay); }
 
 .source-body { min-width: 0; }
 .source-title {
@@ -656,4 +657,110 @@
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+/* ─── File Drop Zone ──────────────────────────────────────────────────── */
+.file-drop-zone {
+  border: 2px dashed var(--line);
+  border-radius: 8px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--ivory);
+}
+
+.file-drop-zone:hover {
+  border-color: var(--clay);
+  background: var(--clay-tint);
+}
+
+.file-drop-icon {
+  color: var(--ink-3);
+  margin-bottom: 12px;
+}
+
+.file-drop-zone:hover .file-drop-icon,
+.file-drop-zone.drag-over .file-drop-icon {
+  color: var(--clay);
+}
+
+.file-drop-zone.drag-over {
+  background: var(--clay-tint);
+}
+
+.file-drop-text {
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.file-drop-browse {
+  color: var(--clay);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.file-drop-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.file-input-hidden {
+  display: none;
+}
+
+.file-selected-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--ivory);
+}
+
+.file-selected-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.file-selected-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.file-selected-name {
+  font-size: 14px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-selected-size {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+
+.file-remove-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.file-remove-btn:hover {
+  background: var(--clay-tint);
+  color: var(--clay-deep);
 }

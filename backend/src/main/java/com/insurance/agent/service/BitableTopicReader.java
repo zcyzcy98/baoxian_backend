@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.*;
 
 /**
@@ -338,12 +339,36 @@ public class BitableTopicReader {
         return null;
     }
 
+    private static final ObjectMapper JSON = new ObjectMapper();
+
     private static String asText(Object raw) {
         if (raw == null) return null;
-        if (raw instanceof String) return (String) raw;
+        if (raw instanceof String) {
+            String s = (String) raw;
+            if (s.startsWith("{") && (s.contains("\"link\"") || s.contains("\"text\""))) {
+                try {
+                    Map<?, ?> m = JSON.readValue(s, Map.class);
+                    Object link = m.get("link");
+                    if (link != null) return asText(link);
+                    Object text = m.get("text");
+                    if (text != null) return asText(text);
+                } catch (Exception ignored) {
+                }
+            }
+            return s;
+        }
         if (raw instanceof List) {
             List<?> list = (List<?>) raw;
-            return list.isEmpty() ? null : String.valueOf(list.get(0));
+            if (list.isEmpty()) return null;
+            Object first = list.get(0);
+            return asText(first);
+        }
+        if (raw instanceof Map) {
+            Map<?, ?> m = (Map<?, ?>) raw;
+            Object link = m.get("link");
+            if (link != null) return asText(link);
+            Object text = m.get("text");
+            if (text != null) return asText(text);
         }
         return String.valueOf(raw);
     }

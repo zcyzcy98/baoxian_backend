@@ -5,6 +5,7 @@ import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.sql.DataSource;
 import java.sql.*;
@@ -19,16 +20,19 @@ public class StyleService {
     private final DeepSeekService deepSeek;
     private final XhsExtractService xhsExtract;
     private final WechatExtractService wechatExtract;
+    private final FileParseService fileParseService;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public StyleService(DataSource dataSource,
                         DeepSeekService deepSeek,
                         XhsExtractService xhsExtract,
-                        WechatExtractService wechatExtract) {
+                        WechatExtractService wechatExtract,
+                        FileParseService fileParseService) {
         this.dataSource = dataSource;
         this.deepSeek = deepSeek;
         this.xhsExtract = xhsExtract;
         this.wechatExtract = wechatExtract;
+        this.fileParseService = fileParseService;
     }
 
     @PostConstruct
@@ -127,6 +131,42 @@ public class StyleService {
             throw new RuntimeException("添加素材失败: " + e.getMessage(), e);
         }
         throw new RuntimeException("添加素材失败");
+    }
+
+    public Map<String, Object> addSourceFromFile(long userId, String title, MultipartFile file) {
+        String extractedText = fileParseService.extractText(file);
+        String filename = file.getOriginalFilename();
+        if (filename == null) filename = "unknown";
+
+        String resolvedTitle = (title != null && !title.isBlank()) ? title : filename;
+
+        int wordCount = extractedText.length();
+
+        try (Connection c = conn();
+             PreparedStatement ps = c.prepareStatement(
+                "INSERT INTO style_sources(user_id,title,content_type,raw_text,word_count) VALUES(?,?,?,?,?) RETURNING id,created_at")) {
+            ps.setLong(1, userId);
+            ps.setString(2, resolvedTitle);
+            ps.setString(3, "file");
+            ps.setString(4, extractedText);
+            ps.setInt(5, wordCount);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("id", rs.getLong(1));
+                    row.put("title", resolvedTitle);
+                    row.put("contentType", "file");
+                    row.put("url", filename);
+                    row.put("preview", preview(extractedText));
+                    row.put("wordCount", wordCount);
+                    row.put("createdAt", rs.getString(2));
+                    return row;
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("添加文件素材失败: " + e.getMessage(), e);
+        }
+        throw new RuntimeException("添加文件素材失败");
     }
 
     public void deleteSource(long userId, long id) {

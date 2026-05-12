@@ -4,6 +4,7 @@ import com.insurance.agent.service.AuthService;
 import com.insurance.agent.service.StyleService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -44,6 +45,26 @@ public class StyleController {
             String rawText = req.get("rawText");
             String model   = req.get("model");
             Map<String, Object> source = styleService.addSource(uid, title, type, url, rawText, model);
+            return ResponseEntity.ok(source);
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /** 上传文件素材（PDF/DOCX） */
+    @PostMapping("/sources/upload")
+    public ResponseEntity<?> uploadSource(
+            @RequestHeader(value = "Authorization", required = false) String auth,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "title", required = false) String title) {
+        try {
+            if (file == null || file.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "文件不能为空"));
+            }
+            long uid = resolveUserId(auth);
+            Map<String, Object> source = styleService.addSourceFromFile(uid, title, file);
             return ResponseEntity.ok(source);
         } catch (IllegalArgumentException e) {
             throw e;
