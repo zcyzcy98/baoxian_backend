@@ -115,6 +115,14 @@ export async function fetchSearchOptions() {
   return getJson('/api/topics/search-options')
 }
 
+export async function refreshTopics() {
+  return postJson('/api/topics/refresh', {})
+}
+
+export async function fetchUserProfile() {
+  return getJson('/api/profile')
+}
+
 // ─── 积分 ────────────────────────────────────────────────────────────────────
 export async function fetchCreditsBalance() {
   return getJson('/api/credits/balance')

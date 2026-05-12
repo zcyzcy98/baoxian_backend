@@ -26,6 +26,42 @@ public class HotTopicRepository {
         return dataSource.getConnection();
     }
 
+    public int deleteByBatchDate(LocalDate batchDate) {
+        String sql = "DELETE FROM hot_topics WHERE batch_date = ?";
+        try (Connection c = getConn(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setObject(1, batchDate);
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            log.error("[HotTopic] deleteByBatchDate 失败", e);
+            return 0;
+        }
+    }
+
+    public int deleteByBatchDateAndSource(LocalDate batchDate, String source) {
+        String sql = "DELETE FROM hot_topics WHERE batch_date = ? AND source = ?";
+        try (Connection c = getConn(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setObject(1, batchDate);
+            ps.setString(2, source);
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            log.error("[HotTopic] deleteByBatchDateAndSource 失败", e);
+            return 0;
+        }
+    }
+
+    public int countByBatchDate(LocalDate batchDate) {
+        String sql = "SELECT COUNT(*) FROM hot_topics WHERE batch_date = ?";
+        try (Connection c = getConn(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setObject(1, batchDate);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            log.error("[HotTopic] countByBatchDate 失败", e);
+        }
+        return 0;
+    }
+
     // ---- 按批次日期查询 ----
     public List<HotTopic> findByBatchDate(LocalDate batchDate) {
         List<HotTopic> list = new ArrayList<>();
@@ -62,7 +98,17 @@ public class HotTopicRepository {
         String sql = "INSERT INTO hot_topics (title, title_hash, source, source_url, source_site, " +
                      "heat_score, ai_score, insurance_types, demographics, platforms, why_this_topic, " +
                      "source_category, batch_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-                     "ON CONFLICT (title_hash) DO NOTHING";
+                     "ON CONFLICT (title_hash) DO UPDATE SET " +
+                     "heat_score = EXCLUDED.heat_score, " +
+                     "ai_score = EXCLUDED.ai_score, " +
+                     "source_url = EXCLUDED.source_url, " +
+                     "source_site = EXCLUDED.source_site, " +
+                     "insurance_types = EXCLUDED.insurance_types, " +
+                     "demographics = EXCLUDED.demographics, " +
+                     "platforms = EXCLUDED.platforms, " +
+                     "why_this_topic = EXCLUDED.why_this_topic, " +
+                     "batch_date = EXCLUDED.batch_date, " +
+                     "created_at = NOW()";
         try (Connection c = getConn(); PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, topic.getTitle());
             ps.setString(2, topic.getTitleHash());
@@ -91,7 +137,17 @@ public class HotTopicRepository {
         String sql = "INSERT INTO hot_topics (title, title_hash, source, source_url, source_site, " +
                      "heat_score, ai_score, insurance_types, demographics, platforms, why_this_topic, " +
                      "source_category, batch_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-                     "ON CONFLICT (title_hash) DO NOTHING";
+                     "ON CONFLICT (title_hash) DO UPDATE SET " +
+                     "heat_score = EXCLUDED.heat_score, " +
+                     "ai_score = EXCLUDED.ai_score, " +
+                     "source_url = EXCLUDED.source_url, " +
+                     "source_site = EXCLUDED.source_site, " +
+                     "insurance_types = EXCLUDED.insurance_types, " +
+                     "demographics = EXCLUDED.demographics, " +
+                     "platforms = EXCLUDED.platforms, " +
+                     "why_this_topic = EXCLUDED.why_this_topic, " +
+                     "batch_date = EXCLUDED.batch_date, " +
+                     "created_at = NOW()";
         try (Connection c = getConn(); PreparedStatement ps = c.prepareStatement(sql)) {
             for (HotTopic t : topics) {
                 ps.setString(1, t.getTitle());

@@ -1,62 +1,81 @@
 package com.insurance.agent.controller;
 
 import com.insurance.agent.dto.*;
+import com.insurance.agent.exception.InsufficientCreditsException;
+import com.insurance.agent.model.HotTopic;
+import com.insurance.agent.repository.HotTopicRepository;
+import com.insurance.agent.service.AuthService;
 import com.insurance.agent.service.BitableConfigService;
 import com.insurance.agent.service.BitableTopicReader;
+import com.insurance.agent.service.CreditsService;
 import com.insurance.agent.service.HotTopicCollector;
 import com.insurance.agent.service.TopicGenerationService;
 import com.insurance.agent.service.TopHubDataService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @RestController
 @RequestMapping("/api/topics")
 public class TopicController {
 
+    private static final int REFRESH_CREDIT_COST = 1;
+
     private final TopicGenerationService generation;
     private final BitableTopicReader bitableReader;
     private final BitableConfigService bitableConfig;
     private final TopHubDataService topHubDataService;
     private final HotTopicCollector collector;
+    private final CreditsService creditsService;
+    private final AuthService authService;
+    private final HotTopicRepository hotTopicRepository;
 
     public TopicController(TopicGenerationService generation,
                            BitableTopicReader bitableReader,
                            BitableConfigService bitableConfig,
                            TopHubDataService topHubDataService,
-                           HotTopicCollector collector) {
+                           HotTopicCollector collector,
+                           CreditsService creditsService,
+                           AuthService authService,
+                           HotTopicRepository hotTopicRepository) {
         this.generation = generation;
         this.bitableReader = bitableReader;
         this.bitableConfig = bitableConfig;
         this.topHubDataService = topHubDataService;
         this.collector = collector;
+        this.creditsService = creditsService;
+        this.authService = authService;
+        this.hotTopicRepository = hotTopicRepository;
+    }
+
+    private long resolveUserId(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) return 0;
+        return authService.userIdByToken(authHeader.substring(7));
     }
 
     /**
-     * 选题广场主接口：优先从 HotTopicCollector 缓存读取今日热点选题，
-     * 再按用户画像排序；无缓存时降级到实时拉取 + AI（首次部署 / 8:00 前）。
+     * 选题广场主接口：直接从 hot_topics 数据库读取当日热点。
+     * 数据由定时任务（8:00/18:00 TopHub + 15:30 飞书知识库）自动写入。
+     * 再按用户画像排序后返回。
      */
     @PostMapping("/daily")
     public ResponseEntity<Map<String, Object>> daily(@RequestBody(required = false) DailyRequest req) {
         DailyRequest r = req == null ? new DailyRequest() : req;
         int limit = r.getLimit() <= 0 ? 30 : Math.min(100, r.getLimit());
-        List<TopicCandidate> list;
 
-        // 阶段四：缓存优先路径——HotTopicCollector 每天8:00/18:00已采集好
-        List<TopicCandidate> cached = collector.getCachedTopics();
-        if (!cached.isEmpty()) {
-            list = generation.filterByProfile(cached, r.getProfile(),
-                    r.getInsuranceTypesFilter(), r.getDemographicsFilter(), limit);
-        } else {
-            // 降级路径：首次部署或 8:00 前，实时从 Bitable + TopHub 拉取
-            Set<String> categories = r.getCategories() == null ? null
-                    : new HashSet<>(r.getCategories());
-            list = generation.generateDaily(r.getProfile(), categories, limit,
-                    r.getInsuranceTypesFilter(), r.getDemographicsFilter());
+        List<HotTopic> dbTopics = hotTopicRepository.findByBatchDate(LocalDate.now());
+        List<TopicCandidate> list = new ArrayList<>();
+        for (HotTopic ht : dbTopics) {
+            list.add(HotTopicCollector.toCandidate(ht));
         }
 
-        // 统计已配置好的飞书表 (active + 有 appToken/tableId)
+        list = generation.filterByProfile(list, r.getProfile(),
+                r.getInsuranceTypesFilter(), r.getDemographicsFilter(), limit);
+
         int activeBitables = 0;
         for (BitableConfig cfg : bitableConfig.getAllConfigs()) {
             if (cfg.isActive()
@@ -71,6 +90,31 @@ public class TopicController {
         out.put("count", list.size());
         out.put("items", list);
         out.put("activeBitables", activeBitables);
+        return ResponseEntity.ok(out);
+    }
+
+    /** 手动刷新数据 — 扣 1 积分，实时拉取 TopHubData 非个性化热点. */
+    @PostMapping("/refresh")
+    public ResponseEntity<Map<String, Object>> refresh(@RequestHeader(value = "Authorization", required = false) String auth) {
+        long userId = resolveUserId(auth);
+        if (userId == 0) {
+            return ResponseEntity.status(401).body(Map.of("success", false, "error", "请先登录"));
+        }
+
+        creditsService.deduct(userId, REFRESH_CREDIT_COST, "topic_refresh",
+                "手动刷新选题广场数据", null);
+
+        int newBalance = creditsService.getBalance(userId);
+
+        List<TopicCandidate> list = topHubDataService.fetchHotTopics(50,
+                HotTopicCollector.getSourceHashids());
+
+        Map<String, Object> out = new HashMap<>();
+        out.put("success", true);
+        out.put("count", list.size());
+        out.put("items", list);
+        out.put("balance", newBalance);
+        out.put("refreshedAt", LocalDateTime.now().toString());
         return ResponseEntity.ok(out);
     }
 
@@ -129,14 +173,15 @@ public class TopicController {
      * 生产环境建议加上 @Profile("dev") 限制。
      */
 
-    /** 手动触发 TopHub 热点采集 */
+    /** 手动触发 TopHub 热点采集（含清库重采） */
     @PostMapping("/debug/collect-tophub")
     public ResponseEntity<Map<String, Object>> debugCollectTopHub() {
+        int deleted = hotTopicRepository.deleteByBatchDateAndSource(LocalDate.now(), "TOPHUB");
         collector.collectHotTopics();
         int cacheSize = collector.getCachedTopics().size();
         return ResponseEntity.ok(Map.of(
                 "success", true,
-                "message", "TopHub 采集完成",
+                "message", "清库 " + deleted + " 条 TopHub + 采集完成",
                 "cacheSize", cacheSize
         ));
     }

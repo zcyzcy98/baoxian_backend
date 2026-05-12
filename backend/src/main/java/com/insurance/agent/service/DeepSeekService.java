@@ -13,7 +13,13 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 @Service
 public class DeepSeekService {
@@ -46,6 +52,8 @@ public class DeepSeekService {
         String model = resolveModel(requestedModel);
         log.info("[AI 请求] model={} system={} user={}",
                 model, truncate(systemPrompt, 200), truncate(userPrompt, 500));
+        // 写完整 prompt 到文件
+        writePromptToFile(model, systemPrompt, userPrompt);
         try {
             ObjectNode body = mapper.createObjectNode();
             body.put("model", model);
@@ -104,5 +112,22 @@ public class DeepSeekService {
     private String truncate(String s, int n) {
         if (s == null) return "";
         return s.length() <= n ? s : s.substring(0, n) + "...";
+    }
+
+    private void writePromptToFile(String model, String systemPrompt, String userPrompt) {
+        try {
+            Path dir = Paths.get("prompts");
+            Files.createDirectories(dir);
+            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS"));
+            String safeModel = model.replaceAll("[^a-zA-Z0-9_-]", "_");
+            Path file = dir.resolve("prompt_" + timestamp + "_" + safeModel + ".txt");
+            String content = "=== System Prompt ===\n" + (systemPrompt != null ? systemPrompt : "")
+                    + "\n\n=== User Prompt ===\n" + (userPrompt != null ? userPrompt : "")
+                    + "\n";
+            Files.writeString(file, content, StandardOpenOption.CREATE_NEW);
+            log.info("[Prompt 已保存] {}", file.toAbsolutePath());
+        } catch (Exception e) {
+            log.warn("[Prompt 保存失败] {}", e.getMessage());
+        }
     }
 }

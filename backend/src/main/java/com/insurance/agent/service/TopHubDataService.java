@@ -196,15 +196,139 @@ public class TopHubDataService {
     }
 
     public List<TopicCandidate> fetchHotTopics(int limit) {
+        return fetchHotTopics(limit, null);
+    }
+
+    public List<TopicCandidate> fetchHotTopics(int limit, List<String> hashids) {
         if (!isConfigured()) {
             log.warn("TopHubData API key not configured, skip fetching hot topics");
             return List.of();
         }
 
-        try {
+        if (hashids == null || hashids.isEmpty()) {
             String today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
             String url = baseUrl + "/hot?date=" + today;
+            List<TopicCandidate> result = fetchHotTopicsFromUrl(limit, url);
+            log.info("[TopHub] 全网热点返回 {} 条", result.size());
+            return result;
+        }
 
+        List<TopicCandidate> all = new ArrayList<>();
+        Set<String> seenTitles = new HashSet<>();
+        int totalFromApi = 0;
+
+        for (String hashid : hashids) {
+            try {
+                String url = baseUrl + "/nodes/" + hashid;
+                List<TopicCandidate> fromSource = fetchSingleNode(limit, url, hashid);
+                totalFromApi += fromSource.size();
+                int added = 0;
+                for (TopicCandidate c : fromSource) {
+                    if (c.getTitle() != null && seenTitles.add(c.getTitle())) {
+                        all.add(c);
+                        added++;
+                    }
+                }
+                log.info("[TopHub] hashid={} 返回{}条 新增{}条", hashid, fromSource.size(), added);
+            } catch (Exception e) {
+                log.error("来源 hashid={} 请求失败", hashid, e);
+            }
+        }
+
+        all.sort((a, b) -> Integer.compare(b.getScore(), a.getScore()));
+        log.info("[TopHub] {} 个来源共返回 {} 条，合并去重后 {} 条", hashids.size(), totalFromApi, all.size());
+        return all;
+    }
+
+    private List<TopicCandidate> fetchSingleNode(int limit, String url, String hashid) {
+        try {
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(Duration.ofSeconds(timeoutSeconds))
+                    .header("Authorization", apiKey)
+                    .GET()
+                    .build();
+
+            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+
+            if (resp.statusCode() != 200) {
+                log.warn("TopHubData /nodes/{} API returned status {}", hashid, resp.statusCode());
+                return List.of();
+            }
+
+            JsonNode root = mapper.readTree(resp.body());
+            if (!root.path("error").isMissingNode() && root.path("error").asBoolean()) {
+                log.warn("TopHubData /nodes/{} API returned error: {}", hashid, root);
+                return List.of();
+            }
+
+            JsonNode data = root.path("data");
+            if (data.isMissingNode() || data.isNull()) {
+                log.warn("TopHubData /nodes/{} API returned no data", hashid);
+                return List.of();
+            }
+
+            String sitename = data.path("name").asText("热点");
+            JsonNode items = data.path("items");
+            if (!items.isArray()) {
+                log.warn("TopHubData /nodes/{} API returned no items array", hashid);
+                return List.of();
+            }
+
+            List<TopicCandidate> candidates = new ArrayList<>();
+            long maxHeat = 0;
+
+            for (JsonNode item : items) {
+                String extra = item.path("extra").asText("");
+                long heat = parseHeat(extra);
+                if (heat > maxHeat) maxHeat = heat;
+            }
+
+            for (JsonNode item : items) {
+                TopicCandidate c = convertNodeItem(item, sitename, maxHeat);
+                if (c != null) {
+                    candidates.add(c);
+                }
+            }
+
+            candidates.sort((a, b) -> Integer.compare(b.getScore(), a.getScore()));
+
+            if (candidates.size() > limit) {
+                candidates = candidates.subList(0, limit);
+            }
+
+            return candidates;
+        } catch (Exception e) {
+            log.error("Failed to fetch node {} from TopHubData: {}", hashid, url, e);
+            return List.of();
+        }
+    }
+
+    private TopicCandidate convertNodeItem(JsonNode item, String sitename, long maxHeat) {
+        String title = item.path("title").asText("");
+        if (title.isBlank()) return null;
+
+        if (isNoise(title)) return null;
+
+        String description = item.path("description").asText("");
+        String url = item.path("url").asText("");
+        String extra = item.path("extra").asText("");
+
+        long heat = parseHeat(extra);
+        int insuranceRelevance = computeInsuranceRelevance(title, description);
+
+        TopicCandidate c = buildCandidate(title, url, sitename, description, extra, heat, maxHeat, insuranceRelevance);
+
+        List<String> tags = new ArrayList<>();
+        tags.add(sitename);
+        if (insuranceRelevance > 0) tags.add("保险相关");
+        c.setTags(tags);
+
+        return c;
+    }
+
+    private List<TopicCandidate> fetchHotTopicsFromUrl(int limit, String url) {
+        try {
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .timeout(Duration.ofSeconds(timeoutSeconds))
@@ -255,7 +379,7 @@ public class TopHubDataService {
 
             return candidates;
         } catch (Exception e) {
-            log.error("Failed to fetch hot topics from TopHubData", e);
+            log.error("Failed to fetch hot topics from TopHubData: {}", url, e);
             return List.of();
         }
     }

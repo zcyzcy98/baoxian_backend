@@ -45,6 +45,10 @@ public class BitableTopicReader {
         hot.put("emotion",     "情绪");
         hot.put("persona",     "人设");
         hot.put("tags",        "标签");
+        hot.put("insuranceTypes", "insurance_types");
+        hot.put("demographics",   "demographics");
+        hot.put("platforms",      "platforms");
+        hot.put("whyThisTopic",   "why_this_topic");
         m.put(KIND_HOT_NOTE, hot);
 
         // 模板表: 标题模式 / 正文结构 / 适用险种 / 适用客群 ...
@@ -183,6 +187,10 @@ public class BitableTopicReader {
             Long likes = parseLong(getField(f, fieldMap, "likes"));
             String url = asText(getField(f, fieldMap, "url"));
             List<String> tags = asList(getField(f, fieldMap, "tags"));
+            List<String> insuranceTypes = asList(getField(f, fieldMap, "insuranceTypes"));
+            List<String> demographics = asList(getField(f, fieldMap, "demographics"));
+            List<String> platforms = asList(getField(f, fieldMap, "platforms"));
+            String whyThisTopic = asText(getField(f, fieldMap, "whyThisTopic"));
 
             TopicCandidate c = new TopicCandidate();
             c.setId("hot-" + Integer.toHexString(((cfg.getId() == null ? "" : cfg.getId()) + title).hashCode()));
@@ -206,6 +214,10 @@ public class BitableTopicReader {
             if (tags != null) c.getTags().addAll(tags);
             if (!isBlank(persona)) c.getTags().add(persona);
             if (!isBlank(emotion)) c.getTags().add(emotion);
+            if (insuranceTypes != null) c.setInsuranceTypes(insuranceTypes);
+            if (demographics != null) c.setDemographics(demographics);
+            if (platforms != null) c.setRecommendedPlatforms(platforms);
+            if (!isBlank(whyThisTopic)) c.setWhyThisTopic(whyThisTopic);
             c.setSuggestedAgent("xhs-title");
             out.add(c);
         }

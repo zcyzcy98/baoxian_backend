@@ -459,7 +459,18 @@ public class TopicGenerationService {
         }
 
         int totalScore() {
-            return candidate.getScore() * 3 / 10 + matchScore;
+            int base = candidate.getScore() * 3 / 10 + matchScore;
+            return applyTimeDecay(base);
+        }
+
+        /** 时间衰减：超过12小时后每小时扣1分。避免旧数据权重过高。 */
+        private int applyTimeDecay(int base) {
+            java.time.OffsetDateTime createdAt = candidate.getCreatedAt();
+            if (createdAt == null) return base;
+            long hoursAgo = java.time.Duration.between(createdAt, java.time.OffsetDateTime.now()).toHours();
+            if (hoursAgo <= 12) return base;
+            int penalty = (int) (hoursAgo - 12);
+            return Math.max(0, base - penalty);
         }
     }
 

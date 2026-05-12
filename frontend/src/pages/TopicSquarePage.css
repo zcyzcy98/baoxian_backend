@@ -7,62 +7,150 @@
   overflow: hidden;
 }
 
-/* ── Header ── */
-.tsq-header {
+/* ── 欢迎横幅 ── */
+.tsq-welcome-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 24px 10px;
+  padding: 20px 24px 14px;
   flex-shrink: 0;
 }
 
-.tsq-title {
-  font-size: 20px;
+.tsq-welcome-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.tsq-welcome-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #c45a2e 0%, #e67e45 100%);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: 0.5px;
+  overflow: hidden;
+}
+
+.tsq-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tsq-welcome-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tsq-welcome-greeting {
+  font-size: 18px;
   font-weight: 700;
   color: #1a1a1a;
-  margin: 0 0 3px;
+  margin: 0;
   letter-spacing: -0.3px;
 }
 
-.tsq-subtitle {
-  font-size: 12px;
-  color: #999;
+.tsq-welcome-sub {
+  font-size: 13px;
+  color: #888;
   margin: 0;
+}
+
+.tsq-welcome-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 3px;
+  font-size: 12px;
+  color: #aaa;
+}
+
+.tsq-credits-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  background: #f5f5f5;
+  border-radius: 10px;
+  font-size: 11.5px;
+  color: #888;
 }
 
 .tsq-fetch-time {
   color: #bbb;
+  font-size: 11.5px;
 }
 
-.tsq-header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
+/* ── 刷新按钮 ── */
 .tsq-btn-refresh {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px 13px;
+  gap: 6px;
+  padding: 8px 16px;
   border: 1.5px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: #fff;
   color: #555;
-  font-size: 12.5px;
+  font-size: 13px;
   cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
+  transition: all 0.15s;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .tsq-btn-refresh:hover:not(:disabled) {
   border-color: #c45a2e;
   color: #c45a2e;
+  background: #fef9f6;
 }
 
 .tsq-btn-refresh:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.tsq-btn-refresh.loading {
+  border-color: #c45a2e;
+  color: #c45a2e;
+}
+
+.tsq-credit-cost {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 8px;
+  background: #fff3e0;
+  color: #e67e45;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ── 模式提示条 ── */
+.tsq-mode-hint {
+  margin: 0 24px 8px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.tsq-mode-hint.personalized {
+  background: #f0f7ff;
+  color: #5b8dd9;
+  border: 1px solid #d6e8ff;
+}
+
+.tsq-mode-hint.refresh {
+  background: #fff9f0;
+  color: #c45a2e;
+  border: 1px solid #ffe8d0;
 }
 
 @keyframes tsqSpin {
@@ -148,6 +236,112 @@
   flex-direction: column;
   gap: 8px;
   flex-shrink: 0;
+}
+
+.tsq-filter-chips-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tsq-filter-chip {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.tsq-filter-chip-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border: 1.5px solid #e8e8e8;
+  border-radius: 8px;
+  background: #fff;
+  color: #555;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.tsq-filter-chip-btn:hover {
+  border-color: #c45a2e;
+}
+
+.tsq-filter-chip.active .tsq-filter-chip-btn {
+  border-color: #c45a2e;
+  background: #fef9f6;
+}
+
+.tsq-filter-chip-label {
+  font-size: 12px;
+  color: #999;
+}
+
+.tsq-filter-chip-val {
+  font-size: 12.5px;
+  color: #333;
+  font-weight: 500;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tsq-filter-chip.active .tsq-filter-chip-val {
+  color: #c45a2e;
+}
+
+.tsq-filter-chip-chevron {
+  color: #bbb;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.tsq-filter-chip-chevron.open {
+  transform: rotate(180deg);
+}
+
+.tsq-filter-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 100;
+  min-width: 140px;
+  background: #fff;
+  border: 1.5px solid #ebebeb;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.09);
+  padding: 6px 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.tsq-filter-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  color: #333;
+  cursor: pointer;
+  transition: background 0.1s;
+  white-space: nowrap;
+}
+
+.tsq-filter-menu-item:hover {
+  background: #f5f5f5;
+}
+
+.tsq-filter-menu-item.checked {
+  color: #c45a2e;
+  font-weight: 600;
+}
+
+.tsq-filter-menu-check {
+  width: 16px;
+  font-size: 12px;
+  flex-shrink: 0;
+  text-align: center;
 }
 
 .tsq-filter-groups {

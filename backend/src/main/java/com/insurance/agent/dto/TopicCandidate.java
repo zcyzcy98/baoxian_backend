@@ -1,5 +1,6 @@
 package com.insurance.agent.dto;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +30,7 @@ public class TopicCandidate {
     private String sourceUrl;       // 原文链接 (如有)
     private String sourceCategory;  // 来源分类: SYSTEM_RECOMMEND / HOT_TEMPLATE / KNOWLEDGE_BASE / NEWS_HOTSPOT / USER_WRITE
     private int score;              // 0-100 爆款可能性
+    private OffsetDateTime createdAt; // 入库时间，用于时间衰减打分
     private String suggestedAgent; // 建议跳转哪个 agent ("xhs-title" / "video-script" 等)
 
     public TopicCandidate() {
@@ -63,6 +65,8 @@ public class TopicCandidate {
     public void setSourceCategory(String sourceCategory) { this.sourceCategory = sourceCategory; }
     public int getScore() { return score; }
     public void setScore(int score) { this.score = score; }
+    public OffsetDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
     public String getSuggestedAgent() { return suggestedAgent; }
     public void setSuggestedAgent(String suggestedAgent) { this.suggestedAgent = suggestedAgent; }
 }

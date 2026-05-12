@@ -1,22 +1,15 @@
-import { useState, useEffect, useCallback } from 'react'
-import { fetchDailyTopics, searchHotTopics } from '../api'
+import { useState, useEffect, useRef } from 'react'
+import { fetchDailyTopics, searchHotTopics, refreshTopics, fetchUserProfile, fetchCreditsBalance } from '../api'
 import CreateTopicModal from '../components/CreateTopicModal'
 import './TopicSquarePage.css'
 
 const INSURANCE_TYPES = ['重疾险', '医疗险', '意外险', '寿险', '养老险', '车险', '财产险', '理财险']
 const DEMOGRAPHICS = ['年轻人', '中年人', '老年人', '宝妈', '上班族', '创业者', '学生', '中产']
 const PLATFORMS = ['小红书', '抖音', '公众号', '视频号']
-const LIMIT_OPTIONS = [10, 20, 30]
+const DEFAULT_LIMIT = 18
+const REFRESH_COST = 1
 
-const CACHE_KEY = 'chengzhi:topics-cache-v2'
 const FILTER_KEY = 'chengzhi:topics-filters-v2'
-
-function loadCache() {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY)
-    return raw ? JSON.parse(raw) : { topics: [], lastFetchedAt: null }
-  } catch { return { topics: [], lastFetchedAt: null } }
-}
 
 function loadFilters() {
   try {
@@ -36,7 +29,6 @@ function formatRelativeTime(iso) {
   return `${Math.floor(h / 24)} 天前`
 }
 
-// score 0-100 → "X.X"
 function formatScore(score) {
   const v = Math.min(100, Math.max(0, score ?? 0))
   return (v / 10).toFixed(1)
@@ -50,17 +42,21 @@ const PLATFORM_COLORS = {
 }
 
 export default function TopicSquarePage({ onNavigate }) {
-  const cache = loadCache()
   const persistedFilters = loadFilters()
 
-  const [topics, setTopics] = useState(cache.topics || [])
-  const [lastFetchedAt, setLastFetchedAt] = useState(cache.lastFetchedAt)
-  const [loading, setLoading] = useState(false)
+  const [topics, setTopics] = useState([])
+  const [lastFetchedAt, setLastFetchedAt] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
+
+  const [userProfile, setUserProfile] = useState(null)
+  const [creditsBalance, setCreditsBalance] = useState(null)
+
   const [insuranceFilter, setInsuranceFilter] = useState(persistedFilters.ins || [])
   const [demographicFilter, setDemographicFilter] = useState(persistedFilters.demo || [])
   const [platformFilter, setPlatformFilter] = useState(persistedFilters.plat || [])
-  const [limitCount, setLimitCount] = useState(20)
+
   const [selectedTopic, setSelectedTopic] = useState(null)
   const [showCustomPanel, setShowCustomPanel] = useState(false)
   const [customTitle, setCustomTitle] = useState('')
@@ -76,25 +72,63 @@ export default function TopicSquarePage({ onNavigate }) {
     }))
   }, [insuranceFilter, demographicFilter, platformFilter])
 
-  const loadTopics = useCallback(async (count = limitCount) => {
-    if (loading) return
+  useEffect(() => {
+    loadPersonalized()
+  }, [])
+
+  const loadPersonalized = async () => {
     setLoading(true)
     setError('')
     setSearchMode(false)
     try {
-      const payload = { categories: ['hotspot'], limit: count }
+      const [profile, balance] = await Promise.allSettled([
+        fetchUserProfile(),
+        fetchCreditsBalance(),
+      ])
+      if (profile.status === 'fulfilled') setUserProfile(profile.value)
+      if (balance.status === 'fulfilled') setCreditsBalance(balance.value.balance ?? balance.value.credits ?? 0)
+
+      const profileData = profile.status === 'fulfilled' ? profile.value : null
+      const payload = { categories: ['hotspot'], limit: DEFAULT_LIMIT }
+      if (profileData) {
+        payload.profile = {
+          primaryProducts: profileData.primaryProducts || [],
+          targetAudiences: profileData.targetAudiences || [],
+          style: profileData.style || '',
+        }
+      }
       const data = await fetchDailyTopics(payload)
       const items = data.items || []
-      const fetchedAt = new Date().toISOString()
       setTopics(items)
-      setLastFetchedAt(fetchedAt)
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ topics: items, lastFetchedAt: fetchedAt }))
+      setLastFetchedAt(new Date().toISOString())
     } catch (e) {
       setError(e?.message || '拉取失败')
     } finally {
       setLoading(false)
     }
-  }, [loading, limitCount])
+  }
+
+  const handleRefresh = async () => {
+    if (refreshing) return
+    setRefreshing(true)
+    setError('')
+    try {
+      const data = await refreshTopics()
+      const items = data.items || []
+      setTopics(items)
+      setLastFetchedAt(new Date().toISOString())
+      if (data.balance !== undefined) setCreditsBalance(data.balance)
+      else if (creditsBalance !== null) setCreditsBalance(c => Math.max(0, c - REFRESH_COST))
+    } catch (e) {
+      if (e?.code === 'INSUFFICIENT_CREDITS') {
+        setError('积分不足，无法刷新数据（需要 1 积分）。请充值后重试。')
+      } else {
+        setError(e?.message || '刷新失败')
+      }
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   const handleSearchHotspots = async () => {
     const kw = searchKeyword.trim()
@@ -115,7 +149,6 @@ export default function TopicSquarePage({ onNavigate }) {
     }
   }
 
-  // 前端筛选（不重新请求，直接过滤已加载数据）
   const filteredTopics = topics.filter(t => {
     if (insuranceFilter.length > 0) {
       const types = t.insuranceTypes || []
@@ -130,7 +163,7 @@ export default function TopicSquarePage({ onNavigate }) {
       if (!platformFilter.some(f => plats.includes(f))) return false
     }
     return true
-  })
+  }).sort((a, b) => (b.score || 0) - (a.score || 0))
 
   const toggleFilter = (arr, setArr, val) => {
     setArr(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val])
@@ -156,36 +189,46 @@ export default function TopicSquarePage({ onNavigate }) {
     })
   }
 
-  const handleLimitChange = (count) => {
-    setLimitCount(count)
-    loadTopics(count)
-  }
-
-  const topTopic = filteredTopics[0]
+  const userName = userProfile?.name || userProfile?.phone || '保险代理人'
+  const greeting = getGreeting()
 
   return (
     <div className="tsq-page">
-      {/* ── 顶部 Header ── */}
-      <div className="tsq-header">
-        <div className="tsq-header-left">
-          <h2 className="tsq-title">选题广场</h2>
-          <p className="tsq-subtitle">
-            AI 筛选 · TopHub 实时热点 · 保险内容专属推荐
-            {lastFetchedAt && (
-              <span className="tsq-fetch-time"> · {formatRelativeTime(lastFetchedAt)}更新</span>
+      {/* ── 欢迎横幅 + 刷新 ── */}
+      <div className="tsq-welcome-banner">
+        <div className="tsq-welcome-left">
+          <div className="tsq-welcome-avatar">
+            {userProfile?.avatarUrl ? (
+              <img src={userProfile.avatarUrl} alt="" className="tsq-avatar-img" referrerPolicy="no-referrer" />
+            ) : (
+              (userName || '代')[0]
             )}
-          </p>
+          </div>
+          <div className="tsq-welcome-text">
+            <p className="tsq-welcome-greeting">{greeting}，{userName}</p>
+            <p className="tsq-welcome-sub">
+              已为你智能推荐个性化选题，快去创作吧！
+            </p>
+            {lastFetchedAt && (
+              <div className="tsq-welcome-meta">
+                <span className="tsq-fetch-time">{formatRelativeTime(lastFetchedAt)}更新</span>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="tsq-header-right">
-          <button className="tsq-btn-refresh" onClick={() => loadTopics()} disabled={loading}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"
-              style={loading ? { animation: 'tsqSpin 0.9s linear infinite' } : {}}>
-              <polyline points="23 4 23 10 17 10"/>
-              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-            </svg>
-            {loading ? '拉取中…' : topics.length === 0 ? '加载选题' : '刷新数据'}
-          </button>
-        </div>
+        <button
+          className={`tsq-btn-refresh ${refreshing ? 'loading' : ''}`}
+          onClick={handleRefresh}
+          disabled={refreshing || loading}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"
+            style={refreshing ? { animation: 'tsqSpin 0.9s linear infinite' } : {}}>
+            <polyline points="23 4 23 10 17 10"/>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+          {refreshing ? '刷新中…' : '刷新数据'}
+          <span className="tsq-credit-cost">-{REFRESH_COST}积分</span>
+        </button>
       </div>
 
       {/* ── 搜索栏 ── */}
@@ -207,7 +250,7 @@ export default function TopicSquarePage({ onNavigate }) {
             {searching ? '搜索中…' : '搜热点'}
           </button>
           {searchMode && (
-            <button className="tsq-search-back" onClick={() => loadTopics()}>
+            <button className="tsq-search-back" onClick={() => loadPersonalized()}>
               ← 返回推荐
             </button>
           )}
@@ -216,10 +259,10 @@ export default function TopicSquarePage({ onNavigate }) {
 
       {/* ── 筛选栏 ── */}
       <div className="tsq-filter-bar">
-        <div className="tsq-filter-groups">
-          <FilterGroup label="险种" options={INSURANCE_TYPES} active={insuranceFilter} onToggle={v => toggleFilter(insuranceFilter, setInsuranceFilter, v)} />
-          <FilterGroup label="客群" options={DEMOGRAPHICS} active={demographicFilter} onToggle={v => toggleFilter(demographicFilter, setDemographicFilter, v)} />
-          <FilterGroup label="平台" options={PLATFORMS} active={platformFilter} onToggle={v => toggleFilter(platformFilter, setPlatformFilter, v)} />
+        <div className="tsq-filter-chips-row">
+          <FilterDropdown label="险种" options={INSURANCE_TYPES} active={insuranceFilter} onToggle={v => toggleFilter(insuranceFilter, setInsuranceFilter, v)} />
+          <FilterDropdown label="客群" options={DEMOGRAPHICS} active={demographicFilter} onToggle={v => toggleFilter(demographicFilter, setDemographicFilter, v)} />
+          <FilterDropdown label="平台" options={PLATFORMS} active={platformFilter} onToggle={v => toggleFilter(platformFilter, setPlatformFilter, v)} />
         </div>
 
         <div className="tsq-filter-right">
@@ -228,29 +271,6 @@ export default function TopicSquarePage({ onNavigate }) {
           )}
           <span className="tsq-result-count">{filteredTopics.length} 个结果</span>
 
-          {/* 10/20/30 选择 */}
-          <div className="tsq-limit-group">
-            {LIMIT_OPTIONS.map(n => (
-              <button
-                key={n}
-                className={`tsq-limit-btn ${limitCount === n ? 'active' : ''}`}
-                onClick={() => handleLimitChange(n)}
-                disabled={loading}
-              >
-                {n}条
-              </button>
-            ))}
-          </div>
-
-          {/* 一键创作 Top 选题 */}
-          {topTopic && (
-            <button className="tsq-btn-top-create" onClick={() => setSelectedTopic(topTopic)}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-              一键创作 Top 选题
-            </button>
-          )}
-
-          {/* 自定义选题 */}
           <button className="tsq-btn-custom" onClick={() => setShowCustomPanel(!showCustomPanel)}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
@@ -300,8 +320,10 @@ export default function TopicSquarePage({ onNavigate }) {
             <>
               <div className="tsq-empty-icon">⚡</div>
               <p className="tsq-empty-title">还没有选题</p>
-              <p className="tsq-empty-desc">点击"加载选题"，AI 将从 TopHub 实时热榜中筛选最适合保险内容创作的热点</p>
-              <button className="tsq-empty-btn" onClick={() => loadTopics()}>立即加载</button>
+              <p className="tsq-empty-desc">AI 正在为你智能推荐个性化选题，请稍后刷新</p>
+              <button className="tsq-empty-btn" onClick={handleRefresh} disabled={refreshing}>
+                刷新数据（-{REFRESH_COST}积分）
+              </button>
             </>
           ) : (
             <>
@@ -336,22 +358,64 @@ export default function TopicSquarePage({ onNavigate }) {
   )
 }
 
-function FilterGroup({ label, options, active, onToggle }) {
+function getGreeting() {
+  const h = new Date().getHours()
+  if (h < 6) return '夜深了'
+  if (h < 9) return '早上好'
+  if (h < 12) return '上午好'
+  if (h < 14) return '中午好'
+  if (h < 18) return '下午好'
+  if (h < 22) return '晚上好'
+  return '夜深了'
+}
+
+function FilterDropdown({ label, options, active, onToggle }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false)
+      }
+    }
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
+
+  const valueText = active.length === 0
+    ? '全部'
+    : active.length === 1
+      ? active[0]
+      : `${active[0]} +${active.length - 1}`
+
   return (
-    <div className="tsq-filter-group">
-      <span className="tsq-filter-label">{label}</span>
-      <div className="tsq-filter-chips">
-        {options.map(opt => (
-          <button
-            key={opt}
-            className={`tsq-chip ${active.includes(opt) ? 'active' : ''}`}
-            onClick={() => onToggle(opt)}
-          >
-            {opt}
-            {active.includes(opt) && <span className="tsq-chip-count">✓</span>}
-          </button>
-        ))}
-      </div>
+    <div className={`tsq-filter-chip ${active.length > 0 ? 'active' : ''}`} ref={ref}>
+      <button className="tsq-filter-chip-btn" onClick={(e) => { e.stopPropagation(); setOpen(!open) }}>
+        <span className="tsq-filter-chip-label">{label}</span>
+        <span className="tsq-filter-chip-val">{valueText}</span>
+        <svg className={`tsq-filter-chip-chevron ${open ? 'open' : ''}`} width="10" height="6" viewBox="0 0 10 6" fill="none">
+          <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && (
+        <div className="tsq-filter-menu">
+          {options.map(opt => (
+            <div
+              key={opt}
+              className={`tsq-filter-menu-item ${active.includes(opt) ? 'checked' : ''}`}
+              onClick={(e) => { e.stopPropagation(); onToggle(opt) }}
+            >
+              <span className="tsq-filter-menu-check">
+                {active.includes(opt) ? '✓' : ''}
+              </span>
+              {opt}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -360,7 +424,6 @@ function TopicCard({ topic, rank, onClick }) {
   const score = topic.score ?? 0
   const scoreStr = formatScore(score)
   const scoreNum = parseFloat(scoreStr)
-  const isTop = rank === 0
   const isHigh = scoreNum >= 8.0
   const scoreMid = scoreNum >= 6.0
 
@@ -371,10 +434,8 @@ function TopicCard({ topic, rank, onClick }) {
   const whyText = topic.whyThisTopic || topic.reason || ''
 
   return (
-    <div className={`tsq-card ${isTop ? 'tsq-card--top' : ''}`} onClick={onClick}>
-      {isTop && <div className="tsq-card-top-badge">TOP</div>}
+    <div className="tsq-card" onClick={onClick}>
 
-      {/* 评分行 */}
       <div className="tsq-card-header">
         <div className="tsq-score-block">
           <span className="tsq-score-icon">🔥</span>
@@ -399,10 +460,8 @@ function TopicCard({ topic, rank, onClick }) {
         </div>
       </div>
 
-      {/* 标题 */}
       <h4 className="tsq-card-title">{topic.title}</h4>
 
-      {/* WHY THIS TOPIC */}
       {whyText && (
         <div className="tsq-why-block">
           <span className="tsq-why-label">— WHY THIS TOPIC</span>
@@ -410,7 +469,6 @@ function TopicCard({ topic, rank, onClick }) {
         </div>
       )}
 
-      {/* 险种标签 */}
       {insuranceTypes.length > 0 && (
         <div className="tsq-tag-row">
           <span className="tsq-tag-icon ins-icon">🛡</span>
@@ -423,7 +481,6 @@ function TopicCard({ topic, rank, onClick }) {
         </div>
       )}
 
-      {/* 适合人群 */}
       {audiences.length > 0 && (
         <div className="tsq-tag-row">
           <span className="tsq-tag-icon">👥</span>
@@ -436,7 +493,6 @@ function TopicCard({ topic, rank, onClick }) {
         </div>
       )}
 
-      {/* 发布平台 */}
       {platforms.length > 0 && (
         <div className="tsq-tag-row">
           <span className="tsq-tag-icon">📱</span>
@@ -451,7 +507,6 @@ function TopicCard({ topic, rank, onClick }) {
         </div>
       )}
 
-      {/* 底部操作 */}
       <div className="tsq-card-footer">
         <button className="tsq-btn-create" onClick={onClick}>
           开始创作 →

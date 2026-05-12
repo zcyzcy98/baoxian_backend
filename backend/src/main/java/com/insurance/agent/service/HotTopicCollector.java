@@ -13,6 +13,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -26,6 +27,22 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class HotTopicCollector {
 
     private static final Logger log = LoggerFactory.getLogger(HotTopicCollector.class);
+
+    private static final List<String> TOPHUB_SOURCE_HASHIDS = Arrays.asList(
+            "mproPpoq6O", "rx9oz6oXbq",  // 知乎
+            "WnBe01o371", "W1VdJPZoLQ",  // 微信
+            "KqndgxeLl9",                // 微博
+            "x9ozB4KoXb",               // 今日头条
+            "K7GdaMgdQy",               // 抖音
+            "Jb0vmloB1G",               // 百度
+            "KMZd7VOvrO",               // 知乎日报
+            "n6YoVqDeZa",               // 夸克
+            "YqoXQGXvOD",               // 汽车之家
+            "0MdKam4ow1",               // 第一财经
+            "L4MdA5ldxD"                // 小红书
+    );
+
+    public static List<String> getSourceHashids() { return TOPHUB_SOURCE_HASHIDS; }
 
     private final TopHubDataService topHubDataService;
     private final TopicAiFilterService aiFilterService;
@@ -58,7 +75,7 @@ public class HotTopicCollector {
         log.info("[HotTopicCollector] 开始定时采集热点...");
         LocalDate today = LocalDate.now();
 
-        List<TopicCandidate> raw = topHubDataService.fetchHotTopics(100);
+        List<TopicCandidate> raw = topHubDataService.fetchHotTopics(100, TOPHUB_SOURCE_HASHIDS);
         if (raw.isEmpty()) {
             log.warn("[HotTopicCollector] TopHubData 返回为空，跳过本次采集");
             return;
@@ -246,7 +263,7 @@ public class HotTopicCollector {
         return ht;
     }
 
-    static TopicCandidate toCandidate(HotTopic ht) {
+    public static TopicCandidate toCandidate(HotTopic ht) {
         TopicCandidate c = new TopicCandidate();
         String src = ht.getSource();
 
@@ -265,6 +282,7 @@ public class HotTopicCollector {
         c.setScore(Math.min(100, Math.max(0, ht.getHeatScore() + ht.getAiScore())));
         c.setWhyThisTopic(ht.getWhyThisTopic());
         c.setSourceCategory(ht.getSourceCategory());
+        if (ht.getCreatedAt() != null) c.setCreatedAt(ht.getCreatedAt());
 
         if (ht.getInsuranceTypes() != null) c.setInsuranceTypes(ht.getInsuranceTypes());
         if (ht.getDemographics() != null) c.setDemographics(ht.getDemographics());
