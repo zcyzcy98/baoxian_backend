@@ -129,10 +129,9 @@ public class HotTopicCollector {
 
         List<HotTopic> toInsert = new ArrayList<>();
         for (TopicCandidate c : filteredByAi) {
-            int preAi = preAiScores.getOrDefault(System.identityHashCode(c), c.getScore());
-            HotTopic ht = toHotTopic(c, today,
-                    Math.min(50, Math.max(0, preAi)),
-                    Math.min(50, Math.max(0, c.getScore() - preAi)),
+            // 使用 AI 增强前的原始基础分，避免 AI 改写导致分数膨胀
+            int baseScore = preAiScores.getOrDefault(System.identityHashCode(c), c.getScore());
+            HotTopic ht = toHotTopic(c, today, baseScore, 0,
                     "TOPHUB", "NEWS_HOTSPOT");
             if (ht != null) toInsert.add(ht);
         }
@@ -178,9 +177,7 @@ public class HotTopicCollector {
         List<HotTopic> toInsert = new ArrayList<>();
         for (TopicCandidate c : bitableTopics) {
             String sourceCategory = deriveSourceCategory(c);
-            HeatScore heat = toBitableHeatScore(c);
-            HotTopic ht = toHotTopic(c, today,
-                    heat.heatScore, heat.aiScore,
+            HotTopic ht = toHotTopic(c, today, c.getScore(), 0,
                     "BITABLE", sourceCategory);
             if (ht != null) {
                 ht.setSourceSite(c.getSourceLabel());
@@ -194,12 +191,6 @@ public class HotTopicCollector {
         }
 
         refreshCache(today);
-    }
-
-    /** 将飞书 TopicCandidate 的评分拆分为 heat + ai */
-    private static HeatScore toBitableHeatScore(TopicCandidate c) {
-        int total = Math.max(0, Math.min(100, c.getScore()));
-        return new HeatScore(Math.min(70, total), total - Math.min(70, total));
     }
 
     /** 飞书选题的来源分类 */
@@ -279,7 +270,7 @@ public class HotTopicCollector {
         c.setId("ht-" + ht.getId());
         c.setTitle(ht.getTitle());
         c.setSourceUrl(ht.getSourceUrl());
-        c.setScore(Math.min(100, Math.max(0, ht.getHeatScore() + ht.getAiScore())));
+        c.setScore(Math.min(100, Math.max(0, ht.getHeatScore())));
         c.setWhyThisTopic(ht.getWhyThisTopic());
         c.setSourceCategory(ht.getSourceCategory());
         if (ht.getCreatedAt() != null) c.setCreatedAt(ht.getCreatedAt());
@@ -312,14 +303,4 @@ public class HotTopicCollector {
         }
     }
 
-    /** 分数拆分辅助 */
-    private static class HeatScore {
-        final int heatScore;
-        final int aiScore;
-
-        HeatScore(int heatScore, int aiScore) {
-            this.heatScore = heatScore;
-            this.aiScore = aiScore;
-        }
-    }
 }

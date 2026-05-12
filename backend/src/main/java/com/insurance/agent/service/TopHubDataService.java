@@ -297,6 +297,8 @@ public class TopHubDataService {
                 candidates = candidates.subList(0, limit);
             }
 
+            log.info("[TopHub] 单节点 {} 返回 {} 条 (limit={})", hashid, candidates.size(), limit);
+
             return candidates;
         } catch (Exception e) {
             log.error("Failed to fetch node {} from TopHubData: {}", hashid, url, e);
@@ -467,20 +469,26 @@ public class TopHubDataService {
         }
         c.setAngle(angle.toString());
 
-        // 热度分：0-50，非线性（对数压缩，避免热度一家独大）
+        // 热度分：0-40，非线性（对数压缩，避免热度一家独大）
         int heatScore;
         if (maxHeat > 0 && heat > 0) {
             double ratio = Math.log1p(heat) / Math.log1p(maxHeat);
-            heatScore = (int) Math.round(50.0 * ratio);
+            heatScore = (int) Math.round(40.0 * ratio);
         } else {
-            heatScore = 20;
+            heatScore = 0;
         }
-        heatScore = Math.min(50, Math.max(10, heatScore));
+        heatScore = Math.min(40, Math.max(0, heatScore));
 
-        // 保险相关性分：0-50（AI 筛选后会覆盖更准确的分数，这里先给规则分）
-        int relevanceScore = Math.min(50, insuranceRelevance * 10);
+        // 保险相关性分：0-20（标题中含保险关键词个数 × 10）
+        int relevanceScore = Math.min(20, insuranceRelevance * 10);
 
-        c.setScore(Math.min(100, Math.max(15, heatScore + relevanceScore)));
+        // 标签丰富度：0-10（有摘要描述加分）
+        int richness = description.isBlank() ? 0 : 10;
+
+        // 来源质量分：0-10（知乎/微信等深度平台加分）
+        int sourceBonus = isPremiumSource(sitename) ? 10 : 0;
+
+        c.setScore(Math.min(80, heatScore + relevanceScore + richness + sourceBonus));
 
         c.setSuggestedAgent("xhs-title");
 
@@ -513,6 +521,15 @@ public class TopHubDataService {
             }
         }
         return score;
+    }
+
+    /** 判断是否为深度/高质量来源 */
+    private static boolean isPremiumSource(String sitename) {
+        if (sitename == null) return false;
+        return sitename.contains("知乎")
+                || sitename.contains("微信")
+                || sitename.contains("GitHub")
+                || sitename.contains("豆瓣");
     }
 
     static String getPlatformIcon(String sitename) {
@@ -583,5 +600,28 @@ public class TopHubDataService {
         public String getDisplay() { return display; }
         public String getDomain() { return domain; }
         public String getCid() { return cid; }
+    }
+
+    /** 在同批次内做分数归一化，确保分差拉开 */
+    private void normalizeScores(List<TopicCandidate> candidates) {
+        if (candidates.size() < 2) return;
+        int minS = candidates.stream().mapToInt(TopicCandidate::getScore).min().orElse(0);
+        int maxS = candidates.stream().mapToInt(TopicCandidate::getScore).max().orElse(1);
+        int range = maxS - minS;
+        if (range == 0) {
+            // 所有人同分，按 index 分配 10-90
+            for (int i = 0; i < candidates.size(); i++) {
+                double pct = (double) i / (candidates.size() - 1);
+                int s = 10 + (int) Math.round(pct * 80);
+                candidates.get(i).setScore(s);
+            }
+            return;
+        }
+        // 线性归一化到 10-90 区间
+        for (TopicCandidate c : candidates) {
+            double normalized = (double) (c.getScore() - minS) / range;
+            int s = 10 + (int) Math.round(normalized * 80);
+            c.setScore(Math.min(100, Math.max(10, s)));
+        }
     }
 }

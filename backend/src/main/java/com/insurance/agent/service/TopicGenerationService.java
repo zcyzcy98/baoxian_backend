@@ -379,7 +379,7 @@ public class TopicGenerationService {
             });
         }
 
-        // 按综合得分降序：原始热度(权重0.3) + 用户画像匹配分
+        // 按综合得分降序：原始热度 + 匹配分 - 时间衰减
         scored.sort((a, b) -> Integer.compare(b.totalScore(), a.totalScore()));
 
         Set<String> seen = new HashSet<>();
@@ -387,9 +387,31 @@ public class TopicGenerationService {
         for (ScoredCandidate s : scored) {
             String key = s.candidate.getTitle() == null ? "" : s.candidate.getTitle().trim();
             if (seen.add(key) && !key.isEmpty()) {
-                out.add(s.candidate);
+                TopicCandidate c = s.candidate;
+                c.setScore(Math.min(100, s.totalScore()));
+                out.add(c);
                 if (out.size() >= Math.max(1, limit)) break;
             }
+        }
+
+        // 全局归一化：所有候选一起映射到 10-100，保证展示区分度
+        if (out.size() >= 2) {
+            int minS = out.stream().mapToInt(TopicCandidate::getScore).min().orElse(0);
+            int maxS = out.stream().mapToInt(TopicCandidate::getScore).max().orElse(1);
+            int range = maxS - minS;
+            if (range == 0) {
+                for (int i = 0; i < out.size(); i++) {
+                    double pct = (double) i / (out.size() - 1);
+                    out.get(i).setScore(10 + (int) Math.round(pct * 90));
+                }
+            } else {
+                for (TopicCandidate c : out) {
+                    double normalized = (double) (c.getScore() - minS) / range;
+                    c.setScore(10 + (int) Math.round(normalized * 90));
+                }
+            }
+            // 归一化后重新排序
+            out.sort((a, b) -> Integer.compare(b.getScore(), a.getScore()));
         }
         return out;
     }
@@ -400,48 +422,48 @@ public class TopicGenerationService {
 
         int score = 0;
 
-        // 1. 主营险种匹配：每匹配一项 +40
+        // 1. 主营险种匹配：每匹配一项 +3
         List<String> products = profile.getPrimaryProducts();
         List<String> insTypes = c.getInsuranceTypes();
         if (products != null && insTypes != null) {
             for (String p : products) {
                 for (String t : insTypes) {
                     if (t.contains(p) || p.contains(t)) {
-                        score += 40;
+                        score += 3;
                         break;
                     }
                 }
             }
         }
 
-        // 2. 目标客群匹配：每匹配一项 +30
+        // 2. 目标客群匹配：每匹配一项 +3
         List<String> audiences = profile.getTargetAudiences();
         List<String> demos = c.getDemographics();
         if (audiences != null && demos != null) {
             for (String a : audiences) {
                 for (String d : demos) {
                     if (d.contains(a) || a.contains(d)) {
-                        score += 30;
+                        score += 3;
                         break;
                     }
                 }
             }
         }
 
-        // 3. 风格偏好匹配 +20
+        // 3. 风格偏好匹配 +2
         String style = profile.getStyle();
         if (style != null && !style.isBlank()) {
             if (c.getTags() != null) {
                 for (String tag : c.getTags()) {
                     if (tag.contains(style) || style.contains(tag)) {
-                        score += 20;
+                        score += 2;
                         break;
                     }
                 }
             }
             String reason = c.getReason();
             if (reason != null && reason.contains(style)) {
-                score += 20;
+                score += 2;
             }
         }
 
@@ -459,18 +481,20 @@ public class TopicGenerationService {
         }
 
         int totalScore() {
-            int base = candidate.getScore() * 3 / 10 + matchScore;
+            int base = candidate.getScore() + matchScore;
             return applyTimeDecay(base);
         }
 
-        /** 时间衰减：超过12小时后每小时扣1分。避免旧数据权重过高。 */
+        /** 时间衰减：仅 TopHub 热点超过12小时后每小时-0.1，最多-1。飞书数据不做衰减。 */
         private int applyTimeDecay(int base) {
+            // 飞书数据不做热点衰减
+            if (candidate.getSource() != TopicCandidate.Source.TOPHUB) return base;
             java.time.OffsetDateTime createdAt = candidate.getCreatedAt();
             if (createdAt == null) return base;
             long hoursAgo = java.time.Duration.between(createdAt, java.time.OffsetDateTime.now()).toHours();
             if (hoursAgo <= 12) return base;
-            int penalty = (int) (hoursAgo - 12);
-            return Math.max(0, base - penalty);
+            double penalty = Math.min(10.0, (hoursAgo - 12) * 1.0);
+            return Math.max(0, base - (int) Math.round(penalty));
         }
     }
 

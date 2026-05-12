@@ -168,14 +168,6 @@ public class BitableTopicReader {
                                                   BitableConfig cfg,
                                                   Map<String, String> fieldMap,
                                                   UserProfile profile) {
-        // 先算最大 likes 用于归一化
-        long maxLikes = 0;
-        for (Map<String, Object> r : records) {
-            Map<String, Object> f = (Map<String, Object>) r.get("fields");
-            Long likes = parseLong(getField(f, fieldMap, "likes"));
-            if (likes != null && likes > maxLikes) maxLikes = likes;
-        }
-
         List<TopicCandidate> out = new ArrayList<>();
         for (Map<String, Object> r : records) {
             Map<String, Object> f = (Map<String, Object>) r.get("fields");
@@ -185,7 +177,6 @@ public class BitableTopicReader {
             String emotion = asText(getField(f, fieldMap, "emotion"));
             String persona = asText(getField(f, fieldMap, "persona"));
             String src = asText(getField(f, fieldMap, "sourceLabel"));
-            Long likes = parseLong(getField(f, fieldMap, "likes"));
             String url = asText(getField(f, fieldMap, "url"));
             List<String> tags = asList(getField(f, fieldMap, "tags"));
             List<String> insuranceTypes = asList(getField(f, fieldMap, "insuranceTypes"));
@@ -200,17 +191,18 @@ public class BitableTopicReader {
             c.setSourceLabel(cfg.getName() + (isBlank(src) ? "" : " · " + src));
             c.setSourceUrl(url);
 
-            String angle = String.join(" · ", filterBlanks(
-                    persona, emotion,
-                    likes == null ? null : ("👍 " + formatNumber(likes))));
+            String angle = String.join(" · ", filterBlanks(persona, emotion));
             c.setAngle(angle);
 
-            // 评分: 基础 65 + 点赞归一化(0-25) + 用户匹配(0-10)
-            int base = 65;
-            int normalized = (maxLikes > 0 && likes != null)
-                    ? (int) Math.round(25.0 * likes / maxLikes) : 0;
-            int match = bonusForUserMatch(profile, mergeTags(tags, persona, emotion));
-            c.setScore(Math.min(100, base + normalized + match));
+            // 评分: HOTSPOT_NOTE 保底 20 分 + 标签丰富度(0-30) + 内容完整性(0-20)
+            int richness = 0;
+            if (insuranceTypes != null && !insuranceTypes.isEmpty()) richness += 10;
+            if (demographics != null && !demographics.isEmpty()) richness += 10;
+            if (platforms != null && !platforms.isEmpty()) richness += 10;
+            int completeness = 0;
+            if (!isBlank(whyThisTopic)) completeness += 10;
+            if (!isBlank(persona) && !isBlank(emotion)) completeness += 10;
+            c.setScore(Math.min(70, 20 + richness + completeness));
 
             if (tags != null) c.getTags().addAll(tags);
             if (!isBlank(persona)) c.getTags().add(persona);
