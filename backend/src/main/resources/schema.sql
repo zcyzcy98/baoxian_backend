@@ -154,3 +154,43 @@ INSERT INTO credit_packages (id, name, credits, price_fen, save_fen, sort_order)
     ('credits_5000',  '进阶包',   5000,  45900,  3600,  2),
     ('credits_10000', '专业包',  10000,  85900, 13100,  3)
 ON CONFLICT (id) DO NOTHING;
+
+-- 热点选题池（每日定时采集入库）
+CREATE TABLE IF NOT EXISTS hot_topics (
+    id              BIGSERIAL PRIMARY KEY,
+    title           VARCHAR(500) NOT NULL,
+    title_hash      VARCHAR(64) NOT NULL,
+    source          VARCHAR(50) DEFAULT 'TOPHUB',
+    source_url      VARCHAR(1000),
+    source_site     VARCHAR(100),
+    heat_score      INT DEFAULT 0,
+    ai_score        INT DEFAULT 0,
+    insurance_types TEXT,
+    demographics    TEXT,
+    platforms       TEXT,
+    why_this_topic  TEXT,
+    source_category VARCHAR(50),
+    batch_date      DATE NOT NULL,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (title_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_hot_topics_batch_date ON hot_topics(batch_date);
+
+-- 用户推送记录（避免重复推送）
+CREATE TABLE IF NOT EXISTS topic_push_log (
+    id          BIGSERIAL PRIMARY KEY,
+    user_id     BIGINT NOT NULL,
+    topic_id    BIGINT NOT NULL,
+    pushed_at   TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (user_id, topic_id)
+);
+
+-- 用户对选题的行为记录（用于后续优化推荐）
+CREATE TABLE IF NOT EXISTS user_topic_action (
+    id          BIGSERIAL PRIMARY KEY,
+    user_id     BIGINT NOT NULL,
+    topic_id    BIGINT NOT NULL,
+    action      VARCHAR(20) NOT NULL,
+    created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_user_topic_action_user ON user_topic_action(user_id, topic_id);

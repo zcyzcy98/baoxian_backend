@@ -104,6 +104,10 @@ public class CreditsService {
                 CREATE INDEX IF NOT EXISTS idx_credit_tx_content
                 ON credit_transactions(content_id)
                 """);
+            // 迁移：删除 hot_topics.is_picked（改用 user_topic_action 按用户记录）
+            st.execute("""
+                ALTER TABLE hot_topics DROP COLUMN IF EXISTS is_picked
+                """);
             log.info("[Credits] schema ready");
         } catch (Exception e) {
             log.warn("[Credits] schema init: {}", e.getMessage());

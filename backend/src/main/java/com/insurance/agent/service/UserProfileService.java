@@ -26,6 +26,21 @@ public class UserProfileService {
     }
 
     // ---- 读取 ----
+
+    public List<Long> getAllUserIds() {
+        List<Long> ids = new ArrayList<>();
+        String sql = "SELECT id FROM user_profile ORDER BY id";
+        try (Connection c = getConn(); PreparedStatement ps = c.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                ids.add(rs.getLong("id"));
+            }
+        } catch (SQLException e) {
+            log.error("[Profile] 查询所有用户ID失败", e);
+        }
+        return ids;
+    }
+
     public ProfileDto getProfile(long userId) {
         ProfileDto dto = new ProfileDto();
         dto.setId(userId);

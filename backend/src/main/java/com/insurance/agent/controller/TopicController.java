@@ -3,6 +3,7 @@ package com.insurance.agent.controller;
 import com.insurance.agent.dto.*;
 import com.insurance.agent.service.BitableConfigService;
 import com.insurance.agent.service.BitableTopicReader;
+import com.insurance.agent.service.HotTopicCollector;
 import com.insurance.agent.service.TopicGenerationService;
 import com.insurance.agent.service.TopHubDataService;
 import org.springframework.http.ResponseEntity;
@@ -18,26 +19,42 @@ public class TopicController {
     private final BitableTopicReader bitableReader;
     private final BitableConfigService bitableConfig;
     private final TopHubDataService topHubDataService;
+    private final HotTopicCollector collector;
 
     public TopicController(TopicGenerationService generation,
                            BitableTopicReader bitableReader,
                            BitableConfigService bitableConfig,
-                           TopHubDataService topHubDataService) {
+                           TopHubDataService topHubDataService,
+                           HotTopicCollector collector) {
         this.generation = generation;
         this.bitableReader = bitableReader;
         this.bitableConfig = bitableConfig;
         this.topHubDataService = topHubDataService;
+        this.collector = collector;
     }
 
-    /** 选题广场主接口: 只从已配置的飞书多维表格拉候选选题. */
+    /**
+     * 选题广场主接口：优先从 HotTopicCollector 缓存读取今日热点选题，
+     * 再按用户画像排序；无缓存时降级到实时拉取 + AI（首次部署 / 8:00 前）。
+     */
     @PostMapping("/daily")
     public ResponseEntity<Map<String, Object>> daily(@RequestBody(required = false) DailyRequest req) {
         DailyRequest r = req == null ? new DailyRequest() : req;
-        Set<String> categories = r.getCategories() == null ? null
-                : new HashSet<>(r.getCategories());
         int limit = r.getLimit() <= 0 ? 30 : Math.min(100, r.getLimit());
-        List<TopicCandidate> list = generation.generateDaily(r.getProfile(), categories, limit,
-                r.getInsuranceTypesFilter(), r.getDemographicsFilter());
+        List<TopicCandidate> list;
+
+        // 阶段四：缓存优先路径——HotTopicCollector 每天8:00/18:00已采集好
+        List<TopicCandidate> cached = collector.getCachedTopics();
+        if (!cached.isEmpty()) {
+            list = generation.filterByProfile(cached, r.getProfile(),
+                    r.getInsuranceTypesFilter(), r.getDemographicsFilter(), limit);
+        } else {
+            // 降级路径：首次部署或 8:00 前，实时从 Bitable + TopHub 拉取
+            Set<String> categories = r.getCategories() == null ? null
+                    : new HashSet<>(r.getCategories());
+            list = generation.generateDaily(r.getProfile(), categories, limit,
+                    r.getInsuranceTypesFilter(), r.getDemographicsFilter());
+        }
 
         // 统计已配置好的飞书表 (active + 有 appToken/tableId)
         int activeBitables = 0;
@@ -104,6 +121,58 @@ public class TopicController {
             profile = mapToProfile((Map<?, ?>) p);
         }
         return ResponseEntity.ok(generation.fromUserInput(title.trim(), profile));
+    }
+
+    /**
+     * ========== 调试 / 手动触发接口 ==========
+     * 方便开发时测试定时采集逻辑，不用等 cron 执行。
+     * 生产环境建议加上 @Profile("dev") 限制。
+     */
+
+    /** 手动触发 TopHub 热点采集 */
+    @PostMapping("/debug/collect-tophub")
+    public ResponseEntity<Map<String, Object>> debugCollectTopHub() {
+        collector.collectHotTopics();
+        int cacheSize = collector.getCachedTopics().size();
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "TopHub 采集完成",
+                "cacheSize", cacheSize
+        ));
+    }
+
+    /** 手动触发飞书知识库采集 */
+    @PostMapping("/debug/collect-bitable")
+    public ResponseEntity<Map<String, Object>> debugCollectBitable() {
+        collector.collectBitableTopics();
+        int cacheSize = collector.getCachedTopics().size();
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "飞书知识库采集完成",
+                "cacheSize", cacheSize
+        ));
+    }
+
+    /** 查看当前内存缓存状态 */
+    @GetMapping("/debug/cache")
+    public ResponseEntity<Map<String, Object>> debugCache() {
+        List<TopicCandidate> cached = collector.getCachedTopics();
+        List<Map<String, Object>> summary = new ArrayList<>();
+        for (TopicCandidate c : cached) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", c.getId());
+            item.put("title", c.getTitle() != null ? c.getTitle().substring(0, Math.min(30, c.getTitle().length())) : "");
+            item.put("source", c.getSourceLabel());
+            item.put("score", c.getScore());
+            item.put("insuranceTypes", c.getInsuranceTypes());
+            item.put("demographics", c.getDemographics());
+            summary.add(item);
+        }
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "count", cached.size(),
+                "items", summary
+        ));
     }
 
     /** 清缓存 (调试用). */

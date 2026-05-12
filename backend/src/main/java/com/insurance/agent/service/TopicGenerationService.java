@@ -336,6 +336,133 @@ public class TopicGenerationService {
         return "社会热点话题，可从保险角度切入，引发用户共鸣";
     }
 
+    /**
+     * 从已缓存的候选列表中按用户画像个性化排序。
+     * 用于 /daily 接口的热点库缓存路径，无需重复调用 TopHubData + AI。
+     *
+     * @param cachedTopics      HotTopicCollector 缓存的热点列表
+     * @param profile            用户画像（可为 null）
+     * @param insuranceFilter    险种筛选（可为 null/空 = 不限）
+     * @param demographicFilter  人群筛选（可为 null/空 = 不限）
+     * @param limit              返回条数上限
+     */
+    public List<TopicCandidate> filterByProfile(List<TopicCandidate> cachedTopics,
+                                                UserProfile profile,
+                                                List<String> insuranceFilter,
+                                                List<String> demographicFilter,
+                                                int limit) {
+        if (cachedTopics == null || cachedTopics.isEmpty()) {
+            return List.of();
+        }
+
+        // 为每个候选计算匹配分
+        List<ScoredCandidate> scored = new ArrayList<>();
+        for (TopicCandidate c : cachedTopics) {
+            enrichCandidate(c);
+            int matchScore = computeMatchScore(c, profile);
+            scored.add(new ScoredCandidate(c, matchScore));
+        }
+
+        // 按险种筛选
+        if (insuranceFilter != null && !insuranceFilter.isEmpty()) {
+            scored.removeIf(s -> {
+                List<String> types = s.candidate.getInsuranceTypes();
+                return types == null || types.isEmpty() || Collections.disjoint(types, insuranceFilter);
+            });
+        }
+
+        // 按人群筛选
+        if (demographicFilter != null && !demographicFilter.isEmpty()) {
+            scored.removeIf(s -> {
+                List<String> demos = s.candidate.getDemographics();
+                return demos == null || demos.isEmpty() || Collections.disjoint(demos, demographicFilter);
+            });
+        }
+
+        // 按综合得分降序：原始热度(权重0.3) + 用户画像匹配分
+        scored.sort((a, b) -> Integer.compare(b.totalScore(), a.totalScore()));
+
+        Set<String> seen = new HashSet<>();
+        List<TopicCandidate> out = new ArrayList<>();
+        for (ScoredCandidate s : scored) {
+            String key = s.candidate.getTitle() == null ? "" : s.candidate.getTitle().trim();
+            if (seen.add(key) && !key.isEmpty()) {
+                out.add(s.candidate);
+                if (out.size() >= Math.max(1, limit)) break;
+            }
+        }
+        return out;
+    }
+
+    /** 计算候选与用户画像的匹配分 */
+    private int computeMatchScore(TopicCandidate c, UserProfile profile) {
+        if (profile == null || profile.isEmpty()) return 0;
+
+        int score = 0;
+
+        // 1. 主营险种匹配：每匹配一项 +40
+        List<String> products = profile.getPrimaryProducts();
+        List<String> insTypes = c.getInsuranceTypes();
+        if (products != null && insTypes != null) {
+            for (String p : products) {
+                for (String t : insTypes) {
+                    if (t.contains(p) || p.contains(t)) {
+                        score += 40;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 2. 目标客群匹配：每匹配一项 +30
+        List<String> audiences = profile.getTargetAudiences();
+        List<String> demos = c.getDemographics();
+        if (audiences != null && demos != null) {
+            for (String a : audiences) {
+                for (String d : demos) {
+                    if (d.contains(a) || a.contains(d)) {
+                        score += 30;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 3. 风格偏好匹配 +20
+        String style = profile.getStyle();
+        if (style != null && !style.isBlank()) {
+            if (c.getTags() != null) {
+                for (String tag : c.getTags()) {
+                    if (tag.contains(style) || style.contains(tag)) {
+                        score += 20;
+                        break;
+                    }
+                }
+            }
+            String reason = c.getReason();
+            if (reason != null && reason.contains(style)) {
+                score += 20;
+            }
+        }
+
+        return score;
+    }
+
+    /** 辅助记录，携带候选和匹配分 */
+    private static class ScoredCandidate {
+        final TopicCandidate candidate;
+        final int matchScore;
+
+        ScoredCandidate(TopicCandidate candidate, int matchScore) {
+            this.candidate = candidate;
+            this.matchScore = matchScore;
+        }
+
+        int totalScore() {
+            return candidate.getScore() * 3 / 10 + matchScore;
+        }
+    }
+
     /** 单条用户输入选题: 直接包成 TopicCandidate, 给最高优先级. */
     public TopicCandidate fromUserInput(String title, UserProfile profile) {
         TopicCandidate c = new TopicCandidate();
