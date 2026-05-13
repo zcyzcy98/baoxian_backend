@@ -4,7 +4,9 @@ import com.insurance.agent.dto.AgentRequest;
 import com.insurance.agent.dto.AgentResponse;
 import com.insurance.agent.service.ComplianceCheckService;
 import com.insurance.agent.service.DeepSeekService;
+import com.insurance.agent.service.FileParseService;
 import com.insurance.agent.service.ImageGenerationService;
+import com.insurance.agent.service.ImagePromptService;
 import com.insurance.agent.service.ImageTemplateService;
 import com.insurance.agent.service.LibTvService;
 import com.insurance.agent.service.SeedanceService;
@@ -37,7 +39,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/agents")
@@ -50,6 +54,7 @@ public class AgentController {
     private final XhsComplianceService xhsCompliance;
     private final ImageGenerationService imageGeneration;
     private final ImageTemplateService imageTemplates;
+    private final ImagePromptService imagePrompt;
     private final LibTvService libTv;
     private final SeedanceService seedance;
     private final XhsSampleRagService xhsSampleRag;
@@ -60,12 +65,14 @@ public class AgentController {
     private final GeneratedContentService generatedContent;
     private final AuthService authService;
     private final CreditsService creditsService;
+    private final FileParseService fileParseService;
 
     public AgentController(DeepSeekService deepSeek,
                            ComplianceCheckService complianceCheckService,
                            XhsComplianceService xhsCompliance,
                            ImageGenerationService imageGeneration,
                            ImageTemplateService imageTemplates,
+                           ImagePromptService imagePrompt,
                            LibTvService libTv,
                            SeedanceService seedance,
                            XhsSampleRagService xhsSampleRag,
@@ -75,12 +82,14 @@ public class AgentController {
                            DouyinExtractService douyinExtract,
                            GeneratedContentService generatedContent,
                            AuthService authService,
-                           CreditsService creditsService) {
+                           CreditsService creditsService,
+                           FileParseService fileParseService) {
         this.deepSeek = deepSeek;
         this.complianceCheckService = complianceCheckService;
         this.xhsCompliance = xhsCompliance;
         this.imageGeneration = imageGeneration;
         this.imageTemplates = imageTemplates;
+        this.imagePrompt = imagePrompt;
         this.libTv = libTv;
         this.seedance = seedance;
         this.xhsSampleRag = xhsSampleRag;
@@ -91,11 +100,41 @@ public class AgentController {
         this.generatedContent = generatedContent;
         this.authService = authService;
         this.creditsService = creditsService;
+        this.fileParseService = fileParseService;
     }
 
     @GetMapping("/image-templates")
     public ResponseEntity<?> listImageTemplates() {
         return ResponseEntity.ok(imageTemplates.list());
+    }
+
+    @PostMapping("/parse-ref")
+    public ResponseEntity<Map<String, Object>> parseRefMaterial(
+            @RequestParam(value = "file", required = false) MultipartFile file,
+            @RequestParam(value = "url", required = false) String url) {
+        if (file != null && !file.isEmpty()) {
+            try {
+                String text = fileParseService.extractText(file);
+                Map<String, Object> result = new java.util.LinkedHashMap<>();
+                result.put("fileName", file.getOriginalFilename());
+                result.put("fileType", file.getContentType());
+                result.put("extractedText", text);
+                result.put("textLength", text.length());
+                return ResponseEntity.ok(result);
+            } catch (Exception e) {
+                return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            }
+        }
+        if (url != null && !url.isBlank()) {
+            // 简单抓取 URL 文本（不做深度解析，直接返回原 URL 供引用）
+            Map<String, Object> result = new java.util.LinkedHashMap<>();
+            result.put("fileName", url);
+            result.put("fileType", "link");
+            result.put("extractedText", "参考链接: " + url);
+            result.put("textLength", 0);
+            return ResponseEntity.ok(result);
+        }
+        return ResponseEntity.badRequest().body(Map.of("error", "请上传文件或提供链接"));
     }
 
     @PostMapping("/title")
@@ -127,11 +166,18 @@ public class AgentController {
                 - 不要 5 个标题都用“我是卖保险的/从业多年/才敢说”同一种开头。
 
                 【输出格式】
-                只输出 5 行标题，每行一个，不编号，不使用 markdown，不写解释。
+                每行一个标题，格式为 [类型] 标题文本，共 5 行。不编号，不使用 markdown，不写解释。
+                类型从以下选一：数据型、故事型、反转型、清单型、痛点型。
+                示例：
+                [数据型] 医保只报60%，剩下的40%谁来兜？
+                [故事型] 32岁老张得知社保只报60%时，做了一件事
                 """ + PromptRules.xhsPlatform()
                 + PromptRules.insuranceCompliance()
                 + PromptRules.outputDiscipline();
-        String user = "主题: " + req.getTopic();
+        StringBuilder userBuilder = new StringBuilder("主题: ").append(req.getTopic());
+        if (!isBlank(req.getStyle())) userBuilder.append("\n方向: ").append(req.getStyle());
+        if (!isBlank(req.getReferences())) userBuilder.append("\n\n【参考材料】\n").append(req.getReferences());
+        String user = userBuilder.toString();
         boolean ragMode = "rag-xhs".equals(req.getModel());
         String finalSystem = ragMode
                 ? system + xhsSampleRag.buildAnalyzedContext(user, req.getStyle(), "小红书标题创作", "chat")
@@ -140,6 +186,7 @@ public class AgentController {
         String modelLabel = ragMode ? deepSeek.resolveModel("chat") + " + 爆款RAG" : deepSeek.resolveModel(req.getModel());
 
         AgentResponse resp = new AgentResponse(content, modelLabel);
+        if (ragMode) resp.setCitations(xhsSampleRag.getLastSearchResults());
         resp.setComplianceWarnings(toWarningMaps(xhsCompliance.check(content)));
         Long contentId = generatedContent.save("xhs_title", req.getTopic(), content, null, null, null, modelLabel);
         creditsService.deduct(resolveUserId(auth), 1, "xhs_title", req.getTopic(), contentId);
@@ -182,18 +229,23 @@ public class AgentController {
                 + PromptRules.factuality()
                 + PromptRules.outputDiscipline();
         StringBuilder sb = new StringBuilder("主题: ").append(req.getTopic());
-        if (!isBlank(req.getStyle())) {
-            sb.append("\n风格: ").append(req.getStyle());
-        }
+        if (!isBlank(req.getStyle())) sb.append("\n风格: ").append(req.getStyle());
+        if (!isBlank(req.getReferences())) sb.append("\n\n【参考材料】\n").append(req.getReferences());
         String userQuery = sb.toString();
         boolean ragMode = "rag-xhs".equals(req.getModel());
+        String ragCitationRule = """
+
+                【引用标注规则】
+                如果参考了 RAG 样本中的框架或信息点，在对应句子末尾用 [1][2][3] 标注引用的样本编号。
+                """;
         String finalSystem = ragMode
-                ? system + xhsSampleRag.buildAnalyzedContext(userQuery, req.getStyle(), "小红书正文创作", "chat")
+                ? system + ragCitationRule + xhsSampleRag.buildAnalyzedContext(userQuery, req.getStyle(), "小红书正文创作", "chat")
                 : system;
         String content = deepSeek.chat(finalSystem, userQuery, ragMode ? "chat" : req.getModel());
         String modelLabel = ragMode ? deepSeek.resolveModel("chat") + " + 爆款RAG" : deepSeek.resolveModel(req.getModel());
 
         AgentResponse resp = new AgentResponse(content, modelLabel);
+        if (ragMode) resp.setCitations(xhsSampleRag.getLastSearchResults());
         resp.setComplianceWarnings(toWarningMaps(xhsCompliance.check(content)));
         Long contentId = generatedContent.save("xhs_post", req.getTopic(), content, null, null, null, modelLabel);
         creditsService.deduct(resolveUserId(auth), 3, "xhs_text", req.getTopic(), contentId);
@@ -299,9 +351,7 @@ public class AgentController {
 
         ImageTemplateService.Template template = imageTemplates.find(req.getTemplateId());
 
-        String system = (template != null)
-                ? buildTemplatedImageSystemPrompt(template)
-                : buildDefaultImageSystemPrompt();
+        String system = imagePrompt.buildSystemPrompt(ImagePromptService.Platform.XHS, template);
 
         StringBuilder user = new StringBuilder("画面主题: ").append(req.getTopic());
         if (!isBlank(req.getStyle())) user.append("\n附加风格说明: ").append(req.getStyle());
@@ -957,62 +1007,6 @@ public class AgentController {
         return ResponseEntity.ok(libTv.changeProject());
     }
 
-    private static String buildDefaultImageSystemPrompt() {
-        return """
-                你是一位小红书风格的视觉设计师。请根据以下内容生成一张封面图或配图的详细图片生成提示词。
-
-                【图片风格规则】
-                根据情绪基调自动匹配风格:
-                - 揭秘/内幕 → 深色背景 + 红色高亮文字 + 探照灯光效, 氛围感强烈
-                - 避坑/后悔 → 暖黄/橙色系, 卡通人物踩坑/捂脸表情, 亲切感
-                - 反讽/打脸 → 对比分割构图(左边踩坑 vs 右边正确), 扁平插画风
-                - 安心/种草 → 浅蓝/薄荷绿背景, 简洁卡片式排版, 有信任感
-                - 觉醒/反思 → 女性独立视角, 人物望向远方, 光线柔和温暖
-
-                【构图要求】
-                - 尺寸比例: 3:4 (小红书封面标准比例)
-                - 必须有标题文字区域(留白或文字叠加)
-                - 人物(如有)为 25-35 岁中国女性, 亲切自然, 非广告感
-                - 场景道具根据险种选择: 保险合同/手机APP界面/医院场景/家庭场景
-
-                【输出格式】
-                严格按以下格式输出, 不要使用代码块, 不要添加额外说明:
-
-                [中文描述]
-                <用于给用户看的图片说明, 中文, 2-4 句>
-
-                [IMAGE_PROMPT]
-                <用于图片生成 API 的英文提示词。必须是一段完整英文 prompt, 包含主体、场景、风格、构图、光线、色彩、画幅, 避免水印、二维码、真实品牌 logo。>
-                """ + PromptRules.xhsPlatform()
-                + PromptRules.insuranceCompliance()
-                + PromptRules.outputDiscipline();
-    }
-
-    private static String buildTemplatedImageSystemPrompt(ImageTemplateService.Template template) {
-        return ("""
-                你是一位小红书视觉设计师。用户选择了一个固定的视觉风格模板, 请基于该模板的设计语言, 结合用户的主题, 生成一段图片生成 prompt。
-
-                【必须严格遵循的视觉模板】
-                %s
-
-                【你的任务】
-                1. 把用户给的主题(画面主题/内容/风格说明), 翻译成符合上述视觉模板的图片场景。
-                2. 主题内容必须填进画面里(如关键词、人物、场景、文字), 不能空有风格、没有内容。
-                3. 模板里规定的风格、配色、版式、字体感、画幅比例必须保留。
-                4. 严禁出现水印、二维码、真实品牌 logo、AI 训练痕迹(多手指等)。
-
-                【输出格式】严格按以下格式, 不要使用代码块, 不要添加额外说明:
-
-                [中文描述]
-                <2-3 句话给用户预览, 说清楚画面里有什么>
-
-                [IMAGE_PROMPT]
-                <一段完整英文 prompt, 同时编码模板风格特征 + 用户主题内容, 包含: composition, layout, color palette, typography style, key text content (in Chinese, transliterated as is in the prompt), illustration style. 必须包含 vertical 9:16 portrait composition。>
-                """ + PromptRules.xhsPlatform()
-                + PromptRules.insuranceCompliance()
-                + PromptRules.outputDiscipline()).formatted(template.getDescription());
-    }
-
     // ─── 爆款拆解 ───────────────────────────────────────────────────────────
 
     @PostMapping("/viral-xhs")
@@ -1397,33 +1391,7 @@ public class AgentController {
         String ratio = isBlank(req.getImageRatio()) ? "3:4" : req.getImageRatio().trim();
         boolean useSeedream = "seedream".equalsIgnoreCase(req.getImageProvider());
 
-        // 让 DeepSeek 一次性生成 count 个提示词
-        String systemPrompt = ("""
-                你是一位小红书视觉配图专家，擅长把文章内容转化为高质量图片提示词。
-
-                任务：根据用户提供的文章内容，生成 %d 个图片提示词，每张图对应文章中一个核心场景或要点。
-
-                要求：
-                1. 按文章逻辑顺序分配场景，不要重复，每张图有独立的视觉主题
-                2. 图片风格：小红书主流配图风（清新、有质感、适合插图或实拍风格）
-                3. 比例：%s（必须在 prompt 中注明）
-                4. 人物（如有）为 25-35 岁中国女性，自然亲切
-                5. 不要出现水印、品牌 logo、二维码
-
-                输出格式（严格按此，共 %d 组，每组格式一致）：
-
-                [IMAGE_1]
-                <2 句中文，描述这张图表达的内容和画面感>
-                [PROMPT_1]
-                <一段完整英文图片生成 prompt，包含主体、场景、风格、光线、色彩，结尾注明比例如 "vertical 3:4 portrait" 或 "square 1:1">
-
-                [IMAGE_2]
-                ...
-                [PROMPT_2]
-                ...
-                """ + PromptRules.xhsPlatform()
-                + PromptRules.insuranceCompliance()
-                + PromptRules.outputDiscipline()).formatted(count, ratio, count);
+        String systemPrompt = imagePrompt.buildBatchSystemPrompt(ImagePromptService.Platform.XHS, count, ratio);
 
         String userMsg = "文章内容如下，请生成 " + count + " 张配图的提示词：\n\n" + req.getContent().trim();
         String llmOut;
@@ -1499,6 +1467,54 @@ public class AgentController {
         Long contentId = generatedContent.save("xhs_post", batchImgTopic, req.getContent(), null, null, null, deepSeek.resolveModel(req.getModel()));
         creditsService.deduct(resolveUserId(auth), 5, "xhs_images", "小红书配图", contentId);
         return ResponseEntity.ok(results);
+    }
+
+    @PostMapping("/xhs-regen-one-image")
+    public ResponseEntity<Map<String, Object>> regenOneImage(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
+        if (isBlank(req.getContent())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "文章内容不能为空"));
+        }
+        String desc = isBlank(req.getStyle()) ? "重新生成这张配图" : req.getStyle();
+        String ratio = isBlank(req.getImageRatio()) ? "3:4" : req.getImageRatio().trim();
+        boolean useSeedream = "seedream".equalsIgnoreCase(req.getImageProvider());
+
+        String system = """
+                你是一位小红书配图设计师。根据文章内容和指定的画面描述，为单张图片生成一个图片提示词。
+
+                【要求】
+                - 白底/米白底 + 卡片式排版 + 扁平信息图风格
+                - 文字是画面的主体，图形只是装饰
+                - 比例: %s
+                - 严禁水印、品牌logo、二维码
+
+                【输出格式】
+                [IMAGE_PROMPT]
+                <完整英文prompt，包含flat design infographic, card layout, Chinese text typography, 比例>
+                """ + PromptRules.outputDiscipline();
+        String userMsg = "文章内容:\n" + req.getContent().trim()
+                + "\n\n这张图的内容描述: " + desc;
+        String llmOut;
+        try {
+            llmOut = deepSeek.chat(system.formatted(ratio), userMsg, req.getModel());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "生成提示词失败: " + e.getMessage()));
+        }
+        String prompt = extractImagePrompt(llmOut);
+        if (isBlank(prompt)) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "解析提示词失败"));
+        }
+        try {
+            String imageUrl = useSeedream
+                    ? imageGeneration.generateSeedream(prompt)
+                    : imageGeneration.generate(prompt, null);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("imageUrl", imageUrl);
+            result.put("description", desc);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "图片生成失败: " + e.getMessage()));
+        }
     }
 
     private long resolveUserId(String auth) {

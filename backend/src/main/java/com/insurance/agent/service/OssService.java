@@ -15,8 +15,8 @@ import java.util.Date;
 public class OssService {
 
     private static final Logger log = LoggerFactory.getLogger(OssService.class);
-    // 签名 URL 有效期：24 小时，足够 AtlasCloud 下载使用
-    private static final long SIGNED_URL_EXPIRES_MS = 24 * 3600 * 1000L;
+    // 签名 URL 有效期：10 年（存储到 DB 的头像 URL 需要长期可用）
+    private static final long SIGNED_URL_EXPIRES_MS = 365 * 24 * 3600 * 1000L * 10;
 
     @Value("${oss.enabled:false}")
     private boolean enabled;

@@ -208,6 +208,26 @@ export async function generateXhsBatchImages(content, imageCount, imageRatio, im
   return postJson('/api/agents/xhs-batch-images', { content, imageCount, imageRatio, imageProvider })
 }
 
+export async function regenOneImage(content, imageDescription, imageRatio, imageProvider) {
+  return postJson('/api/agents/xhs-regen-one-image', { content, style: imageDescription, imageRatio, imageProvider })
+}
+
+export async function parseRefMaterial(file) {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await fetch('/api/agents/parse-ref', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: fd,
+  })
+  if (!res.ok) {
+    let msg = `解析失败 (${res.status})`
+    try { const d = await res.json(); if (d?.error) msg = d.error } catch {}
+    throw new Error(msg)
+  }
+  return res.json()
+}
+
 export async function generateSeedanceVideo(payload) {
   return postJson('/api/agents/video-generate-seedance', payload)
 }

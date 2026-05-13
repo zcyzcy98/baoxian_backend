@@ -13,6 +13,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -40,6 +41,18 @@ public class DeepSeekService {
     @Value("${deepseek.api.timeout-seconds:60}")
     private int timeoutSeconds;
 
+    @Value("${deepseek.api.fallback-key:}")
+    private String fallbackApiKey;
+
+    @Value("${deepseek.api.fallback-base-url:https://api.deepseek.com}")
+    private String fallbackBaseUrl;
+
+    @Value("${deepseek.api.fallback-chat-model:deepseek-chat}")
+    private String fallbackChatModel;
+
+    @Value("${deepseek.api.fallback-reasoner-model:deepseek-reasoner}")
+    private String fallbackReasonerModel;
+
     private final ObjectMapper mapper = new ObjectMapper();
     private final HttpClient http;
 
@@ -48,14 +61,27 @@ public class DeepSeekService {
     }
 
     public String chat(String systemPrompt, String userPrompt, String requestedModel) {
-        if (apiKey == null || apiKey.isBlank()) {
+        try {
+            return doChat(systemPrompt, userPrompt, requestedModel, false);
+        } catch (RuntimeException e) {
+            if (isRetryable(e) && hasFallbackConfig()) {
+                log.warn("[AI 兜底] 主模型失败，切换到 DeepSeek 重试。原错误: {}", e.getMessage());
+                return doChat(systemPrompt, userPrompt, requestedModel, true);
+            }
+            throw e;
+        }
+    }
+
+    private String doChat(String systemPrompt, String userPrompt, String requestedModel, boolean useFallback) {
+        String effectiveApiKey = useFallback ? fallbackApiKey : apiKey;
+        if (effectiveApiKey == null || effectiveApiKey.isBlank()) {
             throw new IllegalStateException(
                     "未配置 AI_API_KEY 或 DEEPSEEK_API_KEY 环境变量，后端无法调用 AI 模型。");
         }
-        String model = resolveModel(requestedModel);
-        log.info("[AI 请求] model={} system={} user={}",
-                model, truncate(systemPrompt, 200), truncate(userPrompt, 500));
-        // 写完整 prompt 到文件
+        String model = resolveModel(requestedModel, useFallback);
+        String effectiveBaseUrl = useFallback ? fallbackBaseUrl : baseUrl;
+        log.info("[AI 请求] model={} fallback={} system={} user={}",
+                model, useFallback, truncate(systemPrompt, 200), truncate(userPrompt, 500));
         writePromptToFile(model, systemPrompt, userPrompt);
         try {
             ObjectNode body = mapper.createObjectNode();
@@ -72,12 +98,12 @@ public class DeepSeekService {
             user.put("content", userPrompt);
 
             String payload = mapper.writeValueAsString(body);
-            String endpoint = trimSlash(baseUrl) + "/chat/completions";
+            String endpoint = trimSlash(effectiveBaseUrl) + "/chat/completions";
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(endpoint))
                     .timeout(Duration.ofSeconds(timeoutSeconds))
                     .header("Content-Type", "application/json")
-                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Authorization", "Bearer " + effectiveApiKey)
                     .POST(HttpRequest.BodyPublishers.ofString(payload))
                     .build();
 
@@ -96,21 +122,50 @@ public class DeepSeekService {
             log.info("[AI 响应] model={} 长度={} 内容={}", model, result.length(), truncate(result, 500));
             return result;
         } catch (RuntimeException e) {
-            log.error("[AI 异常] model={} 错误={}", model, e.getMessage());
+            log.error("[AI 异常] model={} fallback={} 错误={}", model, useFallback, e.getMessage());
             throw e;
         } catch (Exception e) {
-            log.error("[AI 异常] model={} 错误={}", model, e.getMessage());
+            log.error("[AI 异常] model={} fallback={} 错误={}", model, useFallback, e.getMessage());
             throw new RuntimeException("调用 AI 模型失败: " + e.getMessage(), e);
         }
     }
 
-    public String resolveModel(String requested) {
-        if (requested == null || requested.isBlank()) return chatModel;
+    private boolean isRetryable(Throwable e) {
+        if (isTimeoutOr5xx(e)) return true;
+        Throwable cause = e.getCause();
+        while (cause != null) {
+            if (isTimeoutOr5xx(cause)) return true;
+            cause = cause.getCause();
+        }
+        return false;
+    }
+
+    private static boolean isTimeoutOr5xx(Throwable e) {
+        if (e instanceof HttpTimeoutException) return true;
+        String msg = e.getMessage();
+        if (msg == null) return false;
+        return msg.matches(".*\\b5\\d{2}\\b.*");
+    }
+
+    private boolean hasFallbackConfig() {
+        return fallbackApiKey != null && !fallbackApiKey.isBlank();
+    }
+
+    public String resolveModel(String requested, boolean useFallback) {
+        if (requested == null || requested.isBlank()) {
+            return useFallback ? fallbackChatModel : chatModel;
+        }
         return switch (requested.trim().toLowerCase()) {
-            case "reasoner", "deepseek-reasoner", "增强", "enhanced" -> reasonerModel;
-            case "chat", "deepseek-chat" -> chatModel;
+            case "reasoner", "deepseek-reasoner", "增强", "enhanced" ->
+                    useFallback ? fallbackReasonerModel : reasonerModel;
+            case "chat", "deepseek-chat" ->
+                    useFallback ? fallbackChatModel : chatModel;
             default -> requested.trim();
         };
+    }
+
+    public String resolveModel(String requested) {
+        return resolveModel(requested, false);
     }
 
     private String trimSlash(String raw) {

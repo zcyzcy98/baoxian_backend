@@ -58,8 +58,9 @@ public class TopicController {
     }
 
     /**
-     * 选题广场主接口：直接从 hot_topics 数据库读取当日热点。
+     * 选题广场主接口：从 hot_topics 数据库读取全部热点（最近200条）。
      * 数据由定时任务（8:00/18:00 TopHub + 15:30 飞书知识库）自动写入。
+     * 老的选题通过时间衰减自动扣分，越久的分越低。
      * 再按用户画像排序后返回。
      */
     @PostMapping("/daily")
@@ -67,7 +68,8 @@ public class TopicController {
         DailyRequest r = req == null ? new DailyRequest() : req;
         int limit = r.getLimit() <= 0 ? 30 : Math.min(100, r.getLimit());
 
-        List<HotTopic> dbTopics = hotTopicRepository.findByBatchDate(LocalDate.now());
+        // 读取全部热点，不再按日期筛选 — 老的通过时间衰减自动扣分
+        List<HotTopic> dbTopics = hotTopicRepository.findAll();
         List<TopicCandidate> list = new ArrayList<>();
         for (HotTopic ht : dbTopics) {
             list.add(HotTopicCollector.toCandidate(ht));
@@ -197,6 +199,8 @@ public class TopicController {
                 "cacheSize", cacheSize
         ));
     }
+
+
 
     /** 查看当前内存缓存状态 */
     @GetMapping("/debug/cache")

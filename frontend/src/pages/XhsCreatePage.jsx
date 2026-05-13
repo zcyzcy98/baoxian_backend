@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { callAgent, generateImage, generateSeedreamImage, fetchImageTemplates, generateXhsBatchImages } from '../api'
+import { callAgent, generateImage, generateSeedreamImage, fetchImageTemplates, generateXhsBatchImages, regenOneImage, parseRefMaterial } from '../api'
 import './XhsCreatePage.css'
 
 const COUNT_OPTIONS = [1, 3, 6, 9]
@@ -39,6 +39,9 @@ export default function XhsCreatePage({
     batchImgLoading: false,
     batchImgResults: [],
     batchImgError: '',
+    refMaterials: [],
+    citations: [],
+    regenLoadingIndex: -1,
   }
   const [step, setStep] = useState(ST.step)
   const [loading, setLoading] = useState(ST.loading)
@@ -63,6 +66,9 @@ export default function XhsCreatePage({
   const [batchImgLoading, setBatchImgLoading] = useState(ST.batchImgLoading)
   const [batchImgResults, setBatchImgResults] = useState(ST.batchImgResults)
   const [batchImgError, setBatchImgError] = useState(ST.batchImgError)
+  const [refMaterials, setRefMaterials] = useState(ST.refMaterials)
+  const [citations, setCitations] = useState(ST.citations)
+  const [regenLoadingIndex, setRegenLoadingIndex] = useState(ST.regenLoadingIndex)
 
   const resetState = () => {
     setStep(ST.step)
@@ -87,6 +93,9 @@ export default function XhsCreatePage({
     setBatchImgLoading(ST.batchImgLoading)
     setBatchImgResults(ST.batchImgResults)
     setBatchImgError(ST.batchImgError)
+    setRefMaterials(ST.refMaterials)
+    setCitations(ST.citations)
+    setRegenLoadingIndex(ST.regenLoadingIndex)
     setTitlesLoaded(ST.titlesLoaded)
   }
 
@@ -139,8 +148,10 @@ export default function XhsCreatePage({
     setLoading(true)
     try {
       // 只生成标题
-      const titleRes = await callAgent('title', { topic, style: direction }, 'rag-xhs')
+      const refText = refMaterials.map(r => r.text).filter(Boolean).join('\n---\n')
+      const titleRes = await callAgent('title', { topic, style: direction, references: refText || undefined }, 'rag-xhs')
       const titleContent = titleRes.content || ''
+      if (titleRes.citations) setCitations(titleRes.citations)
       
       // 直接按换行分割取前5个
       const lines = titleContent.split('\n').filter(l => l.trim())
@@ -161,18 +172,73 @@ export default function XhsCreatePage({
     setLoading(true)
     try {
       const selectedTitleText = titles[selectedTitle] || ''
-      // 用选中的标题生成正文
-      const bodyRes = await callAgent('text', { 
-        topic: selectedTitleText, // 把标题当作主题
-        title: selectedTitleText, // 也显式传递标题
-        style: direction 
+      const refText = refMaterials.map(r => r.text).filter(Boolean).join('\n---\n')
+      const bodyRes = await callAgent('text', {
+        topic: selectedTitleText,
+        title: selectedTitleText,
+        style: direction,
+        references: refText || undefined,
       }, 'rag-xhs')
-      
+
       setBodyContent(bodyRes.content || '')
+      if (bodyRes.citations) setCitations(bodyRes.citations)
     } catch (e) {
       alert('生成失败: ' + e.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleAddRef = (type) => {
+    if (type === 'file') {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = '.pdf,.docx'
+      input.onchange = async (e) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        try {
+          const result = await parseRefMaterial(file)
+          setRefMaterials(prev => [...prev, {
+            name: result.fileName || file.name,
+            type: result.fileType?.includes('pdf') ? 'pdf' : 'doc',
+            text: result.extractedText || '',
+          }])
+        } catch (err) {
+          alert('解析参考材料失败: ' + err.message)
+        }
+      }
+      input.click()
+    } else if (type === 'link') {
+      const url = prompt('粘贴参考链接:')
+      if (!url) return
+      setRefMaterials(prev => [...prev, {
+        name: url.length > 50 ? url.substring(0, 50) + '...' : url,
+        type: 'link',
+        text: '参考链接: ' + url,
+      }])
+    }
+  }
+
+  const handleRemoveRef = (idx) => {
+    setRefMaterials(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  const handleRegenOneImage = async (itemIndex, itemDesc) => {
+    setRegenLoadingIndex(itemIndex)
+    try {
+      const res = await regenOneImage(bodyContent, itemDesc, batchImgRatio, 'hiapi')
+      setBatchImgResults(prev => prev.map((item, i) => {
+        if (i !== itemIndex) return item
+        return { ...item, imageUrl: res.imageUrl, error: undefined }
+      }))
+    } catch (e) {
+      setBatchImgResults(prev => prev.map((item, i) => {
+        if (i !== itemIndex) return item
+        return { ...item, error: e.message }
+      }))
+    } finally {
+      setRegenLoadingIndex(-1)
     }
   }
 
@@ -305,6 +371,36 @@ export default function XhsCreatePage({
               </div>
 
               <div className="form-row">
+                <div className="label">参考材料</div>
+                <div className="control">
+                  {refMaterials.length > 0 && (
+                    <div className="refs-list">
+                      {refMaterials.map((ref, i) => (
+                        <div key={i} className="ref-item">
+                          <div className={`ref-ico ${ref.type}`}>
+                            {ref.type === 'pdf' ? 'PDF' : ref.type === 'doc' ? 'DOC' : '🔗'}
+                          </div>
+                          <span className="ref-name">{ref.name}</span>
+                          <button className="ref-remove" onClick={() => handleRemoveRef(i)}>×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="ref-actions">
+                    <button className="btn-add-ref" onClick={() => handleAddRef('file')}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      <span>添加文件</span>
+                    </button>
+                    <button className="btn-add-ref" onClick={() => handleAddRef('link')}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      <span>添加链接</span>
+                    </button>
+                    <span className="ref-hint">支持 PDF / DOCX / 链接 · AI 会读完再写</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-row">
                 <div className="label">险种 <span className="req">*</span></div>
                 <div className="control">
                   <div className="chip-group">
@@ -379,16 +475,22 @@ export default function XhsCreatePage({
                 </div>
                 <div className="sc-body">
                   <div className="title-cards">
-                    {titles.map((title, i) => (
-                      <div key={i} className={`title-card ${selectedTitle === i ? 'selected' : ''}`} onClick={() => setSelectedTitle(i)}>
-                        <span className="title-text">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {title.replace(/^\d+[.、]\s*/, '')}
-                          </ReactMarkdown>
-                        </span>
-                        <div className="check">✓</div>
-                      </div>
-                    ))}
+                    {titles.map((title, i) => {
+                      const typeMatch = title.match(/^\[(\S+)\]\s*/)
+                      const typeLabel = typeMatch ? typeMatch[1] : ''
+                      const cleanTitle = typeMatch ? title.substring(typeMatch[0].length) : title
+                      return (
+                        <div key={i} className={`title-card ${selectedTitle === i ? 'selected' : ''}`} onClick={() => setSelectedTitle(i)}>
+                          {typeLabel && <span className="style-label">{typeLabel}</span>}
+                          <span className="title-text">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {cleanTitle.replace(/^\d+[.、]\s*/, '')}
+                            </ReactMarkdown>
+                          </span>
+                          <div className="check">✓</div>
+                        </div>
+                      )
+                    })}
                   </div>
                   {/* 生成正文按钮 */}
                   <div className="title-gen-body-btn" style={{ marginTop: '16px' }}>
@@ -443,6 +545,22 @@ export default function XhsCreatePage({
                   <div className="info-row"><span className="k">字数</span><span className="v serif">{bodyContent.length}</span></div>
                 </div>
               </div>
+
+              {citations.length > 0 && (
+                <div className="side-card">
+                  <div className="side-card-head">— Citations · 引用来源</div>
+                  <div className="side-card-body">
+                    <div className="cite-list">
+                      {citations.map((cite, i) => (
+                        <div key={i} className="cite-row">
+                          <span className="num">[{cite.index}]</span>
+                          <span>{cite.title || '爆款样本 ' + cite.index}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* 如果没有正文，显示重新生成标题；否则显示重新生成正文 */}
               {!bodyContent ? (
@@ -597,6 +715,18 @@ export default function XhsCreatePage({
                               </button>
                               <button className="img-action-btn" onClick={() => handleDownload(item.imageUrl)} title="下载图片">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                              </button>
+                              <button
+                                className="img-action-btn regen"
+                                onClick={() => handleRegenOneImage(item.index - 1, item.description || '')}
+                                disabled={regenLoadingIndex === item.index - 1}
+                                title="重新生成此图"
+                              >
+                                {regenLoadingIndex === item.index - 1 ? (
+                                  <span style={{fontSize:'11px'}}>⏳</span>
+                                ) : (
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                                )}
                               </button>
                             </div>
                           </div>

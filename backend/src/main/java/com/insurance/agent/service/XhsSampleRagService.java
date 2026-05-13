@@ -16,10 +16,24 @@ public class XhsSampleRagService {
 
     private final PostgresVectorStoreService vectorStore;
     private final DeepSeekService deepSeek;
+    private volatile List<PostgresVectorStoreService.VectorHit> lastHits = List.of();
 
     public XhsSampleRagService(PostgresVectorStoreService vectorStore, DeepSeekService deepSeek) {
         this.vectorStore = vectorStore;
         this.deepSeek = deepSeek;
+    }
+
+    /** 返回上次搜索的样本元数据，用于前端展示引用来源 */
+    public List<Map<String, String>> getLastSearchResults() {
+        return lastHits.stream().map(hit -> {
+            Map<String, String> m = new java.util.LinkedHashMap<>();
+            m.put("index", String.valueOf(lastHits.indexOf(hit) + 1));
+            m.put("title", hit.metadata().getOrDefault("field_标题", ""));
+            m.put("emotion", hit.metadata().getOrDefault("field_情绪", ""));
+            m.put("persona", hit.metadata().getOrDefault("field_人设", ""));
+            m.put("tags", hit.metadata().getOrDefault("field_标签", ""));
+            return m;
+        }).toList();
     }
 
     public String buildContext(String query) {
@@ -113,6 +127,7 @@ public class XhsSampleRagService {
                     String.format("%.3f", hits.get(i).similarity()),
                     meta.getOrDefault("field_标签", ""));
         }
+        lastHits = hits;
         return hits;
     }
 

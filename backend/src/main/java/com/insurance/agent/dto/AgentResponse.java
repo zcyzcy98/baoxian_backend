@@ -24,6 +24,7 @@ public class AgentResponse {
     private Boolean finalResultReady;
     private Integer allVideoCount;
     private List<Map<String, String>> complianceWarnings;
+    private List<Map<String, String>> citations;
 
     public AgentResponse() {}
 
@@ -91,4 +92,7 @@ public class AgentResponse {
 
     public List<Map<String, String>> getComplianceWarnings() { return complianceWarnings; }
     public void setComplianceWarnings(List<Map<String, String>> complianceWarnings) { this.complianceWarnings = complianceWarnings; }
+
+    public List<Map<String, String>> getCitations() { return citations; }
+    public void setCitations(List<Map<String, String>> citations) { this.citations = citations; }
 }

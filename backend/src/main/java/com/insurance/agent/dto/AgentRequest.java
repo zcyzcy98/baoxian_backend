@@ -33,6 +33,8 @@ public class AgentRequest {
     private String videoRatio;
     // 视频清晰度：720p / 1080p，默认 720p
     private String videoResolution;
+    // 参考材料文本（PDF/DOCX/链接的提取内容），注入用户 prompt
+    private String references;
 
     public String getTopic() { return topic; }
     public void setTopic(String topic) { this.topic = topic; }
@@ -114,4 +116,7 @@ public class AgentRequest {
 
     public String getVideoResolution() { return videoResolution; }
     public void setVideoResolution(String videoResolution) { this.videoResolution = videoResolution; }
+
+    public String getReferences() { return references; }
+    public void setReferences(String references) { this.references = references; }
 }

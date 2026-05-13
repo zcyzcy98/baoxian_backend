@@ -79,6 +79,36 @@ public class HotTopicRepository {
         return list;
     }
 
+    /** 查询数据库中最大的 batch_date（用于 fallback） */
+    public LocalDate findLatestBatchDate() {
+        String sql = "SELECT MAX(batch_date) FROM hot_topics";
+        try (Connection c = getConn(); PreparedStatement ps = c.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                LocalDate d = rs.getObject(1, LocalDate.class);
+                return d;
+            }
+        } catch (SQLException e) {
+            log.error("[HotTopic] findLatestBatchDate 查询失败", e);
+        }
+        return null;
+    }
+
+    /** 查询全部热点（按创建时间倒序，取最近200条），用于 /daily 展示全部+时间衰减 */
+    public List<HotTopic> findAll() {
+        List<HotTopic> list = new ArrayList<>();
+        String sql = "SELECT * FROM hot_topics ORDER BY created_at DESC LIMIT 200";
+        try (Connection c = getConn(); PreparedStatement ps = c.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                list.add(mapRow(rs));
+            }
+        } catch (SQLException e) {
+            log.error("[HotTopic] findAll 查询失败", e);
+        }
+        return list;
+    }
+
     // ---- 按摘要哈希查询（去重用） ----
     public HotTopic findByTitleHash(String hash) {
         String sql = "SELECT * FROM hot_topics WHERE title_hash = ?";

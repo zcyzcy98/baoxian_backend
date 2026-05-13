@@ -36,6 +36,11 @@ deepseek:
     chat-model: ${AI_CHAT_MODEL:claude-opus-4-7}
     reasoner-model: ${AI_REASONER_MODEL:claude-opus-4-7}
     timeout-seconds: ${DEEPSEEK_TIMEOUT_SECONDS:60}
+    # 兜底：主模型(Claude)不稳定时自动切换到 DeepSeek 官方
+    fallback-key: ${AI_FALLBACK_API_KEY:}
+    fallback-base-url: ${AI_FALLBACK_BASE_URL:https://api.deepseek.com}
+    fallback-chat-model: ${AI_FALLBACK_CHAT_MODEL:deepseek-chat}
+    fallback-reasoner-model: ${AI_FALLBACK_REASONER_MODEL:deepseek-reasoner}
 
 image:
   api:

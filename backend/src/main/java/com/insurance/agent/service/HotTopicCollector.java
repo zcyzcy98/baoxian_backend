@@ -203,8 +203,6 @@ public class HotTopicCollector {
         return "BITABLE_TOPIC";
     }
 
-    // ==================== 缓存管理 ====================
-
     /** 刷新内存缓存（从 DB 读取当日所有数据，包括 TopHub + 飞书） */
     public void refreshCache(LocalDate date) {
         List<HotTopic> fromDb = repository.findByBatchDate(date);
