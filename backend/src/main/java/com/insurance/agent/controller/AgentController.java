@@ -20,6 +20,7 @@ import com.insurance.agent.service.XhsComplianceService;
 import com.insurance.agent.service.AuthService;
 import com.insurance.agent.service.CreditsService;
 import com.insurance.agent.service.GeneratedContentService;
+import com.insurance.agent.service.WechatExtractService;
 import com.insurance.agent.service.XhsExtractService;
 import com.insurance.agent.service.XhsSampleRagService;
 import org.slf4j.Logger;
@@ -61,6 +62,7 @@ public class AgentController {
     private final KnowledgeQaService knowledgeQa;
     private final MediaToDocService mediaToDoc;
     private final XhsExtractService xhsExtract;
+    private final WechatExtractService wechatExtract;
     private final DouyinExtractService douyinExtract;
     private final GeneratedContentService generatedContent;
     private final AuthService authService;
@@ -79,6 +81,7 @@ public class AgentController {
                            KnowledgeQaService knowledgeQa,
                            MediaToDocService mediaToDoc,
                            XhsExtractService xhsExtract,
+                           WechatExtractService wechatExtract,
                            DouyinExtractService douyinExtract,
                            GeneratedContentService generatedContent,
                            AuthService authService,
@@ -96,6 +99,7 @@ public class AgentController {
         this.knowledgeQa = knowledgeQa;
         this.mediaToDoc = mediaToDoc;
         this.xhsExtract = xhsExtract;
+        this.wechatExtract = wechatExtract;
         this.douyinExtract = douyinExtract;
         this.generatedContent = generatedContent;
         this.authService = authService;
@@ -126,12 +130,47 @@ public class AgentController {
             }
         }
         if (url != null && !url.isBlank()) {
-            // 简单抓取 URL 文本（不做深度解析，直接返回原 URL 供引用）
+            String cleanUrl = extractUrlFromText(url.trim());
+            String extractedText;
+            String fileType = "link";
+            String displayName = cleanUrl;
+            try {
+                String lower = cleanUrl.toLowerCase();
+                if (lower.contains("xiaohongshu") || lower.contains("xhslink")) {
+                    var note = xhsExtract.extract(cleanUrl);
+                    extractedText = "【小红书笔记】\n标题: " + note.getTitle()
+                            + "\n\n正文:\n" + (note.getContent() != null ? note.getContent() : "");
+                    displayName = note.getTitle() != null && !note.getTitle().isBlank() ? note.getTitle() : cleanUrl;
+                    fileType = "xhs";
+                } else if (lower.contains("weixin") || lower.contains("mp.weixin")) {
+                    var article = wechatExtract.extract(cleanUrl);
+                    extractedText = "【公众号文章】\n标题: " + article.getTitle()
+                            + "\n\n正文:\n" + (article.getContent() != null ? article.getContent() : "");
+                    displayName = article.getTitle() != null && !article.getTitle().isBlank() ? article.getTitle() : cleanUrl;
+                    fileType = "gzh";
+                } else if (lower.contains("douyin") || lower.contains("iesdouyin")) {
+                    try {
+                        var note = douyinExtract.extract(cleanUrl);
+                        extractedText = "【抖音视频】\n标题: " + note.getTitle()
+                                + "\n\n话题: " + (note.getTopics() != null ? String.join(", ", note.getTopics()) : "无");
+                        displayName = note.getTitle() != null && !note.getTitle().isBlank() ? note.getTitle() : cleanUrl;
+                        fileType = "douyin";
+                    } catch (Exception e) {
+                        log.warn("[ParseRef] 抖音提取失败，回退为链接: {}", e.getMessage());
+                        extractedText = "参考链接: " + cleanUrl;
+                    }
+                } else {
+                    extractedText = "参考链接: " + cleanUrl;
+                }
+            } catch (Exception e) {
+                log.warn("[ParseRef] 链接提取失败: {} url={}", e.getMessage(), cleanUrl);
+                extractedText = "参考链接: " + cleanUrl + "\n（内容提取失败: " + e.getMessage() + "）";
+            }
             Map<String, Object> result = new java.util.LinkedHashMap<>();
-            result.put("fileName", url);
-            result.put("fileType", "link");
-            result.put("extractedText", "参考链接: " + url);
-            result.put("textLength", 0);
+            result.put("fileName", displayName.length() > 80 ? displayName.substring(0, 80) + "..." : displayName);
+            result.put("fileType", fileType);
+            result.put("extractedText", extractedText);
+            result.put("textLength", extractedText != null ? extractedText.length() : 0);
             return ResponseEntity.ok(result);
         }
         return ResponseEntity.badRequest().body(Map.of("error", "请上传文件或提供链接"));
@@ -143,7 +182,9 @@ public class AgentController {
         if (isBlank(req.getTopic())) {
             return ResponseEntity.badRequest().body(new AgentResponse("主题不能为空", null));
         }
+        String styleInjection = PromptRules.xhsStyleRules(req.getStyle());
         String system = """
+          
                 你是一位小红书保险内容标题策划，不是套模板的标题生成器。
                 你的任务是根据用户主题和 RAG 样本分析结果，生成 5 个有差异化的标题候选。
 
@@ -160,10 +201,10 @@ public class AgentController {
 
                 【标题质量标准】
                 - 15-28 个中文字符左右，不要过长。
-                - 标题里要有具体对象、具体场景或具体矛盾，避免“保险真相”“避坑指南”这类空泛表达。
+                - 标题里要有具体对象、具体场景或具体矛盾，避免”保险真相””避坑指南”这类空泛表达。
                 - 可以有情绪，但要像真实小红书内容，不要像营销号恐吓。
                 - 允许少量 emoji，但不是必需；如果使用，每个标题最多 1 个。
-                - 不要 5 个标题都用“我是卖保险的/从业多年/才敢说”同一种开头。
+                - 不要 5 个标题都用”我是卖保险的/从业多年/才敢说”同一种开头。
 
                 【输出格式】
                 每行一个标题，格式为 [类型] 标题文本，共 5 行。不编号，不使用 markdown，不写解释。
@@ -171,7 +212,8 @@ public class AgentController {
                 示例：
                 [数据型] 医保只报60%，剩下的40%谁来兜？
                 [故事型] 32岁老张得知社保只报60%时，做了一件事
-                """ + PromptRules.xhsPlatform()
+                """ + styleInjection
+                + PromptRules.xhsPlatform()
                 + PromptRules.insuranceCompliance()
                 + PromptRules.outputDiscipline();
         StringBuilder userBuilder = new StringBuilder("主题: ").append(req.getTopic());
@@ -199,18 +241,19 @@ public class AgentController {
         if (isBlank(req.getTopic())) {
             return ResponseEntity.badRequest().body(new AgentResponse("主题不能为空", null));
         }
+        String styleInjection = PromptRules.xhsStyleRules(req.getStyle());
         String system = """
-                你是一位真实的小红书保险科普创作者，目标是写出“像人写的、有经验、有边界”的笔记。
+                你是一位真实的小红书保险科普创作者，目标是写出”像人写的、有经验、有边界”的笔记。
                 你的任务是根据用户主题和 RAG 样本分析结果，创作一篇完整小红书正文。
 
                 【创作流程】
                 1. 先判断主题适合的目标人群、核心场景、读者最关心的问题和不能乱说的边界。
-                2. 如果系统提供了【RAG 爆款样本分析结果】，先使用其中的“可复用正文框架”来决定文章结构。
+                2. 如果系统提供了【RAG 爆款样本分析结果】，先使用其中的”可复用正文框架”来决定文章结构。
                 3. 不要机械套固定五段式；结构应跟随样本框架、用户主题和用户风格变化。
-                4. 用户填写的风格优先，例如“专业严谨/吐槽/治愈/故事化/干货”等；RAG 样本只提供框架灵感。
+                4. 用户填写的风格优先；RAG 样本只提供框架灵感。
 
                 【内容要求】
-                - 开头 3 句内必须进入具体场景或具体矛盾，让读者知道“这和我有关”。
+                - 开头 3 句内必须进入具体场景或具体矛盾，让读者知道”这和我有关”。
                 - 中段至少有 3 个信息点，每个信息点都要包含：常见误解/真实判断/可执行建议。
                 - 保险专业内容要讲人话，解释为什么，不要只列结论。
                 - 允许使用 emoji 和分点，但根据风格自然使用，不要强行堆满。
@@ -220,11 +263,12 @@ public class AgentController {
 
                 【原创要求】
                 - 可以学习 RAG 样本的结构、节奏、角度和情绪，但不能照抄标题、开头、金句和段落。
-                - 不要暴露“RAG”“样本”“框架”“根据参考”等提示词痕迹。
+                - 不要暴露”RAG””样本””框架””根据参考”等提示词痕迹。
 
                 【输出格式】
                 直接输出小红书正文，不写分析过程，不写标题行。
-                """ + PromptRules.xhsPlatform()
+                """ + styleInjection
+                + PromptRules.xhsPlatform()
                 + PromptRules.insuranceCompliance()
                 + PromptRules.factuality()
                 + PromptRules.outputDiscipline();
@@ -233,13 +277,8 @@ public class AgentController {
         if (!isBlank(req.getReferences())) sb.append("\n\n【参考材料】\n").append(req.getReferences());
         String userQuery = sb.toString();
         boolean ragMode = "rag-xhs".equals(req.getModel());
-        String ragCitationRule = """
-
-                【引用标注规则】
-                如果参考了 RAG 样本中的框架或信息点，在对应句子末尾用 [1][2][3] 标注引用的样本编号。
-                """;
         String finalSystem = ragMode
-                ? system + ragCitationRule + xhsSampleRag.buildAnalyzedContext(userQuery, req.getStyle(), "小红书正文创作", "chat")
+                ? system + xhsSampleRag.buildAnalyzedContext(userQuery, req.getStyle(), "小红书正文创作", "chat")
                 : system;
         String content = deepSeek.chat(finalSystem, userQuery, ragMode ? "chat" : req.getModel());
         String modelLabel = ragMode ? deepSeek.resolveModel("chat") + " + 爆款RAG" : deepSeek.resolveModel(req.getModel());
@@ -360,7 +399,7 @@ public class AgentController {
 
         String prompt = extractImagePrompt(content);
         // 模板图按竖版比例生成，ImageGenerationService 会转换为 9:16。
-        String size = (template != null) ? "1440x2560" : null;
+        String size = (template != null) ? "9:16" : "3:4";
         String imageUrl = useSeedream
                 ? imageGeneration.generateSeedream(prompt)
                 : imageGeneration.generate(prompt, size);
@@ -912,7 +951,7 @@ public class AgentController {
         boolean useSeedream = "seedream".equalsIgnoreCase(req.getImageProvider());
         String imageUrl = useSeedream
                 ? imageGeneration.generateSeedream(prompt)
-                : imageGeneration.generate(prompt, "1440x2560");
+                : imageGeneration.generate(prompt, "9:16");
 
         AgentResponse resp = new AgentResponse(content, deepSeek.resolveModel(req.getModel()));
         resp.setImageUrl(imageUrl);
@@ -1365,6 +1404,20 @@ public class AgentController {
         return content;
     }
 
+    /** 从带表情、中文、特殊字符的分享文本中提取第一个 http(s) URL */
+    private static String extractUrlFromText(String text) {
+        if (text == null || text.isBlank()) return text;
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("https?://[^\\s\\u4e00-\\u9fa5\\[\\]【】「」（）()]+")
+                .matcher(text);
+        if (m.find()) {
+            String url = m.group().replaceAll("[,，。.!！?？]+$", "");
+            log.info("[ParseRef] extracted URL from text: {}", url);
+            return url;
+        }
+        return text;
+    }
+
     private static String cleanPrompt(String prompt) {
         if (prompt == null) return "";
         String out = prompt.trim();
@@ -1442,7 +1495,7 @@ public class AgentController {
                 try {
                     String url = useSeedream
                             ? imageGeneration.generateSeedream(prompt)
-                            : imageGeneration.generate(prompt);
+                            : imageGeneration.generate(prompt, ratio);
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("index", idx + 1);
                     m.put("description", desc);
@@ -1490,13 +1543,13 @@ public class AgentController {
 
                 【输出格式】
                 [IMAGE_PROMPT]
-                <完整英文prompt，包含flat design infographic, card layout, Chinese text typography, 比例>
+                <完整英文prompt，包含flat design infographic, card layout, Chinese text typography. 必须以 --ar %s 结尾。>
                 """ + PromptRules.outputDiscipline();
         String userMsg = "文章内容:\n" + req.getContent().trim()
                 + "\n\n这张图的内容描述: " + desc;
         String llmOut;
         try {
-            llmOut = deepSeek.chat(system.formatted(ratio), userMsg, req.getModel());
+            llmOut = deepSeek.chat(system.formatted(ratio, ratio), userMsg, req.getModel());
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("error", "生成提示词失败: " + e.getMessage()));
         }
@@ -1507,7 +1560,7 @@ public class AgentController {
         try {
             String imageUrl = useSeedream
                     ? imageGeneration.generateSeedream(prompt)
-                    : imageGeneration.generate(prompt, null);
+                    : imageGeneration.generate(prompt, ratio);
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("imageUrl", imageUrl);
             result.put("description", desc);

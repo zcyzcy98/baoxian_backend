@@ -76,6 +76,80 @@ public final class PromptRules {
                 """;
     }
 
+    /** 根据前端传来的风格描述，返回对应的写作风格系统提示词 */
+    public static String xhsStyleRules(String styleParam) {
+        if (styleParam == null || styleParam.isBlank()) return "";
+        String s = styleParam.toLowerCase();
+        // 1. 个人风格档案（从数据库训练结果读取）
+        if (s.contains("[个人风格档案]")) {
+            String profileSection = extractProfileSection(styleParam);
+            return """
+
+                    【写作风格 — 基于你的个人风格档案】
+                    以下是AI从你的历史素材中训练出的风格档案，创作时必须严格遵循：
+
+                    """ + profileSection + """
+
+                    使用以上风格特征进行创作，让内容读起来像你自己写的。
+                    """;
+        }
+        // 2. 个人风格（默认兜底，未训练时用）
+        if (s.contains("克制") && s.contains("案例") || s.contains("个人风格")) {
+            return """
+
+                    【写作风格 — 个人风格（温暖克制·案例驱动）】
+                    1. 以个人经历或真实案例开场，建立"我是过来人"的信任感。
+                    2. 语气克制不煽情，用"我的客户遇到过""我一般会建议"这类表达。
+                    3. 讲案例时只说通用场景，不暴露真实客户隐私信息。
+                    4. 结论给方向不给具体推荐，让读者自己判断。
+                    """;
+        }
+        // 3. 专业严谨
+        if (s.contains("严谨") || s.contains("专业") || s.contains("数据驱动")) {
+            return """
+
+                    【写作风格 — 专业严谨】
+                    1. 用数据和逻辑支撑每一个观点，优先引用行业共识和监管规定。
+                    2. 句式偏正式但不僵硬，用"需要说明的是""值得关注的是"等过渡词。
+                    3. 避免口语化感叹词和夸张情绪，保持克制、可信的专业形象。
+                    4. 保险专业词出现后立即用人话解释，让非从业者也能懂。
+                    """;
+        }
+        // 4. 温暖亲切
+        if (s.contains("温暖") || s.contains("亲切") || s.contains("生活化") || s.contains("朋友聊天")) {
+            return """
+
+                    【写作风格 — 温暖亲切】
+                    1. 用真实场景开头，像跟朋友聊天一样自然引入话题。
+                    2. 多用"你可能会想""说白了就是""我帮你算一下"这类亲近表达。
+                    3. 举例子优先用生活场景（看病、养娃、养老、买房），让人一看就懂。
+                    4. 情绪温和、不制造焦虑，让人感到被理解而不是被吓唬。
+                    """;
+        }
+        // 5. 犀利直击
+        if (s.contains("犀利") || s.contains("痛点") || s.contains("节奏快")) {
+            return """
+
+                    【写作风格 — 犀利直击】
+                    1. 开门见山直击痛点，开头就让人意识到问题严重性。
+                    2. 短句为主，节奏快，每段 2-3 句就换行，冲击感强。
+                    3. 善用反问和对比（"你以为...实际上..."），制造认知反差。
+                    4. 锋利但不恐吓，每个痛点后紧跟可执行的解决方向。
+                    """;
+        }
+        return "";
+    }
+
+    private static String extractProfileSection(String styleParam) {
+        int start = styleParam.indexOf("[个人风格档案]");
+        if (start < 0) return "";
+        String section = styleParam.substring(start + "[个人风格档案]".length()).trim();
+        // 截取到下一个 [xxx] 标记或结尾
+        int end = section.indexOf("\n[");
+        if (end > 0) section = section.substring(0, end);
+        return section.trim();
+    }
+
     public static String outputDiscipline() {
         return """
 

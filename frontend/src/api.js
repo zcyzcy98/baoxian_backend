@@ -228,6 +228,22 @@ export async function parseRefMaterial(file) {
   return res.json()
 }
 
+export async function parseRefUrl(url) {
+  const fd = new FormData()
+  fd.append('url', url)
+  const res = await fetch('/api/agents/parse-ref', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: fd,
+  })
+  if (!res.ok) {
+    let msg = `解析失败 (${res.status})`
+    try { const d = await res.json(); if (d?.error) msg = d.error } catch {}
+    throw new Error(msg)
+  }
+  return res.json()
+}
+
 export async function generateSeedanceVideo(payload) {
   return postJson('/api/agents/video-generate-seedance', payload)
 }

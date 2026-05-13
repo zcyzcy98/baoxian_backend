@@ -53,7 +53,8 @@
       "Bash(python3 -c ' *)",
       "Bash(xargs cat)",
       "Read(//private/tmp/**)",
-      "Bash(java -version)"
+      "Bash(java -version)",
+      "Bash(ps *)"
     ]
   }
 }

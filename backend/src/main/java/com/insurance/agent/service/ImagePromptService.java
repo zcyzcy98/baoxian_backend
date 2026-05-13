@@ -72,7 +72,7 @@ public class ImagePromptService {
                 <2-3 句中文，描述画面排版和内容，给用户预览用>
 
                 [IMAGE_PROMPT]
-                <一段完整英文 prompt，用于图片生成 API。必须包含：clean white or cream background, flat design infographic style, card layout with rounded corners, bold readable Chinese text typography as main visual, simple geometric decorations, minimal color palette with one accent color, NO realistic people, NO 3D scenes, NO photographic lighting. 结尾注明 vertical 3:4 portrait composition.>
+                <一段完整英文 prompt，用于图片生成 API。必须包含：clean white or cream background, flat design infographic style, card layout with rounded corners, bold readable Chinese text typography as main visual, simple geometric decorations, minimal color palette with one accent color, NO realistic people, NO 3D scenes, NO photographic lighting. 必须以 --ar 3:4 结尾。>
                 """ + PromptRules.xhsPlatform()
                 + PromptRules.insuranceCompliance()
                 + PromptRules.outputDiscipline();
@@ -107,7 +107,18 @@ public class ImagePromptService {
 
     // ─── XHS 批量 ────────────────────────────────────────────────────
 
+    private static String ratioDesc(String ratio) {
+        if (ratio == null) return "3:4 portrait";
+        String r = ratio.trim();
+        if ("1:1".equals(r)) return "square 1:1";
+        if ("3:4".equals(r)) return "vertical 3:4 portrait";
+        if ("9:16".equals(r)) return "vertical 9:16 fullscreen portrait";
+        if ("4:3".equals(r)) return "horizontal 4:3 landscape";
+        return r;
+    }
+
     private static String buildXhsBatchPrompt(int count, String ratio) {
+        String rDesc = ratioDesc(ratio);
         return ("""
                 你是一位小红书视觉配图专家。请根据用户提供的文章内容，生成 %d 张配图的提示词。
 
@@ -119,7 +130,11 @@ public class ImagePromptService {
 
                 【每张图的设计定位】
                 不要把所有图都做成同一种排版。按以下思路分配：
-                - 第 1 张：标题封面卡（大号标题 + 副标题 + 简单几何装饰，像一张精美的海报封面）
+                - 第 1 张：封面首图——这是小红书发布后出现在主页上的封面，必须冲击力强、信息精准：
+                  * 大号标题占据画面 40-50%% 面积，字号要大到在缩略图里也能看清
+                  * 用点缀色做大色块或粗线条突出核心关键词
+                  * 留白充足，画面干净不杂乱，在信息流里能一眼抓住眼球
+                  * 像一张精心设计的海报，而不是信息清单
                 - 第 2~%d 张：根据文章内容选择——要点清单卡、数据对比卡、步骤流程卡、误区澄清卡、总结建议卡
                 - 相邻两张图不要用同一种排版格式，保持节奏变化
 
@@ -132,9 +147,9 @@ public class ImagePromptService {
                 严格按以下格式，共 %d 组，每组格式一致：
 
                 [IMAGE_1]
-                <2 句中文，说明这张图的设计类型（如"标题封面卡"）和画面内容>
+                <2 句中文，说明这是封面首图，描述画面冲击力和内容>
                 [PROMPT_1]
-                <完整英文 prompt，包含：white/cream background, flat infographic card style, bold Chinese text typography, clean layout, 统一配色方案, 比例 %s>
+                <完整英文 prompt。必须强调：bold cover design, hero title taking 40-50%% of frame, large readable Chinese characters, impactful color block, clean breathing room, designed to stop scrolling. white/cream background, flat infographic style. 必须以 --ar %s 结尾。>
 
                 [IMAGE_2]
                 ...
@@ -143,6 +158,6 @@ public class ImagePromptService {
                 """ + PromptRules.xhsPlatform()
                 + PromptRules.insuranceCompliance()
                 + PromptRules.outputDiscipline())
-                .formatted(count, count, ratio, count, ratio);
+                .formatted(count, count, ratio, count, rDesc);
     }
 }

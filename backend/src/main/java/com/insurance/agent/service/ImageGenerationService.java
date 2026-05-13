@@ -109,13 +109,10 @@ public class ImageGenerationService {
                 message.put("content", prompt.trim());
                 body.putArray("messages").add(message);
 
-                ObjectNode imageConfig = mapper.createObjectNode();
-                imageConfig.put("aspect_ratio", toAspectRatio(effectiveSize));
-                ObjectNode google = mapper.createObjectNode();
-                google.set("image_config", imageConfig);
-                ObjectNode extraBody = mapper.createObjectNode();
-                extraBody.set("google", google);
-                body.set("extra_body", extraBody);
+                // gpt-image-2 用像素尺寸，从比例算出标准尺寸
+                body.put("size", toPixelSize(effectiveSize));
+                body.put("n", 1);
+                body.put("output_format", "png");
             } else if ("seedream".equals(normalizedProvider)) {
                 body.put("prompt", prompt.trim());
                 body.put("sequential_image_generation", "disabled");
@@ -217,6 +214,33 @@ public class ImageGenerationService {
         } catch (NumberFormatException e) {
             return "1:1";
         }
+    }
+
+    /** 把比例字符串转成 gpt-image-2 支持的标准像素尺寸 */
+    private static String toPixelSize(String sizeOrRatio) {
+        if (isBlank(sizeOrRatio)) return "1024x1024";
+        String value = sizeOrRatio.trim().toLowerCase(Locale.ROOT);
+        // 已经是标准像素尺寸
+        if (value.matches("\\d+x\\d+")) return value;
+        // 比例 → gpt-image-2 标准尺寸 (1024 基准)
+        // 支持: 1:1 → 1024x1024, 3:4 → 1024x1365, 4:3 → 1365x1024, 9:16 → 1024x1820
+        String[] parts = value.split(":");
+        if (parts.length == 2) {
+            try {
+                double w = Double.parseDouble(parts[0].trim());
+                double h = Double.parseDouble(parts[1].trim());
+                double r = h / w;
+                if (Math.abs(r - 1.0) < 0.05) return "1024x1024";
+                if (r > 1.0) {
+                    // 竖版: 宽固定 1024
+                    return "1024x" + Math.round(1024 * r);
+                } else {
+                    // 横版: 高固定 1024
+                    return Math.round(1024 / r) + "x1024";
+                }
+            } catch (NumberFormatException ignored) {}
+        }
+        return "1024x1024";
     }
 
     private static int gcd(int a, int b) {

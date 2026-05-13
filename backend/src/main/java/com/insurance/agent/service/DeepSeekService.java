@@ -65,8 +65,17 @@ public class DeepSeekService {
             return doChat(systemPrompt, userPrompt, requestedModel, false);
         } catch (RuntimeException e) {
             if (isRetryable(e) && hasFallbackConfig()) {
-                log.warn("[AI 兜底] 主模型失败，切换到 DeepSeek 重试。原错误: {}", e.getMessage());
+                log.warn("""
+
+                        ╔══════════════════════════════════════╗
+                        ║  AI 兜底：主模型失败 → DeepSeek  ║
+                        ║  原因: {}                          ║
+                        ╚══════════════════════════════════════╝
+                        """, e.getMessage());
                 return doChat(systemPrompt, userPrompt, requestedModel, true);
+            }
+            if (isRetryable(e) && !hasFallbackConfig()) {
+                log.warn("[AI] 主模型失败且未配置兜底 API Key，直接报错。原因: {}", e.getMessage());
             }
             throw e;
         }
@@ -144,7 +153,7 @@ public class DeepSeekService {
         if (e instanceof HttpTimeoutException) return true;
         String msg = e.getMessage();
         if (msg == null) return false;
-        return msg.matches(".*\\b5\\d{2}\\b.*");
+        return msg.matches(".*\\b[45]\\d{2}\\b.*");
     }
 
     private boolean hasFallbackConfig() {
