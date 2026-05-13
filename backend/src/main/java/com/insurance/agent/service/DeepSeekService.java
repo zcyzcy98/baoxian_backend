@@ -25,14 +25,17 @@ import java.time.format.DateTimeFormatter;
 public class DeepSeekService {
     private static final Logger log = LoggerFactory.getLogger(DeepSeekService.class);
 
-    private static final String MODEL_CHAT = "deepseek-chat";
-    private static final String MODEL_REASONER = "deepseek-reasoner";
-
     @Value("${deepseek.api.key:}")
     private String apiKey;
 
     @Value("${deepseek.api.base-url:https://api.deepseek.com}")
     private String baseUrl;
+
+    @Value("${deepseek.api.chat-model:deepseek-chat}")
+    private String chatModel;
+
+    @Value("${deepseek.api.reasoner-model:deepseek-reasoner}")
+    private String reasonerModel;
 
     @Value("${deepseek.api.timeout-seconds:60}")
     private int timeoutSeconds;
@@ -47,7 +50,7 @@ public class DeepSeekService {
     public String chat(String systemPrompt, String userPrompt, String requestedModel) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException(
-                    "未配置 DEEPSEEK_API_KEY 环境变量, 后端无法调用 DeepSeek。请在启动前 export DEEPSEEK_API_KEY=...");
+                    "未配置 AI_API_KEY 或 DEEPSEEK_API_KEY 环境变量，后端无法调用 AI 模型。");
         }
         String model = resolveModel(requestedModel);
         log.info("[AI 请求] model={} system={} user={}",
@@ -58,7 +61,6 @@ public class DeepSeekService {
             ObjectNode body = mapper.createObjectNode();
             body.put("model", model);
             body.put("stream", false);
-            body.put("temperature", 0.8);
             ArrayNode messages = body.putArray("messages");
             if (systemPrompt != null && !systemPrompt.isBlank()) {
                 ObjectNode sys = messages.addObject();
@@ -70,8 +72,9 @@ public class DeepSeekService {
             user.put("content", userPrompt);
 
             String payload = mapper.writeValueAsString(body);
+            String endpoint = trimSlash(baseUrl) + "/chat/completions";
             HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl + "/chat/completions"))
+                    .uri(URI.create(endpoint))
                     .timeout(Duration.ofSeconds(timeoutSeconds))
                     .header("Content-Type", "application/json")
                     .header("Authorization", "Bearer " + apiKey)
@@ -81,13 +84,13 @@ public class DeepSeekService {
             HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
                 log.warn("[AI 异常] model={} status={} body={}", model, resp.statusCode(), truncate(resp.body(), 500));
-                throw new RuntimeException("DeepSeek API 返回 " + resp.statusCode() + ": " + truncate(resp.body(), 300));
+                throw new RuntimeException("AI API 返回 " + resp.statusCode() + ": " + truncate(resp.body(), 300));
             }
             JsonNode root = mapper.readTree(resp.body());
             JsonNode choice = root.path("choices").path(0).path("message").path("content");
             if (choice.isMissingNode() || choice.isNull()) {
                 log.warn("[AI 异常] 响应格式异常 model={} body={}", model, truncate(resp.body(), 500));
-                throw new RuntimeException("DeepSeek 响应格式异常: " + truncate(resp.body(), 300));
+                throw new RuntimeException("AI 响应格式异常: " + truncate(resp.body(), 300));
             }
             String result = choice.asText();
             log.info("[AI 响应] model={} 长度={} 内容={}", model, result.length(), truncate(result, 500));
@@ -97,16 +100,26 @@ public class DeepSeekService {
             throw e;
         } catch (Exception e) {
             log.error("[AI 异常] model={} 错误={}", model, e.getMessage());
-            throw new RuntimeException("调用 DeepSeek 失败: " + e.getMessage(), e);
+            throw new RuntimeException("调用 AI 模型失败: " + e.getMessage(), e);
         }
     }
 
     public String resolveModel(String requested) {
-        if (requested == null) return MODEL_CHAT;
+        if (requested == null || requested.isBlank()) return chatModel;
         return switch (requested.trim().toLowerCase()) {
-            case "reasoner", "deepseek-reasoner", "增强", "enhanced" -> MODEL_REASONER;
-            default -> MODEL_CHAT;
+            case "reasoner", "deepseek-reasoner", "增强", "enhanced" -> reasonerModel;
+            case "chat", "deepseek-chat" -> chatModel;
+            default -> requested.trim();
         };
+    }
+
+    private String trimSlash(String raw) {
+        if (raw == null || raw.isBlank()) return "";
+        String value = raw.trim();
+        while (value.endsWith("/")) {
+            value = value.substring(0, value.length() - 1);
+        }
+        return value;
     }
 
     private String truncate(String s, int n) {

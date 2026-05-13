@@ -824,7 +824,11 @@ public class LibTvService {
                         "---\n" +
                         "无需询问确认，禁止等待用户回复，直接开始执行全部步骤，自动完成。\"直接制作视频并自动拼接"+
                         "总时长约 11 秒\n" +
-                        "```";
+                        "```" +
+                        PromptRules.shortVideoPlatform() +
+                        PromptRules.insuranceCompliance() +
+                        PromptRules.factuality() +
+                        PromptRules.outputDiscipline();
         String userPrompt = "请把以下脚本优化为口播格式：\n\n" + rawScript.trim() +
                 (isBlank(style) ? "" : "\n\n风格偏好：" + style.trim());
         try {

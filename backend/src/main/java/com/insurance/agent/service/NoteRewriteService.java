@@ -183,6 +183,18 @@ public class NoteRewriteService {
             sb.append("\n【用户附加要求】\n").append(userRequirements.trim()).append("\n");
         }
 
+        sb.append(PromptRules.rewriteDiscipline());
+        sb.append(PromptRules.factuality());
+        sb.append(PromptRules.insuranceCompliance());
+        if (MODE_MP.equals(mode) || MODE_MP_REWRITE.equals(mode) || MODE_MP_OPTIMIZE.equals(mode)
+                || MODE_MP_SUMMARY.equals(mode)) {
+            sb.append(PromptRules.wechatPlatform());
+        } else if (MODE_MP_TO_XHS.equals(mode) || MODE_REWRITE.equals(mode)
+                || MODE_STYLE_HEALING.equals(mode) || MODE_STYLE_DRYGOODS.equals(mode)
+                || MODE_STYLE_COMPLAINT.equals(mode)) {
+            sb.append(PromptRules.xhsPlatform());
+        }
+
         sb.append("""
 
                 【输出格式】严格按以下两段输出, 不要任何前后说明:
@@ -192,6 +204,7 @@ public class NoteRewriteService {
                 [正文]
                 <改写后的正文(可使用 markdown)>
                 """);
+        sb.append(PromptRules.outputDiscipline());
         return sb.toString();
     }
 

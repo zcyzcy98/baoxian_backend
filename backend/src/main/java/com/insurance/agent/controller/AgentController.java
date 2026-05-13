@@ -13,6 +13,7 @@ import com.insurance.agent.dto.XhsNote;
 import com.insurance.agent.service.DouyinExtractService;
 import com.insurance.agent.service.KnowledgeQaService;
 import com.insurance.agent.service.MediaToDocService;
+import com.insurance.agent.service.PromptRules;
 import com.insurance.agent.service.XhsComplianceService;
 import com.insurance.agent.service.AuthService;
 import com.insurance.agent.service.CreditsService;
@@ -104,42 +105,39 @@ public class AgentController {
             return ResponseEntity.badRequest().body(new AgentResponse("主题不能为空", null));
         }
         String system = """
-                你是一位小红书爆文标题专家，专注于保险科普内容。请根据以下参数生成一个高点击率的标题。
+                你是一位小红书保险内容标题策划，不是套模板的标题生成器。
+                你的任务是根据用户主题和 RAG 样本分析结果，生成 5 个有差异化的标题候选。
 
-                【输入参数】
-                - 情绪基调：{{情绪}}（可选：反讽/打脸 | 揭秘/内幕 | 避坑/后悔 | 觉醒/反思 | 愤怒/吐槽 | 安心/种草）
-                - 人设：{{人设}}（可选：保险从业者-脱粉 | 行业观察者 | 普通用户-避坑党 | 单身年轻人）
-                - 核心场景：{{场景}}（如：给父母买保险 / 重疾险 / 百万医疗险 / 行业内幕）
+                【创作流程】
+                1. 先理解用户主题背后的目标人群、真实场景、核心痛点和可讲边界。
+                2. 如果系统提供了【RAG 爆款样本分析结果】，优先学习其中的标题公式、情绪方式和人设切入，但不要照抄样本原句。
+                3. 5 个标题必须走不同角度，不要只是替换同义词：
+                   - 人设经验型：从保险经纪人/过来人视角切入
+                   - 场景痛点型：从用户正在经历的具体场景切入
+                   - 反常识型：指出一个常见误解
+                   - 清单干货型：承诺读者能获得清晰判断
+                   - 温和提醒型：克制但有点击欲
+                4. 用户填写了风格时，用户风格优先；样本风格只作为参考。
 
-                【标题写作规则】
-                1. 字数控制在 15-25 字之间
-                2. 必须包含强情绪词，如：大实话 / 内幕 / 排雷 / 坑 / 才敢说 / 真相 / 辞职后 / 进了公司才知道
-                3. 人设要前置或嵌入，如"我是卖保险的""从业9年""辞职后"等
-                4. 可适当加 1-2 个 emoji，放在开头或结尾，不要堆砌
-                5. 末尾可加感叹号或用疑问句制造悬念
-                6. 禁止使用"大家""朋友们"等通用词，要有身份代入感
+                【标题质量标准】
+                - 15-28 个中文字符左右，不要过长。
+                - 标题里要有具体对象、具体场景或具体矛盾，避免“保险真相”“避坑指南”这类空泛表达。
+                - 可以有情绪，但要像真实小红书内容，不要像营销号恐吓。
+                - 允许少量 emoji，但不是必需；如果使用，每个标题最多 1 个。
+                - 不要 5 个标题都用“我是卖保险的/从业多年/才敢说”同一种开头。
 
-                【示例风格参考】
-                - "我是卖保险的，但有些话还是要说"
-                - "辞职后才敢讲的重疾险内幕"
-                - "果然，真正的保险大佬都在评论区！"
-                - "保险公司最怕被知道的产品秘密，我直接打包告诉你"
-
-                请输出 5 个候选标题，按点击率预估从高到低排列。
-                注意输出不要出现 markdown 格式。
-
-                【合规红线（小红书金融广告规则）】
-                标题中严禁出现以下任何表述，否则视为违规：
-                - 承诺类：保本保息、保本、保收益、保息、稳赚不赔、稳赚、零风险、投资无风险、亏损包赔、安全无忧、理财无忧、本金无忧、百分百本息保障
-                - 绝对化：限时优惠、一律最低价、利息最低、额度最高
-                - 焦虑营销：以具体疾病名称（如乳腺癌）搭配保险产品进行标题炒作
-                - 荐股类：荐股、荐基、T+0
-                """;
+                【输出格式】
+                只输出 5 行标题，每行一个，不编号，不使用 markdown，不写解释。
+                """ + PromptRules.xhsPlatform()
+                + PromptRules.insuranceCompliance()
+                + PromptRules.outputDiscipline();
         String user = "主题: " + req.getTopic();
         boolean ragMode = "rag-xhs".equals(req.getModel());
-        String finalSystem = ragMode ? system + xhsSampleRag.buildContext(user) : system;
+        String finalSystem = ragMode
+                ? system + xhsSampleRag.buildAnalyzedContext(user, req.getStyle(), "小红书标题创作", "chat")
+                : system;
         String content = deepSeek.chat(finalSystem, user, ragMode ? "chat" : req.getModel());
-        String modelLabel = ragMode ? "deepseek-chat + 爆款RAG" : deepSeek.resolveModel(req.getModel());
+        String modelLabel = ragMode ? deepSeek.resolveModel("chat") + " + 爆款RAG" : deepSeek.resolveModel(req.getModel());
 
         AgentResponse resp = new AgentResponse(content, modelLabel);
         resp.setComplianceWarnings(toWarningMaps(xhsCompliance.check(content)));
@@ -155,76 +153,45 @@ public class AgentController {
             return ResponseEntity.badRequest().body(new AgentResponse("主题不能为空", null));
         }
         String system = """
-                你是一位小红书保险科普博主，擅长用真实视角写出高互动的干货笔记。请根据以下参数创作一篇完整正文。
+                你是一位真实的小红书保险科普创作者，目标是写出“像人写的、有经验、有边界”的笔记。
+                你的任务是根据用户主题和 RAG 样本分析结果，创作一篇完整小红书正文。
 
+                【创作流程】
+                1. 先判断主题适合的目标人群、核心场景、读者最关心的问题和不能乱说的边界。
+                2. 如果系统提供了【RAG 爆款样本分析结果】，先使用其中的“可复用正文框架”来决定文章结构。
+                3. 不要机械套固定五段式；结构应跟随样本框架、用户主题和用户风格变化。
+                4. 用户填写的风格优先，例如“专业严谨/吐槽/治愈/故事化/干货”等；RAG 样本只提供框架灵感。
 
-                【输入参数】
-                - 标题：{{标题}}
-                - 情绪基调：{{情绪}}
-                - 人设：{{人设}}
-                - 核心场景/险种：{{场景}}
-                
-                【任务】
-                根据用户提供的:
-                -已确定的标题
-                -已确定的情绪类型
-                -RAG 检索到的素材片段(可能是金句/真实情境/矛盾冲突等)
-                按对应情绪类型的正文结构,产出一篇完整的小红书笔记正文。
-                
-                
-           
+                【内容要求】
+                - 开头 3 句内必须进入具体场景或具体矛盾，让读者知道“这和我有关”。
+                - 中段至少有 3 个信息点，每个信息点都要包含：常见误解/真实判断/可执行建议。
+                - 保险专业内容要讲人话，解释为什么，不要只列结论。
+                - 允许使用 emoji 和分点，但根据风格自然使用，不要强行堆满。
+                - 结尾做互动或收藏提醒，弱化销售感。
+                - 总字数控制在 600-900 字。
+                - 末尾输出 5-8 个相关话题标签，必须包含 #保险。
 
-                【正文结构要求】
-                按以下五段式结构输出：
+                【原创要求】
+                - 可以学习 RAG 样本的结构、节奏、角度和情绪，但不能照抄标题、开头、金句和段落。
+                - 不要暴露“RAG”“样本”“框架”“根据参考”等提示词痕迹。
 
-                ① 开场钩子（2-3句）
-                - 用共鸣痛点或反常识观点开头
-                - 情绪要强烈，让读者觉得"说的就是我"
-                - 示例风格："有准备买保险的姐妹吗？求你今天这篇一定要看完！"
-
-                ② 核心观点/避坑点（3-5条）
-                - 用数字编号 + emoji 分点列出
-                - 每条包含：❌ 常见误区 → ✅ 正确做法
-                - 干货要具体，给出数字/标准/产品要素，不要泛泛而谈
-                - 示例风格："❌ 重疾险不是确诊即赔 → ✅ 需达到合同约定状态才赔，等待期内确诊不赔"
-
-                ③ 分场景细化建议（按1-2个具体人群展开）
-                - 如：普通打工人 / 有孩子的家庭 / 55岁以上父母 / 体检异常人群
-                - 给出可落地的配置方案（保什么+预算参考）
-
-                ④ 互动收尾（2-3句）
-                - 弱化推销感，以"有问必答"姿态结尾
-                - 示例："不管是自己的保险还是爸妈的，都可以问我，主打有问必答~"
-                - 加一句免责声明：*具体费率及保单金额以实际为准
-
-                ⑤ Hashtag（6-10个）
-                - 必含：#保险
-                - 根据场景补充：#重疾险 #百万医疗险 #意外险 #保险避坑 #宝宝保险 #父母保险 等
-                
-                【写作风格要求】
-                - 口语化、有温度，像在和闺蜜聊天
-                - 不要写成说明书，每一条要有"为什么这样"的解释
-                - 情绪词要自然融入，不要堆砌感叹号
-                - 总字数控制在 600-900 字
-                - 最终输出不要出现"① 开场钩子（2-3句）、② 核心观点/避坑点（3-5条）、③ 分场景细化建议（按1-2个具体人群展开）、④ 互动收尾（2-3句）、⑤ Hashtag（6-10个）"
-
-                【合规红线（小红书金融广告规则）】
-                正文中严禁出现以下任何表述：
-                - 承诺类：保本保息、保本、保收益、保息、稳赚不赔、稳赚、零风险、投资无风险、亏损包赔、安全无忧、理财无忧、本金无忧、百分百本息保障、收益保护协议、签约保收益
-                - 绝对化：限时优惠、一律最低价、利息最低
-                - 保险违规：分红率（作为承诺用语）、投资回报率（作为承诺用语）、返还保费
-                - 贷款违规：以贷养贷、免息贷款、不看征信、黑户也可
-                - 焦虑营销：借助具体疾病焦虑推销保险、整容贷、彩礼贷、升舱贷
-                """;
+                【输出格式】
+                直接输出小红书正文，不写分析过程，不写标题行。
+                """ + PromptRules.xhsPlatform()
+                + PromptRules.insuranceCompliance()
+                + PromptRules.factuality()
+                + PromptRules.outputDiscipline();
         StringBuilder sb = new StringBuilder("主题: ").append(req.getTopic());
         if (!isBlank(req.getStyle())) {
             sb.append("\n风格: ").append(req.getStyle());
         }
         String userQuery = sb.toString();
         boolean ragMode = "rag-xhs".equals(req.getModel());
-        String finalSystem = ragMode ? system + xhsSampleRag.buildContext(userQuery) : system;
+        String finalSystem = ragMode
+                ? system + xhsSampleRag.buildAnalyzedContext(userQuery, req.getStyle(), "小红书正文创作", "chat")
+                : system;
         String content = deepSeek.chat(finalSystem, userQuery, ragMode ? "chat" : req.getModel());
-        String modelLabel = ragMode ? "deepseek-chat + 爆款RAG" : deepSeek.resolveModel(req.getModel());
+        String modelLabel = ragMode ? deepSeek.resolveModel("chat") + " + 爆款RAG" : deepSeek.resolveModel(req.getModel());
 
         AgentResponse resp = new AgentResponse(content, modelLabel);
         resp.setComplianceWarnings(toWarningMaps(xhsCompliance.check(content)));
@@ -379,7 +346,9 @@ public class AgentController {
                    - "父母 60 岁了，还能买保险吗？这 4 种选择值得了解"
 
                 请输出 5 个候选标题，按点击率预估从高到低排列，每行一个，不带编号和 markdown 格式。
-                """;
+                """ + PromptRules.wechatPlatform()
+                + PromptRules.insuranceCompliance()
+                + PromptRules.outputDiscipline();
         String user = "主题: " + req.getTopic()
                 + (isBlank(req.getStyle()) ? "" : "\n方向: " + req.getStyle());
         String content = deepSeek.chat(system, user, req.getModel());
@@ -419,7 +388,10 @@ public class AgentController {
 
                 【输出格式】
                 直接输出正文内容，不要输出任何前言、说明或标题行。
-                """).formatted(wordCount);
+                """ + PromptRules.wechatPlatform()
+                + PromptRules.insuranceCompliance()
+                + PromptRules.factuality()
+                + PromptRules.outputDiscipline()).formatted(wordCount);
         String user = "标题: " + req.getTopic()
                 + (isBlank(req.getStyle()) ? "" : "\n写作方向补充: " + req.getStyle());
         String content = deepSeek.chat(system, user, req.getModel());
@@ -443,7 +415,7 @@ public class AgentController {
             if (wordCount > 4000) wordCount = 4000;
         }
         
-        String system = """
+        String system = ("""
                 你是一位保险公众号资深编辑，擅长写出专业、客观、有温度的保险科普文章。请根据以下要求创作完整的公众号文章。
 
                 【文章结构要求】
@@ -464,7 +436,10 @@ public class AgentController {
 
                 【输出格式】
                 先输出【标题】，然后换行输出【正文】。
-                """.replace("{{wordCount}}", String.valueOf(wordCount));
+                """ + PromptRules.wechatPlatform()
+                + PromptRules.insuranceCompliance()
+                + PromptRules.factuality()
+                + PromptRules.outputDiscipline()).replace("{{wordCount}}", String.valueOf(wordCount));
         
         StringBuilder user = new StringBuilder("主题: ").append(req.getTopic());
         if (!isBlank(req.getStyle())) {
@@ -487,7 +462,8 @@ public class AgentController {
                             - 要有文字区域，方便后期加文章标题
                             - 画面要清晰，适合 2.35:1 的比例
                             - 避免敏感内容，合规合规
-                            """;
+                            """ + PromptRules.insuranceCompliance()
+                            + PromptRules.outputDiscipline();
                     String coverContent = deepSeek.chat(coverSystem, "主题: " + req.getTopic(), req.getModel());
                     String coverPrompt = extractImagePrompt(coverContent);
                     String coverUrl = imageGeneration.generate(coverPrompt, "1280x544"); // 2.35:1 比例
@@ -504,7 +480,8 @@ public class AgentController {
                             - 适合 2.35:1 的比例
                             - 画面要清晰，避免敏感内容
                             - 可以适当有一些保险相关的元素，如保单、家庭、盾牌等
-                            """;
+                            """ + PromptRules.insuranceCompliance()
+                            + PromptRules.outputDiscipline();
                     String imageContent = deepSeek.chat(imageSystem, "主题: " + req.getTopic(), req.getModel());
                     String imagePrompt = extractImagePrompt(imageContent);
                     String imageUrl = imageGeneration.generate(imagePrompt, "1280x544"); // 2.35:1 比例
@@ -546,7 +523,10 @@ public class AgentController {
 
                 【输出格式】
                 直接输出脚本正文, 不要任何前后说明、不要使用代码块包裹。
-                """;
+                """ + PromptRules.shortVideoPlatform()
+                + PromptRules.insuranceCompliance()
+                + PromptRules.factuality()
+                + PromptRules.outputDiscipline();
         StringBuilder user = new StringBuilder("视频主题: ").append(req.getTopic());
         if (!isBlank(req.getStyle())) user.append("\n风格: ").append(req.getStyle());
         if (!isBlank(req.getDuration())) user.append("\n时长: ").append(req.getDuration());
@@ -768,7 +748,10 @@ public class AgentController {
                     }
                   ]
                 }
-                """;
+                """ + PromptRules.shortVideoPlatform()
+                + PromptRules.insuranceCompliance()
+                + PromptRules.factuality()
+                + PromptRules.outputDiscipline();
         StringBuilder user = new StringBuilder();
         if (hasTopic) user.append("视频主题: ").append(req.getTopic()).append("\n");
         if (!isBlank(req.getStyle())) user.append("风格: ").append(req.getStyle()).append("\n");
@@ -823,7 +806,9 @@ public class AgentController {
                 - 50-80 字, 比标题更有信息密度
                 - 结尾必须有 3-5 个话题标签 #xxx
                 - 三段方案要分别对应: 干货导向 / 情绪导向 / 互动导向
-                """;
+                """ + PromptRules.shortVideoPlatform()
+                + PromptRules.insuranceCompliance()
+                + PromptRules.outputDiscipline();
         StringBuilder user = new StringBuilder("视频主题: ").append(req.getTopic());
         if (!isBlank(req.getStyle())) user.append("\n风格: ").append(req.getStyle());
         String content = deepSeek.chat(system, user.toString(), req.getModel());
@@ -865,7 +850,9 @@ public class AgentController {
 
                 [IMAGE_PROMPT]
                 <一段完整的英文 prompt, 用于图片生成 API。必须明确指出: vertical 9:16 portrait composition; large bold Chinese title text "{钩子文字}" prominent in upper portion; 主体描述; 风格关键词; 光线; 色调; no watermark, no QR code, no real brand logo>
-                """;
+                """ + PromptRules.shortVideoPlatform()
+                + PromptRules.insuranceCompliance()
+                + PromptRules.outputDiscipline();
         String user = "视频主题: " + req.getTopic()
                 + (isBlank(req.getStyle()) ? "" : "\n风格: " + req.getStyle());
         String content = deepSeek.chat(system, user, req.getModel());
@@ -902,7 +889,7 @@ public class AgentController {
 
     /**
      * AtlasCloud Seedance 口播视频生成。
-     * 流程：DeepSeek 拆分脚本 → 逐段调用 Seedance API → 返回所有片段 URL。
+     * 流程：AI 拆分脚本 → 逐段调用 Seedance API → 返回所有片段 URL。
      */
     @PostMapping("/video-generate-seedance")
     public ResponseEntity<?> generateVideoSeedance(@RequestBody AgentRequest req,
@@ -918,7 +905,7 @@ public class AgentController {
             String ratio      = req.getVideoRatio();
             String resolution = req.getVideoResolution();
             if (sbSegs != null && !sbSegs.isEmpty()) {
-                // 前端已编辑好的分镜段，直接使用，跳过 DeepSeek 拆分
+                // 前端已编辑好的分镜段，直接使用，跳过 AI 拆分
                 List<SeedanceService.Segment> segs = new ArrayList<>();
                 for (java.util.Map<String, Object> m : sbSegs) {
                     String voiceover = String.valueOf(m.getOrDefault("voiceover", ""));
@@ -996,11 +983,13 @@ public class AgentController {
 
                 [IMAGE_PROMPT]
                 <用于图片生成 API 的英文提示词。必须是一段完整英文 prompt, 包含主体、场景、风格、构图、光线、色彩、画幅, 避免水印、二维码、真实品牌 logo。>
-                """;
+                """ + PromptRules.xhsPlatform()
+                + PromptRules.insuranceCompliance()
+                + PromptRules.outputDiscipline();
     }
 
     private static String buildTemplatedImageSystemPrompt(ImageTemplateService.Template template) {
-        return """
+        return ("""
                 你是一位小红书视觉设计师。用户选择了一个固定的视觉风格模板, 请基于该模板的设计语言, 结合用户的主题, 生成一段图片生成 prompt。
 
                 【必须严格遵循的视觉模板】
@@ -1019,7 +1008,9 @@ public class AgentController {
 
                 [IMAGE_PROMPT]
                 <一段完整英文 prompt, 同时编码模板风格特征 + 用户主题内容, 包含: composition, layout, color palette, typography style, key text content (in Chinese, transliterated as is in the prompt), illustration style. 必须包含 vertical 9:16 portrait composition。>
-                """.formatted(template.getDescription());
+                """ + PromptRules.xhsPlatform()
+                + PromptRules.insuranceCompliance()
+                + PromptRules.outputDiscipline()).formatted(template.getDescription());
     }
 
     // ─── 爆款拆解 ───────────────────────────────────────────────────────────
@@ -1048,7 +1039,7 @@ public class AgentController {
             }
         }
 
-        String system = transcript != null
+        String system = (transcript != null
                 ? """
                   你是一位专业的小红书爆款内容分析师，专注于保险行业内容创作辅导。
                   你的任务是对一篇真实的小红书笔记（视频类型）做深度爆款结构拆解。
@@ -1058,7 +1049,10 @@ public class AgentController {
                   你是一位专业的小红书爆款内容分析师，专注于保险行业内容创作辅导。
                   你的任务是对一篇真实的小红书笔记做深度爆款结构拆解，帮助保险经纪人学习和复用爆款套路。
                   分析要具体、可操作，每条结论必须结合笔记原文给出依据，不要泛泛而谈。
-                  """;
+                  """) + PromptRules.xhsPlatform()
+                + PromptRules.insuranceCompliance()
+                + PromptRules.factuality()
+                + PromptRules.outputDiscipline();
 
         String content = deepSeek.chat(system, buildViralXhsPrompt(note, transcript), req.getModel());
         
@@ -1186,7 +1180,7 @@ public class AgentController {
             warning = "ℹ️ 未获取到作品链接，将仅使用文案分析模式。";
         }
 
-        String system = transcript != null
+        String system = (transcript != null
                 ? """
                   你是一位专业的抖音爆款内容分析师，专注于保险行业内容创作辅导。
                   你的任务是对一条真实的抖音作品做深度爆款结构拆解，帮助保险经纪人学习和复用爆款套路。
@@ -1196,7 +1190,10 @@ public class AgentController {
                   你是一位专业的抖音爆款内容分析师，专注于保险行业内容创作辅导。
                   你的任务是对一条真实的抖音作品做深度爆款结构拆解，帮助保险经纪人学习和复用爆款套路。
                   分析要具体、可操作，每条结论必须结合视频标题/文案原文给出依据，不要泛泛而谈。
-                  """;
+                  """) + PromptRules.shortVideoPlatform()
+                + PromptRules.insuranceCompliance()
+                + PromptRules.factuality()
+                + PromptRules.outputDiscipline();
         
         String content = deepSeek.chat(system, buildViralDouyinPrompt(note, transcript), req.getModel());
         
@@ -1301,7 +1298,7 @@ public class AgentController {
         }
         return ResponseEntity.ok(new AgentResponse(
                 knowledgeQa.answer(req.getQuestion(), "faq_qa"),
-                "deepseek-chat + FAQ知识库RAG"));
+                deepSeek.resolveModel("chat") + " + FAQ知识库RAG"));
     }
 
     @PostMapping("/kb-claims")
@@ -1311,7 +1308,7 @@ public class AgentController {
         }
         return ResponseEntity.ok(new AgentResponse(
                 knowledgeQa.answer(req.getQuestion(), "claim_cases"),
-                "deepseek-chat + 理赔案例RAG"));
+                deepSeek.resolveModel("chat") + " + 理赔案例RAG"));
     }
 
     @PostMapping("/kb-products")
@@ -1321,7 +1318,7 @@ public class AgentController {
         }
         return ResponseEntity.ok(new AgentResponse(
                 knowledgeQa.answer(req.getQuestion(), "insurance_products"),
-                "deepseek-chat + 险种知识库RAG"));
+                deepSeek.resolveModel("chat") + " + 险种知识库RAG"));
     }
 
     @PostMapping("/kb-tips")
@@ -1331,7 +1328,7 @@ public class AgentController {
         }
         return ResponseEntity.ok(new AgentResponse(
                 knowledgeQa.answer(req.getQuestion(), "insurance_tips"),
-                "deepseek-chat + 投保提示RAG"));
+                deepSeek.resolveModel("chat") + " + 投保提示RAG"));
     }
 
     @PostMapping("/kb-coverage")
@@ -1341,7 +1338,7 @@ public class AgentController {
         }
         return ResponseEntity.ok(new AgentResponse(
                 knowledgeQa.answer(req.getQuestion(), "coverage_details"),
-                "deepseek-chat + 保障责任RAG"));
+                deepSeek.resolveModel("chat") + " + 保障责任RAG"));
     }
 
     private static boolean isBlank(String s) {
@@ -1401,7 +1398,7 @@ public class AgentController {
         boolean useSeedream = "seedream".equalsIgnoreCase(req.getImageProvider());
 
         // 让 DeepSeek 一次性生成 count 个提示词
-        String systemPrompt = """
+        String systemPrompt = ("""
                 你是一位小红书视觉配图专家，擅长把文章内容转化为高质量图片提示词。
 
                 任务：根据用户提供的文章内容，生成 %d 个图片提示词，每张图对应文章中一个核心场景或要点。
@@ -1424,7 +1421,9 @@ public class AgentController {
                 ...
                 [PROMPT_2]
                 ...
-                """.formatted(count, ratio, count);
+                """ + PromptRules.xhsPlatform()
+                + PromptRules.insuranceCompliance()
+                + PromptRules.outputDiscipline()).formatted(count, ratio, count);
 
         String userMsg = "文章内容如下，请生成 " + count + " 张配图的提示词：\n\n" + req.getContent().trim();
         String llmOut;

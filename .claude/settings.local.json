@@ -52,7 +52,8 @@
       "Bash(pdftotext \"/Users/yang2krown/Downloads/承知 · 保险经纪人 AI 获客系统 — 点击发布，等客户上门.pdf\" -)",
       "Bash(python3 -c ' *)",
       "Bash(xargs cat)",
-      "Read(//private/tmp/**)"
+      "Read(//private/tmp/**)",
+      "Bash(java -version)"
     ]
   }
 }

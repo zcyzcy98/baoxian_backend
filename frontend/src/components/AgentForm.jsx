@@ -331,7 +331,7 @@ export default function AgentForm({ agent, onSubmit, disabled, prefill, onPrefil
               onClick={() => submit('chat')}
               disabled={!isValid || disabled}
             >
-              DeepSeek 原版
+              AI 原版
             </button>
             <button
               type="button"
@@ -339,7 +339,7 @@ export default function AgentForm({ agent, onSubmit, disabled, prefill, onPrefil
               onClick={() => submit('rag-xhs')}
               disabled={!isValid || disabled}
             >
-              DeepSeek (增强·RAG)
+              AI 增强·RAG
             </button>
           </>
         )}

@@ -53,6 +53,7 @@ frontend/.env.*.local
 XHS-Downloader-master/
 md2wechat-skill-main/
 Spider_XHS-master/
+prompts/
 
 # =============================================================================
 # 临时下载的输入文件

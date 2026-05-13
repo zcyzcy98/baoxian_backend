@@ -547,7 +547,7 @@ export default function DramaPage({
                 <div className="video-loading">
                   <div className="spinner" />
                   <div>正在生成口播视频片段，请稍候…</div>
-                  <p>DeepSeek 拆分脚本 → 逐段调用 AtlasCloud，可能需要 3-10 分钟</p>
+                  <p>AI 拆分脚本 → 逐段调用 AtlasCloud，可能需要 3-10 分钟</p>
                 </div>
               )}
 
@@ -702,7 +702,7 @@ export default function DramaPage({
                 <div className="video-loading">
                   <div className="spinner" />
                   <div>正在生成口播视频片段，请稍候…</div>
-                  <p>DeepSeek 拆分脚本 → 逐段调用 AtlasCloud，可能需要 3-10 分钟</p>
+                  <p>AI 拆分脚本 → 逐段调用 AtlasCloud，可能需要 3-10 分钟</p>
                 </div>
               )}
               {videoError && !videoLoading && (

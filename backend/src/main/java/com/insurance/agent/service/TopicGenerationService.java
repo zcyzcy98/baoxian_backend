@@ -160,6 +160,11 @@ public class TopicGenerationService {
                 List<TopicCandidate> hot = topHubDataService.fetchHotTopics(100);
                 // AI 增强：过滤噪音 + 补全 whyThisTopic / insuranceTypes / recommendedPlatforms
                 List<TopicCandidate> aiEnriched = aiFilter.enrichWithAi(hot);
+                // TOPHUB profile 个性化加成 (0-8)，硬封顶 58 < BITABLE 最低分 60
+                for (TopicCandidate c : aiEnriched) {
+                    int bonus = computeTopHubProfileBonus(c, profile);
+                    c.setScore(Math.min(58, c.getScore() + bonus));
+                }
                 bag.addAll(aiEnriched);
             } catch (Exception e) {
                 log.warn("fetch hot topics failed, will serve bitable-only: {}", e.getMessage());
@@ -387,33 +392,65 @@ public class TopicGenerationService {
         for (ScoredCandidate s : scored) {
             String key = s.candidate.getTitle() == null ? "" : s.candidate.getTitle().trim();
             if (seen.add(key) && !key.isEmpty()) {
-                TopicCandidate c = s.candidate;
-                c.setScore(Math.min(100, s.totalScore()));
-                out.add(c);
+                out.add(s.candidate); // 保留排名顺序（由 totalScore 决定），后续按组赋分
                 if (out.size() >= Math.max(1, limit)) break;
             }
         }
 
-        // 全局归一化：所有候选一起映射到 10-100，保证展示区分度
-        if (out.size() >= 2) {
-            int minS = out.stream().mapToInt(TopicCandidate::getScore).min().orElse(0);
-            int maxS = out.stream().mapToInt(TopicCandidate::getScore).max().orElse(1);
-            int range = maxS - minS;
-            if (range == 0) {
-                for (int i = 0; i < out.size(); i++) {
-                    double pct = (double) i / (out.size() - 1);
-                    out.get(i).setScore(10 + (int) Math.round(pct * 90));
-                }
+        // ——————————————————————————————————————————————————————————
+        // 按来源分组赋予差异化分数段，彻底解决全局归一化导致的 "二值化" 问题
+        //   BITABLE (飞书知识库)：最终分 62–95，前端显示 6.2–9.5
+        //   TOPHUB  (今日热榜)  ：最终分 25–58，前端显示 2.5–5.8
+        //   两组各自线性分布，组内顺序由 matchScore + 时间衰减决定（已排好序）
+        //   BITABLE 最低分 62 > TOPHUB 最高分 58，来源优先级始终成立
+        // ——————————————————————————————————————————————————————————
+        List<TopicCandidate> bitableGroup = new ArrayList<>();
+        List<TopicCandidate> tophubGroup  = new ArrayList<>();
+        for (TopicCandidate c : out) {
+            if (c.getSource() == TopicCandidate.Source.TOPHUB) {
+                tophubGroup.add(c);
             } else {
-                for (TopicCandidate c : out) {
-                    double normalized = (double) (c.getScore() - minS) / range;
-                    c.setScore(10 + (int) Math.round(normalized * 90));
-                }
+                bitableGroup.add(c);
             }
-            // 归一化后重新排序
-            out.sort((a, b) -> Integer.compare(b.getScore(), a.getScore()));
         }
-        return out;
+
+        boolean hasBitable = !bitableGroup.isEmpty();
+        boolean hasTophub  = !tophubGroup.isEmpty();
+
+        if (hasBitable && hasTophub) {
+            assignRankScores(bitableGroup, 62, 95);
+            assignRankScores(tophubGroup,  25, 58);
+        } else if (hasBitable) {
+            // 只有飞书数据：拉伸到更宽范围，区分度更好
+            assignRankScores(bitableGroup, 52, 95);
+        } else {
+            // 只有热榜数据：同样拉伸
+            assignRankScores(tophubGroup, 15, 85);
+        }
+
+        // 合并并按最终分数降序返回
+        List<TopicCandidate> merged = new ArrayList<>(bitableGroup);
+        merged.addAll(tophubGroup);
+        merged.sort((a, b) -> Integer.compare(b.getScore(), a.getScore()));
+        return merged;
+    }
+
+    /**
+     * 将已按名次排好序的候选组，线性映射到 [minScore, maxScore]。
+     * index=0（排名最高）→ maxScore；index=n-1（排名最低）→ minScore。
+     * n==1 时取中间值，避免极端分。
+     */
+    private static void assignRankScores(List<TopicCandidate> group, int minScore, int maxScore) {
+        int n = group.size();
+        if (n == 0) return;
+        if (n == 1) {
+            group.get(0).setScore((minScore + maxScore) / 2);
+            return;
+        }
+        for (int i = 0; i < n; i++) {
+            int score = (int) Math.round(maxScore - (double)(maxScore - minScore) * i / (n - 1));
+            group.get(i).setScore(score);
+        }
     }
 
     /** 计算候选与用户画像的匹配分 */
@@ -496,6 +533,49 @@ public class TopicGenerationService {
             double penalty = Math.min(10.0, (hoursAgo - 12) * 1.0);
             return Math.max(0, base - (int) Math.round(penalty));
         }
+    }
+
+    /**
+     * 计算 TOPHUB 热点与用户画像的匹配奖励分（0-8），用于个性化排序。
+     * 注意：最终分数在外层被封顶为 58，保证 TOPHUB 始终低于 BITABLE 最低分 60。
+     */
+    private static int computeTopHubProfileBonus(TopicCandidate c, UserProfile profile) {
+        if (profile == null || profile.isEmpty()) return 0;
+        int bonus = 0;
+
+        // 主营险种匹配：每匹配一个 +4，最多 +4（TOPHUB profile 加成需保守）
+        List<String> products = profile.getPrimaryProducts();
+        List<String> insTypes = c.getInsuranceTypes();
+        if (products != null && insTypes != null) {
+            for (String p : products) {
+                if (p == null) continue;
+                for (String t : insTypes) {
+                    if (t != null && (t.contains(p) || p.contains(t))) {
+                        bonus += 4;
+                        break;
+                    }
+                }
+                if (bonus >= 4) break; // TOPHUB 最多 +4 for insurance
+            }
+        }
+
+        // 目标客群匹配：每匹配一个 +2，最多 +4
+        List<String> audiences = profile.getTargetAudiences();
+        List<String> demos = c.getDemographics();
+        if (audiences != null && demos != null) {
+            for (String a : audiences) {
+                if (a == null) continue;
+                for (String d : demos) {
+                    if (d != null && (d.contains(a) || a.contains(d))) {
+                        bonus += 2;
+                        break;
+                    }
+                }
+                if (bonus >= 8) break;
+            }
+        }
+
+        return Math.min(8, bonus);
     }
 
     /** 单条用户输入选题: 直接包成 TopicCandidate, 给最高优先级. */

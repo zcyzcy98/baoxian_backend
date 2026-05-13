@@ -59,9 +59,11 @@ public class TopicAiFilterService {
                 你是一名资深保险营销内容专家，精通小红书、抖音、公众号的内容运营。
                 你的任务是分析社会热点标题，判断保险代理人能否借势创作内容，并给出详细分析。
                 请严格按照 JSON 格式输出，不要输出任何其他文字。
-                """;
+                """ + PromptRules.insuranceCompliance()
+                + PromptRules.factuality()
+                + PromptRules.outputDiscipline();
 
-        String raw = deepSeek.chat(systemPrompt, prompt, "deepseek-chat");
+        String raw = deepSeek.chat(systemPrompt, prompt, "chat");
         return parseAndApply(raw, batch);
     }
 
@@ -166,10 +168,12 @@ public class TopicAiFilterService {
             c.setRecommendedPlatforms(platforms);
         }
 
-        // 重新计算评分：AI 相关性权重 50% + 原热度权重 50%
-        int heatScore = c.getScore(); // 当前是纯热度分
-        int newScore = (int) Math.round(aiScore * 10.0 + heatScore * 0.5);
-        newScore = Math.min(100, Math.max(10, newScore));
+        // TOPHUB 评分：AI 相关性(占主导) + 热度(辅助)
+        // 硬封顶 50，保证 TOPHUB 始终低于 BITABLE 最低分 60
+        // profile 加成在 TopicGenerationService 统一叠加（最终封顶 58）
+        int heatScore = c.getScore(); // 当前是纯热度分 10-50
+        int newScore = (int) Math.round(aiScore * 5.5 + heatScore * 0.25);
+        newScore = Math.min(50, Math.max(8, newScore));
         c.setScore(newScore);
     }
 

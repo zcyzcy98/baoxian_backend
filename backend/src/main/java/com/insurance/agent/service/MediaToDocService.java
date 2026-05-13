@@ -277,7 +277,10 @@ public class MediaToDocService {
                 - 给出 3-5 条镜头、道具、节奏或 BGM 建议。
 
                 只输出 Markdown，不要使用代码块包裹。
-                """;
+                """ + PromptRules.shortVideoPlatform()
+                + PromptRules.insuranceCompliance()
+                + PromptRules.factuality()
+                + PromptRules.outputDiscipline();
         StringBuilder user = new StringBuilder();
         if (style != null && !style.isBlank()) user.append("目标风格: ").append(style.trim()).append("\n");
         if (duration != null && !duration.isBlank()) user.append("目标时长: ").append(duration.trim()).append("\n");
@@ -305,7 +308,7 @@ public class MediaToDocService {
     }
 
     private String buildModePrompt(OutputMode mode, String outputFormat) {
-        return switch (mode) {
+        String base = switch (mode) {
             case XHS_NOTE -> """
                     你是一位小红书内容编辑。请把视频转写文本整理成一篇可发布的小红书笔记。
 
@@ -361,6 +364,27 @@ public class MediaToDocService {
 
                     只输出整理后的文档内容，不要写前后说明。
                     """.formatted(outputFormat.toUpperCase(Locale.ROOT), outputFormat);
+        };
+        return base + modeRules(mode);
+    }
+
+    private String modeRules(OutputMode mode) {
+        return switch (mode) {
+            case XHS_NOTE -> PromptRules.xhsPlatform()
+                    + PromptRules.insuranceCompliance()
+                    + PromptRules.factuality()
+                    + PromptRules.outputDiscipline();
+            case WECHAT_ARTICLE -> PromptRules.wechatPlatform()
+                    + PromptRules.insuranceCompliance()
+                    + PromptRules.factuality()
+                    + PromptRules.outputDiscipline();
+            case VIDEO_SCRIPT, SUBTITLE -> PromptRules.shortVideoPlatform()
+                    + PromptRules.insuranceCompliance()
+                    + PromptRules.factuality()
+                    + PromptRules.outputDiscipline();
+            case SUMMARY, DOCUMENT -> PromptRules.insuranceCompliance()
+                    + PromptRules.factuality()
+                    + PromptRules.outputDiscipline();
         };
     }
 

@@ -139,7 +139,7 @@ export default function XhsCreatePage({
     setLoading(true)
     try {
       // 只生成标题
-      const titleRes = await callAgent('title', { topic, style: direction })
+      const titleRes = await callAgent('title', { topic, style: direction }, 'rag-xhs')
       const titleContent = titleRes.content || ''
       
       // 直接按换行分割取前5个

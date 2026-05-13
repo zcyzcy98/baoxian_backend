@@ -104,7 +104,7 @@ public class SeedanceService {
     }
 
     /**
-     * 直接使用前端已编辑好的分镜段生成视频，跳过 DeepSeek 拆分。
+     * 直接使用前端已编辑好的分镜段生成视频，跳过 AI 拆分。
      */
     public List<SegmentResult> generateSegmentsDirect(
             List<Segment> segments,
@@ -151,7 +151,7 @@ public class SeedanceService {
         return results;
     }
 
-    // ─── Step 1: DeepSeek 脚本拆分 ────────────────────────────────
+    // ─── Step 1: AI 脚本拆分 ────────────────────────────────
 
     private List<Segment> splitScript(String script, String style) {
         String systemPrompt = """
@@ -184,7 +184,10 @@ public class SeedanceService {
                     }
                   ]
                 }
-                """;
+                """ + PromptRules.shortVideoPlatform()
+                + PromptRules.insuranceCompliance()
+                + PromptRules.factuality()
+                + PromptRules.outputDiscipline();
 
         String userPrompt = "请拆分以下口播脚本：\n\n" + script.trim() +
                 (isBlank(style) ? "" : "\n\n风格说明：" + style.trim());
@@ -193,7 +196,7 @@ public class SeedanceService {
         try {
             raw = deepSeek.chat(systemPrompt, userPrompt, null);
         } catch (Exception e) {
-            log.warn("[Seedance] DeepSeek 拆分失败，降级为简单按句切分: {}", e.getMessage());
+            log.warn("[Seedance] AI 拆分失败，降级为简单按句切分: {}", e.getMessage());
             return fallbackSplit(script);
         }
 

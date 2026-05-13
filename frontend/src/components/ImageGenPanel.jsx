@@ -223,15 +223,15 @@ function InputColumn({
           onChange={(e) => onModelChange(e.target.value)}
           disabled={generating}
         >
-          <option value="chat">DeepSeek 原版 (chat)</option>
-          <option value="reasoner">DeepSeek 增强 (reasoner)</option>
+          <option value="chat">AI 原版 (chat)</option>
+          <option value="reasoner">AI 增强 (reasoner)</option>
         </select>
       </div>
 
       <div className="ig-help">
         当前选择: {usingTemplate ? '已使用模板' : '不使用模板'}
         <br />
-        生成约需 30 秒(DeepSeek 拟稿 + 图片 API 出图)。
+        生成约需 30 秒(AI 拟稿 + 图片 API 出图)。
       </div>
 
       <div className="ig-generate-actions">

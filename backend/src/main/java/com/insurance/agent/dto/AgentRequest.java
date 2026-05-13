@@ -27,7 +27,7 @@ public class AgentRequest {
     private String imageRatio;
     private Boolean needCover;
     private Boolean needImages;
-    // 前端已编辑好的分镜段（有此字段时跳过 DeepSeek 拆分，直接生成）
+    // 前端已编辑好的分镜段（有此字段时跳过 AI 拆分，直接生成）
     private java.util.List<java.util.Map<String, Object>> storyboardSegments;
     // 视频比例：9:16 / 16:9，默认 9:16
     private String videoRatio;

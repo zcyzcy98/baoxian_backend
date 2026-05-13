@@ -513,7 +513,7 @@ function StepRewrite({
             onClick={() => onModelChange('chat')}
             disabled={!ready || rewriting}
           >
-            DeepSeek 原版
+            AI 原版
           </button>
           <button
             type="button"
@@ -521,7 +521,7 @@ function StepRewrite({
             onClick={() => onModelChange('reasoner')}
             disabled={!ready || rewriting}
           >
-            DeepSeek (投喂)
+            AI 增强
           </button>
         </div>
       </div>

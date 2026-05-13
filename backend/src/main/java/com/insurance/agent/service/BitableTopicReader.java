@@ -169,19 +169,21 @@ public class BitableTopicReader {
                                                   Map<String, String> fieldMap,
                                                   UserProfile profile) {
         List<TopicCandidate> out = new ArrayList<>();
+        List<Integer> rawQList = new ArrayList<>(); // 与 out 一一对应
+
         for (Map<String, Object> r : records) {
             Map<String, Object> f = (Map<String, Object>) r.get("fields");
             String title = asText(getField(f, fieldMap, "title"));
             if (isBlank(title)) continue;
 
-            String emotion = asText(getField(f, fieldMap, "emotion"));
-            String persona = asText(getField(f, fieldMap, "persona"));
-            String src = asText(getField(f, fieldMap, "sourceLabel"));
-            String url = asText(getField(f, fieldMap, "url"));
-            List<String> tags = asList(getField(f, fieldMap, "tags"));
+            String emotion      = asText(getField(f, fieldMap, "emotion"));
+            String persona      = asText(getField(f, fieldMap, "persona"));
+            String src          = asText(getField(f, fieldMap, "sourceLabel"));
+            String url          = asText(getField(f, fieldMap, "url"));
+            List<String> tags           = asList(getField(f, fieldMap, "tags"));
             List<String> insuranceTypes = asList(getField(f, fieldMap, "insuranceTypes"));
-            List<String> demographics = asList(getField(f, fieldMap, "demographics"));
-            List<String> platforms = asList(getField(f, fieldMap, "platforms"));
+            List<String> demographics   = asList(getField(f, fieldMap, "demographics"));
+            List<String> platforms      = asList(getField(f, fieldMap, "platforms"));
             String whyThisTopic = asText(getField(f, fieldMap, "whyThisTopic"));
 
             TopicCandidate c = new TopicCandidate();
@@ -190,33 +192,92 @@ public class BitableTopicReader {
             c.setTitle(title);
             c.setSourceLabel(cfg.getName() + (isBlank(src) ? "" : " · " + src));
             c.setSourceUrl(url);
+            c.setAngle(String.join(" · ", filterBlanks(persona, emotion)));
 
-            String angle = String.join(" · ", filterBlanks(persona, emotion));
-            c.setAngle(angle);
-
-            // 评分: HOTSPOT_NOTE 保底 20 分 + 标签丰富度(0-30) + 内容完整性(0-20)
-            int richness = 0;
-            if (insuranceTypes != null && !insuranceTypes.isEmpty()) richness += 10;
-            if (demographics != null && !demographics.isEmpty()) richness += 10;
-            if (platforms != null && !platforms.isEmpty()) richness += 10;
-            int completeness = 0;
-            if (!isBlank(whyThisTopic)) completeness += 10;
-            if (!isBlank(persona) && !isBlank(emotion)) completeness += 10;
-            c.setScore(Math.min(70, 20 + richness + completeness));
-
-            if (tags != null) c.getTags().addAll(tags);
-            if (!isBlank(persona)) c.getTags().add(persona);
-            if (!isBlank(emotion)) c.getTags().add(emotion);
+            if (tags != null)           c.getTags().addAll(tags);
+            if (!isBlank(persona))      c.getTags().add(persona);
+            if (!isBlank(emotion))      c.getTags().add(emotion);
             if (insuranceTypes != null) c.setInsuranceTypes(insuranceTypes);
-            if (demographics != null) c.setDemographics(demographics);
-            if (platforms != null) c.setRecommendedPlatforms(platforms);
+            if (demographics != null)   c.setDemographics(demographics);
+            if (platforms != null)      c.setRecommendedPlatforms(platforms);
             if (!isBlank(whyThisTopic)) c.setWhyThisTopic(whyThisTopic);
             c.setSuggestedAgent("xhs-title");
+
+            // ── 多维原始质量分（用于批内 rank 排序，不是最终分）──────────────
+            int rq = 0;
+            if (!isBlank(whyThisTopic)) rq += 20;                                      // 最重要：有 AI 推荐理由
+            if (insuranceTypes != null) rq += Math.min(4, insuranceTypes.size()) * 5;  // 险种丰富度 0-20
+            if (demographics != null)   rq += Math.min(3, demographics.size())   * 4;  // 人群丰富度 0-12
+            if (platforms != null)      rq += Math.min(3, platforms.size())       * 3;  // 平台覆盖度 0-9
+            if (!isBlank(persona))      rq += 4;
+            if (!isBlank(emotion))      rq += 3;
+            if (!isBlank(url))          rq += 1;
+            // Profile 匹配纳入排序依据（优先展示匹配用户主营险种/目标客群的内容）
+            rq += hotNoteProfileBonus(profile, insuranceTypes, demographics);
+
+            rawQList.add(rq);
             out.add(c);
         }
-        // 按分倒序
+
+        if (out.isEmpty()) return out;
+
+        // ── Rank 归一化：把批内质量排名映射到 [60, 95] 区间 ─────────────────
+        // 保证：① 每条分数大概率唯一；② BITABLE 最低 60 > TOPHUB 封顶 58
+        int n = out.size();
+
+        // 构造 (原始下标, rawQuality) 对，按 rawQ 降序排列，rawQ 相同时用 id hash 做确定性微扰
+        List<int[]> pairs = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            int tiebreak = Math.abs(out.get(i).getId().hashCode() % 1000);
+            pairs.add(new int[]{i, rawQList.get(i) * 1000 + tiebreak}); // 高位是质量，低位是微扰
+        }
+        pairs.sort((a, b) -> Integer.compare(b[1], a[1]));
+
+        for (int rank = 0; rank < n; rank++) {
+            int idx = pairs.get(rank)[0];
+            // rank=0 → 最优 → 95 分；rank=n-1 → 最差 → 60 分
+            int score = n == 1 ? 77 : (int) Math.round(60.0 + 35.0 * (n - 1 - rank) / (n - 1));
+            out.get(idx).setScore(score);
+        }
+
         out.sort((a, b) -> Integer.compare(b.getScore(), a.getScore()));
         return out;
+    }
+
+    /**
+     * 计算 HOT_NOTE 记录与用户画像的匹配奖励分（纳入 rank 排序）。
+     * 直接匹配 insuranceTypes / demographics 字段，不再依赖 tags。
+     */
+    private static int hotNoteProfileBonus(UserProfile profile,
+                                            List<String> insuranceTypes,
+                                            List<String> demographics) {
+        if (profile == null) return 0;
+        int bonus = 0;
+        // 主营险种匹配：每匹配一个 +8，最多 +16
+        if (profile.getPrimaryProducts() != null && insuranceTypes != null) {
+            for (String prod : profile.getPrimaryProducts()) {
+                if (prod == null) continue;
+                for (String type : insuranceTypes) {
+                    if (type != null && (type.contains(prod) || prod.contains(type))) {
+                        bonus += 8;
+                        break;
+                    }
+                }
+            }
+        }
+        // 目标客群匹配：每匹配一个 +6，最多 +12
+        if (profile.getTargetAudiences() != null && demographics != null) {
+            for (String aud : profile.getTargetAudiences()) {
+                if (aud == null) continue;
+                for (String demo : demographics) {
+                    if (demo != null && (demo.contains(aud) || aud.contains(demo))) {
+                        bonus += 6;
+                        break;
+                    }
+                }
+            }
+        }
+        return Math.min(20, bonus);
     }
 
     @SuppressWarnings("unchecked")

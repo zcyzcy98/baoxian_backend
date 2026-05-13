@@ -31,8 +31,10 @@ spring:
 
 deepseek:
   api:
-    key: ${DEEPSEEK_API_KEY:}
-    base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+    key: ${AI_API_KEY:${DEEPSEEK_API_KEY:}}
+    base-url: ${AI_API_BASE_URL:${DEEPSEEK_BASE_URL:https://api.aigocode.com/v1}}
+    chat-model: ${AI_CHAT_MODEL:claude-opus-4-7}
+    reasoner-model: ${AI_REASONER_MODEL:claude-opus-4-7}
     timeout-seconds: ${DEEPSEEK_TIMEOUT_SECONDS:60}
 
 image:
