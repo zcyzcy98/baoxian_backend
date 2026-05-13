@@ -2,7 +2,7 @@ package com.insurance.agent.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wechat.pay.java.core.RSAAutoCertificateConfig;
+import com.wechat.pay.java.core.RSAPublicKeyConfig;
 import com.wechat.pay.java.core.notification.NotificationConfig;
 import com.wechat.pay.java.core.notification.NotificationParser;
 import com.wechat.pay.java.core.notification.RequestParam;
@@ -73,13 +73,19 @@ public class WechatPayService {
     @Value("${wxpay.mch-serial-no:}")
     private String mchSerialNo;
 
+    @Value("${wxpay.public-key-path:}")
+    private String publicKeyPath;
+
+    @Value("${wxpay.public-key-id:}")
+    private String publicKeyId;
+
     @Value("${wxpay.notify-url:}")
     private String notifyUrl;
 
     @Value("${wxpay.test-mode:false}")
     private boolean testMode;
 
-    private RSAAutoCertificateConfig payConfig;
+    private RSAPublicKeyConfig payConfig;
     private final ObjectMapper mapper = new ObjectMapper();
 
     @PostConstruct
@@ -90,11 +96,14 @@ public class WechatPayService {
         }
         try {
             String privateKey = Files.readString(Paths.get(privateKeyPath));
-            payConfig = new RSAAutoCertificateConfig.Builder()
+            String publicKey = Files.readString(Paths.get(publicKeyPath));
+            payConfig = new RSAPublicKeyConfig.Builder()
                     .merchantId(mchId)
                     .privateKey(privateKey)
                     .merchantSerialNumber(mchSerialNo)
                     .apiV3Key(apiV3Key)
+                    .publicKey(publicKey)
+                    .publicKeyId(publicKeyId)
                     .build();
             log.info("[WechatPay] 微信支付初始化成功，mchId={}", mchId);
         } catch (Exception e) {
@@ -104,7 +113,8 @@ public class WechatPayService {
 
     public boolean isConfigured() {
         return !isBlank(mchId) && !isBlank(appId) && !isBlank(apiV3Key)
-                && !isBlank(privateKeyPath) && !isBlank(mchSerialNo) && !isBlank(notifyUrl);
+                && !isBlank(privateKeyPath) && !isBlank(mchSerialNo)
+                && !isBlank(publicKeyPath) && !isBlank(publicKeyId) && !isBlank(notifyUrl);
     }
 
     // ─── 创建 Native 订单 ─────────────────────────────────────────
@@ -191,7 +201,7 @@ public class WechatPayService {
                                   String signature, String serialNo) {
         requireConfigured();
         try {
-            NotificationConfig notifyConfig = (NotificationConfig) payConfig;
+            NotificationConfig notifyConfig = payConfig;
             NotificationParser parser = new NotificationParser(notifyConfig);
 
             RequestParam requestParam = new RequestParam.Builder()

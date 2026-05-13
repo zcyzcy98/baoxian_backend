@@ -159,5 +159,9 @@ wxpay:
   private-key-path: ${WXPAY_PRIVATE_KEY_PATH:}
   # 商户证书序列号（在商户平台 → API安全 → 查看证书里复制）
   mch-serial-no: ${WXPAY_MCH_SERIAL_NO:}
+  # 微信支付公钥文件路径（公钥模式，从商户平台下载）
+  public-key-path: ${WXPAY_PUBLIC_KEY_PATH:}
+  # 微信支付公钥ID（商户平台 → API安全 → 微信支付公钥 页面显示）
+  public-key-id: ${WXPAY_PUBLIC_KEY_ID:}
   # 支付成功后微信回调的地址（必须是公网可访问的 HTTPS 地址）
   notify-url: ${WXPAY_NOTIFY_URL:https://你的域名/api/pay/notify}
