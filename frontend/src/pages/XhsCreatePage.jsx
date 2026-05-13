@@ -11,6 +11,40 @@ const RATIO_OPTIONS = [
   { value: '9:16', label: '全屏 9:16' },
 ]
 
+function CopyBtn({ text, label = '复制全文' }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = () => {
+    const t = text || ''
+    const plain = t
+      .replace(/^#{1,6}\s/gm, '')
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/__(.+?)__/g, '$1')
+      .replace(/\*(.+?)\*/g, '$1')
+      .replace(/_(.+?)_/g, '$1')
+      .replace(/~~(.+?)~~/g, '$1')
+      .replace(/`(.+?)`/g, '$1')
+      .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+      .replace(/!\[.*?\]\(.+?\)/g, '')
+      .replace(/^>\s/gm, '')
+      .replace(/[\|\\]/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+    navigator.clipboard?.writeText(plain).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+  return (
+    <button className="btn-copy-text" onClick={handleCopy}>
+      {copied ? (
+        <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg><span>已复制</span></>
+      ) : (
+        <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>{label}</span></>
+      )}
+    </button>
+  )
+}
+
 export default function XhsCreatePage({
   topicPrefill, onPrefillConsumed,
   contentPrefill, onContentPrefillConsumed,
@@ -198,6 +232,24 @@ export default function XhsCreatePage({
       }
     }
     return parts.join('\n') || undefined
+  }
+
+  const stripMd = (t) => {
+    if (!t) return ''
+    return t
+      .replace(/^#{1,6}\s/gm, '')
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/__(.+?)__/g, '$1')
+      .replace(/\*(.+?)\*/g, '$1')
+      .replace(/_(.+?)_/g, '$1')
+      .replace(/~~(.+?)~~/g, '$1')
+      .replace(/`(.+?)`/g, '$1')
+      .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+      .replace(/!\[.*?\]\(.+?\)/g, '')
+      .replace(/^>\s/gm, '')
+      .replace(/[\|\\]/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
   }
 
   const toggleChip = (list, setList, value) => {
@@ -601,9 +653,12 @@ export default function XhsCreatePage({
                 <div className="section-card">
                   <div className="sc-head">
                     <h3>正文内容</h3>
-                    <div className="view-toggle">
-                      <span className={`toggle-btn ${viewMode === 'preview' ? 'active' : ''}`} onClick={() => setViewMode('preview')}>预览</span>
-                      <span className={`toggle-btn ${viewMode === 'edit' ? 'active' : ''}`} onClick={() => setViewMode('edit')}>编辑</span>
+                    <div className="sc-head-actions">
+                      <div className="view-toggle">
+                        <span className={`toggle-btn ${viewMode === 'preview' ? 'active' : ''}`} onClick={() => setViewMode('preview')}>预览</span>
+                        <span className={`toggle-btn ${viewMode === 'edit' ? 'active' : ''}`} onClick={() => setViewMode('edit')}>编辑</span>
+                      </div>
+                      <CopyBtn text={bodyContent} />
                     </div>
                   </div>
                   <div className="sc-body">
@@ -883,8 +938,38 @@ export default function XhsCreatePage({
                 </div>
               </div>
               <div className="r">
-                <button className="btn-done" onClick={() => navigator.clipboard?.writeText(bodyContent)}>复制全部</button>
-                <button className="btn-done primary">保存为草稿</button>
+                <button className="btn-done" onClick={() => {
+                  const plain = stripMd(bodyContent)
+                  navigator.clipboard?.writeText(plain)
+                }}>复制全文</button>
+                <button className="btn-done primary" onClick={async () => {
+                  const selectedTitleText = (titles[selectedTitle] || '').replace(/^\[\S+\]\s*/, '').replace(/^\d+[.、]\s*/, '')
+                  const plainBody = stripMd(bodyContent)
+                  const txtContent = selectedTitleText + '\n\n' + plainBody
+                  // 下载 txt
+                  const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' })
+                  const a = document.createElement('a')
+                  a.href = URL.createObjectURL(blob)
+                  a.download = (selectedTitleText || '小红书文案').slice(0, 20) + '.txt'
+                  a.click()
+                  URL.revokeObjectURL(a.href)
+                  // 下载图片
+                  const imgs = batchImgResults.length > 0 ? batchImgResults : images.map((url, i) => ({ index: i + 1, imageUrl: url }))
+                  const nameMap = { 1: '首图', 2: '图一', 3: '图二', 4: '图三', 5: '图四', 6: '图五', 7: '图六', 8: '图七', 9: '图八' }
+                  for (const img of imgs) {
+                    if (!img.imageUrl) continue
+                    try {
+                      const res = await fetch(img.imageUrl)
+                      const imgBlob = await res.blob()
+                      const imgA = document.createElement('a')
+                      imgA.href = URL.createObjectURL(imgBlob)
+                      imgA.download = (nameMap[img.index] || `图${img.index}`) + '.png'
+                      imgA.click()
+                      URL.revokeObjectURL(imgA.href)
+                      await new Promise(r => setTimeout(r, 300))
+                    } catch {}
+                  }
+                }}>一键打包下载</button>
               </div>
             </div>
           )}
