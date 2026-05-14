@@ -22,6 +22,12 @@ export default function Topbar({ breadcrumb, onNavigate, onLogout, phone, profil
     return () => clearInterval(id)
   }, [])
 
+  // 支付成功后立即刷新
+  useEffect(() => {
+    window.addEventListener('credits:updated', refreshCredits)
+    return () => window.removeEventListener('credits:updated', refreshCredits)
+  }, [])
+
   useEffect(() => {
     if (!menuOpen) return
     function handleClick(e) {

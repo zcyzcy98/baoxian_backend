@@ -110,8 +110,9 @@ export default function CreditsPage({ onNavigate, onNavigateWithContentPrefill, 
         if (data.status === 'PAID') {
           stopPolling()
           setPayStep('success')
-          // 刷新积分余额
           fetchCreditsSummary().then(setSummary).catch(() => {})
+          loadRecords(filter, 0)
+          window.dispatchEvent(new CustomEvent('credits:updated'))
         }
       } catch {
         // 网络抖动，继续轮询
