@@ -148,6 +148,13 @@ postgres:
     enabled: ${POSTGRES_IMPORT_ENABLED:true}
     auto-run: ${POSTGRES_IMPORT_AUTO_RUN:false}
 
+aliyun:
+  sms:
+    access-key-id: ${ALIYUN_SMS_ACCESS_KEY_ID:}
+    access-key-secret: ${ALIYUN_SMS_ACCESS_KEY_SECRET:}
+    sign-name: ${ALIYUN_SMS_SIGN_NAME:}
+    template-code: ${ALIYUN_SMS_TEMPLATE_CODE:}
+
 wxpay:
   # 微信支付商户号，在 pay.weixin.qq.com 申请
   mch-id: ${WXPAY_MCH_ID:}

@@ -15,32 +15,48 @@ public class AuthService {
     private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private static final String SMS_CODE_KEY_PREFIX = "sms:code:";
+    private static final String SMS_LIMIT_KEY_PREFIX = "sms:limit:";
     private static final String AUTH_TOKEN_KEY_PREFIX = "auth:token:";
     private static final String AUTH_PHONE_KEY_PREFIX = "auth:phone:";
 
     private static final long SMS_CODE_TTL_SECONDS = 300;
+    private static final long SMS_LIMIT_TTL_SECONDS = 60;
     private static final long TOKEN_TTL_SECONDS = 2_592_000L;
 
     private final DataSource dataSource;
     private final StringRedisTemplate redisTemplate;
+    private final SmsService smsService;
 
-    public AuthService(DataSource dataSource, StringRedisTemplate redisTemplate) {
+    public AuthService(DataSource dataSource, StringRedisTemplate redisTemplate, SmsService smsService) {
         this.dataSource = dataSource;
         this.redisTemplate = redisTemplate;
+        this.smsService = smsService;
     }
 
     public String sendCode(String phone) {
-        String code = String.format("%06d", (int) (Math.random() * 1_000_000));
         log.debug("[Auth] sendCode 开始 phone={}", phone);
+
+        // 60秒内不允许重复发送
+        String limitKey = SMS_LIMIT_KEY_PREFIX + phone;
+        Boolean limited = redisTemplate.hasKey(limitKey);
+        if (Boolean.TRUE.equals(limited)) {
+            throw new IllegalStateException("发送太频繁，请60秒后再试");
+        }
+
+        String code = String.format("%06d", (int) (Math.random() * 1_000_000));
         try {
             redisTemplate.opsForValue().set(SMS_CODE_KEY_PREFIX + phone, code, SMS_CODE_TTL_SECONDS, TimeUnit.SECONDS);
-            log.info("[Auth] 验证码已缓存 phone={} code={}", phone, code);
+            redisTemplate.opsForValue().set(limitKey, "1", SMS_LIMIT_TTL_SECONDS, TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("[Auth] 存储验证码失败 phone={} error={}", phone, e.getMessage(), e);
             throw new RuntimeException("发送验证码失败", e);
         }
-        log.info("[MOCK SMS] phone={} code={}", phone, code);
-        return code;
+
+        boolean sent = smsService.sendCode(phone, code);
+        if (!sent) {
+            throw new RuntimeException("短信发送失败，请稍后重试");
+        }
+        return smsService.isConfigured() ? null : code; // 仅 mock 模式返回明文
     }
 
     public String verifyCode(String phone, String code) {

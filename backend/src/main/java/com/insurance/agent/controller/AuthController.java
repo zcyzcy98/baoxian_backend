@@ -2,6 +2,7 @@ package com.insurance.agent.controller;
 
 import com.insurance.agent.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -15,16 +16,24 @@ public class AuthController {
     private AuthService authService;
 
     @PostMapping("/send-code")
-    public Map<String, Object> sendCode(@RequestBody Map<String, String> body) {
+    public ResponseEntity<Map<String, Object>> sendCode(@RequestBody Map<String, String> body) {
         String phone = body.get("phone");
         if (phone == null || !phone.matches("^1[3-9]\\d{9}$")) {
-            throw new IllegalArgumentException("手机号格式不正确");
+            return ResponseEntity.badRequest().body(Map.of("error", "手机号格式不正确"));
         }
-        String code = authService.sendCode(phone);
-        Map<String, Object> res = new HashMap<>();
-        res.put("ok", true);
-        res.put("_devCode", code); // 开发阶段直接返回，方便测试
-        return res;
+        try {
+            String devCode = authService.sendCode(phone);
+            Map<String, Object> res = new HashMap<>();
+            res.put("ok", true);
+            if (devCode != null) {
+                res.put("_devCode", devCode);
+            }
+            return ResponseEntity.ok(res);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(429).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PostMapping("/verify")
