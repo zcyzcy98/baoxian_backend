@@ -5,6 +5,7 @@ import com.insurance.agent.dto.AgentResponse;
 import com.insurance.agent.service.ComplianceCheckService;
 import com.insurance.agent.service.DeepSeekService;
 import com.insurance.agent.service.FileParseService;
+import com.insurance.agent.service.ImageCropService;
 import com.insurance.agent.service.ImageGenerationService;
 import com.insurance.agent.service.ImagePromptService;
 import com.insurance.agent.service.ImageTemplateService;
@@ -23,6 +24,7 @@ import com.insurance.agent.service.GeneratedContentService;
 import com.insurance.agent.service.WechatExtractService;
 import com.insurance.agent.service.XhsExtractService;
 import com.insurance.agent.service.XhsSampleRagService;
+import com.insurance.agent.service.VideoSampleRagService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,6 +61,7 @@ public class AgentController {
     private final LibTvService libTv;
     private final SeedanceService seedance;
     private final XhsSampleRagService xhsSampleRag;
+    private final VideoSampleRagService videoSampleRag;
     private final KnowledgeQaService knowledgeQa;
     private final MediaToDocService mediaToDoc;
     private final XhsExtractService xhsExtract;
@@ -68,6 +71,7 @@ public class AgentController {
     private final AuthService authService;
     private final CreditsService creditsService;
     private final FileParseService fileParseService;
+    private final ImageCropService imageCrop;
 
     public AgentController(DeepSeekService deepSeek,
                            ComplianceCheckService complianceCheckService,
@@ -78,6 +82,7 @@ public class AgentController {
                            LibTvService libTv,
                            SeedanceService seedance,
                            XhsSampleRagService xhsSampleRag,
+                           VideoSampleRagService videoSampleRag,
                            KnowledgeQaService knowledgeQa,
                            MediaToDocService mediaToDoc,
                            XhsExtractService xhsExtract,
@@ -86,7 +91,8 @@ public class AgentController {
                            GeneratedContentService generatedContent,
                            AuthService authService,
                            CreditsService creditsService,
-                           FileParseService fileParseService) {
+                           FileParseService fileParseService,
+                           ImageCropService imageCrop) {
         this.deepSeek = deepSeek;
         this.complianceCheckService = complianceCheckService;
         this.xhsCompliance = xhsCompliance;
@@ -96,6 +102,7 @@ public class AgentController {
         this.libTv = libTv;
         this.seedance = seedance;
         this.xhsSampleRag = xhsSampleRag;
+        this.videoSampleRag = videoSampleRag;
         this.knowledgeQa = knowledgeQa;
         this.mediaToDoc = mediaToDoc;
         this.xhsExtract = xhsExtract;
@@ -105,6 +112,32 @@ public class AgentController {
         this.authService = authService;
         this.creditsService = creditsService;
         this.fileParseService = fileParseService;
+        this.imageCrop = imageCrop;
+    }
+
+    /**
+     * 公众号配图：如果用户选了 HiAPI 不支持的比例（如 21:9），用兼容比例（16:9）调 API
+     * 然后再用 ImageCropService 中心裁切到目标比例。返回兼容比例字符串供 API 使用。
+     * 老路径（其他比例）调用方完全不需要改。
+     */
+    private static String gzhApiRatio(String userRatio) {
+        if ("21:9".equals(userRatio)) return "16:9";
+        return userRatio;
+    }
+
+    private static boolean needsGzhPostCrop(String userRatio) {
+        return "21:9".equals(userRatio);
+    }
+
+    private String maybeCropForGzh(String imageUrl, String userRatio) {
+        if (imageUrl == null || imageUrl.isBlank()) return imageUrl;
+        if (!needsGzhPostCrop(userRatio)) return imageUrl;
+        try {
+            return imageCrop.cropToRatio(imageUrl, userRatio);
+        } catch (Exception e) {
+            log.warn("[GzhCrop] 裁切失败, 返回原图: {}", e.getMessage());
+            return imageUrl;
+        }
     }
 
     @GetMapping("/image-templates")
@@ -207,11 +240,13 @@ public class AgentController {
                 - 不要 5 个标题都用”我是卖保险的/从业多年/才敢说”同一种开头。
 
                 【输出格式】
-                每行一个标题，格式为 [类型] 标题文本，共 5 行。不编号，不使用 markdown，不写解释。
-                类型从以下选一：数据型、故事型、反转型、清单型、痛点型。
+                每行一个标题，共 5 行。不要类型标签、不要编号、不要 markdown、不要解释。
+                ⛔ 严禁在标题前加 [数据型] [故事型] [清单型] 等任何方括号标签。
+                ⛔ 严禁在标题前加 1. 2. 3. 等编号。
+                每行直接是标题正文。
                 示例：
-                [数据型] 医保只报60%，剩下的40%谁来兜？
-                [故事型] 32岁老张得知社保只报60%时，做了一件事
+                医保只报60%，剩下的40%谁来兜？
+                32岁老张得知社保只报60%时，做了一件事
                 """ + styleInjection
                 + PromptRules.xhsPlatform()
                 + PromptRules.insuranceCompliance()
@@ -425,21 +460,26 @@ public class AgentController {
 
                 【公众号标题规则】
                 1. 字数控制在 18-28 字
-                2. 风格偏专业有温度，不要过于猎奇或煽情
+                2. 风格偏专业有温度，不要过于猎奇或煽情，不要 emoji
                 3. 可用数字/场景/对比/疑问句等钩子
                 4. 避免"大家""朋友们"等泛指，要有具体感
-                5. 示例风格参考：
+                5. 如果用户填写了【险种】【目标人群】【写作风格】，5 个标题必须有差异化覆盖到这些信息
+                6. 如果系统提供了【参考材料】，可以借鉴角度和切入点，但不要照抄原标题
+                7. 示例风格参考：
                    - "年薪 30 万，医保还够用吗？一文说清三重保障漏洞"
                    - "孩子 3 岁前买什么保险最划算？一张表帮你算清楚"
                    - "重疾险理赔率只有 30%？误解背后的真相说出来"
                    - "父母 60 岁了，还能买保险吗？这 4 种选择值得了解"
 
                 请输出 5 个候选标题，按点击率预估从高到低排列，每行一个，不带编号和 markdown 格式。
+                ⛔ 严禁加方括号标签 ⛔ 严禁加 1. 2. 3. 编号
                 """ + PromptRules.wechatPlatform()
                 + PromptRules.insuranceCompliance()
                 + PromptRules.outputDiscipline();
-        String user = "主题: " + req.getTopic()
-                + (isBlank(req.getStyle()) ? "" : "\n方向: " + req.getStyle());
+        StringBuilder userBuilder = new StringBuilder("主题: ").append(req.getTopic());
+        if (!isBlank(req.getStyle())) userBuilder.append("\n方向/风格: ").append(req.getStyle());
+        if (!isBlank(req.getReferences())) userBuilder.append("\n\n【参考材料】\n").append(req.getReferences());
+        String user = userBuilder.toString();
         String content = deepSeek.chat(system, user, req.getModel());
         String modelLabel = deepSeek.resolveModel(req.getModel());
         Long contentId = generatedContent.save("gzh_title", req.getTopic(), content, null, null, null, modelLabel);
@@ -461,11 +501,13 @@ public class AgentController {
                 你是一位保险公众号资深编辑，擅长写出专业、客观、有温度的保险科普文章。
                 用户已确定好标题，请直接输出与标题高度匹配的正文，不要重复输出标题本身。
 
-                【正文结构要求】
-                1. 引言/开场（150-200字）：具体场景或数据切入，与标题呼应
-                2. 核心内容（分 3-5 小节，每节有小标题）：有干货、有案例、有数字
-                3. 总结/建议（150-200字）：提炼全文，给出可落地的行动建议
-                4. 免责声明：*本文仅作科普，具体保险责任以条款为准
+                【写作思路（仅作内部参考，绝对不要写到文章里）】
+                - 开头用具体场景或数据切入，让读者立刻感知"这和我有关"
+                - 中段把核心信息分若干个清晰小节展开，每节带一个有信息量的具体小标题
+                - 结尾自然收束，给读者一个可带走的判断或建议
+                - 末尾加一句简短的免责说明
+                ⚠️ 严禁在正文里出现"引言""开场""核心内容""总结""建议""免责声明"这类结构性说明词，也不要写"接下来""综上所述""总而言之"这种过渡套话。文章读起来应该像一篇成熟编辑写的文章，而不是按模板填空。
+                ⚠️ 小标题必须是有内容的具体短句（例如"30 岁前，医保的三个盲点"），严禁用"一、核心内容""二、注意事项""三、总结建议"这种位置性命名。
 
                 【写作风格要求】
                 - 专业、客观，不夸大宣传，不制造焦虑
@@ -474,19 +516,211 @@ public class AgentController {
                 - 总字数控制在 %d 字左右
                 - 通俗易懂，必要时解释专业术语
                 - 真实感强，可适当加数据或案例
+                - 如果用户填写了【险种】【目标人群】【写作风格】，正文必须紧扣这些设定
+                - 如果系统提供了【参考材料】，可以借鉴框架、角度和论据，但要消化吸收，不要原文照抄、不要暴露"参考资料""根据材料"等痕迹
 
                 【输出格式】
-                直接输出正文内容，不要输出任何前言、说明或标题行。
+                直接输出正文内容，不要输出任何前言、说明或标题行。不要 emoji，不要话题标签（公众号文章不需要）。
                 """ + PromptRules.wechatPlatform()
                 + PromptRules.insuranceCompliance()
                 + PromptRules.factuality()
                 + PromptRules.outputDiscipline()).formatted(wordCount);
-        String user = "标题: " + req.getTopic()
-                + (isBlank(req.getStyle()) ? "" : "\n写作方向补充: " + req.getStyle());
+        StringBuilder userBuilder = new StringBuilder("标题: ").append(req.getTopic());
+        if (!isBlank(req.getStyle())) userBuilder.append("\n写作方向/风格: ").append(req.getStyle());
+        if (!isBlank(req.getReferences())) userBuilder.append("\n\n【参考材料】\n").append(req.getReferences());
+        String user = userBuilder.toString();
         String content = deepSeek.chat(system, user, req.getModel());
         Long contentId = generatedContent.save("gzh_article", req.getTopic(), content, null, null, null, deepSeek.resolveModel(req.getModel()));
         creditsService.deduct(resolveUserId(auth), 5, "gzh_text", req.getTopic(), contentId);
         return ResponseEntity.ok(new AgentResponse(content, deepSeek.resolveModel(req.getModel())));
+    }
+
+    @PostMapping("/gzh-image")
+    public ResponseEntity<AgentResponse> generateGzhImage(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
+        if (isBlank(req.getTopic())) {
+            return ResponseEntity.badRequest().body(new AgentResponse("画面主题不能为空", null));
+        }
+        String userRatio = normalizeWechatRatio(req.getImageRatio());
+        String apiRatio = gzhApiRatio(userRatio); // 21:9 → 16:9, 其他原样
+        boolean useSeedream = "seedream".equalsIgnoreCase(req.getImageProvider());
+
+        // prompt 用用户期望的最终比例（带"主体居中"提示）
+        String system = imagePrompt.buildWechatCoverSystemPrompt(userRatio);
+
+        StringBuilder user = new StringBuilder("画面主题: ").append(req.getTopic());
+        if (!isBlank(req.getStyle())) user.append("\n附加风格说明: ").append(req.getStyle());
+
+        String content = deepSeek.chat(system, user.toString(), req.getModel());
+        String prompt = extractImagePrompt(content);
+
+        // API 用兼容比例生成
+        String rawImageUrl = useSeedream
+                ? imageGeneration.generateSeedream(prompt)
+                : imageGeneration.generate(prompt, apiRatio);
+
+        // 21:9 需要裁切；其他比例 maybeCropForGzh 直通返回
+        String imageUrl = maybeCropForGzh(rawImageUrl, userRatio);
+
+        AgentResponse resp = new AgentResponse(content, deepSeek.resolveModel(req.getModel()));
+        resp.setImageUrl(imageUrl);
+        String imageModel = deepSeek.resolveModel(req.getModel()) + " + "
+                + (useSeedream ? imageGeneration.seedreamModelLabel() : imageGeneration.modelLabel());
+        resp.setModel(imageModel);
+        Long contentId = generatedContent.save("image", req.getTopic(), content, imageUrl, null, null, imageModel);
+        creditsService.deduct(resolveUserId(auth), 3, "gzh_images", "公众号封面", contentId);
+        return ResponseEntity.ok(resp);
+    }
+
+    @PostMapping("/gzh-batch-images")
+    public ResponseEntity<List<Map<String, Object>>> generateGzhBatchImages(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
+        if (isBlank(req.getContent())) {
+            return ResponseEntity.badRequest().body(List.of(Map.of("error", "文章内容不能为空")));
+        }
+        // 公众号默认 2 张（封面 + 1 张正文图），最多 4 张（封面 + 3 正文图）
+        int count = (req.getImageCount() != null && req.getImageCount() >= 1 && req.getImageCount() <= 4)
+                ? req.getImageCount() : 2;
+        String userRatio = normalizeWechatRatio(req.getImageRatio());
+        String apiRatio = gzhApiRatio(userRatio);
+        boolean useSeedream = "seedream".equalsIgnoreCase(req.getImageProvider());
+
+        // prompt 仍以用户期望比例为准（让模型把主体放中央）
+        String systemPrompt = imagePrompt.buildBatchSystemPrompt(ImagePromptService.Platform.WECHAT, count, userRatio);
+
+        String userMsg = "文章内容如下，请生成 " + count + " 张配图的提示词（第 1 张是封面）：\n\n" + req.getContent().trim();
+        String llmOut;
+        try {
+            llmOut = deepSeek.chat(systemPrompt, userMsg, req.getModel());
+        } catch (Exception e) {
+            log.error("[GzhBatchImages] DeepSeek 生成提示词失败: {}", e.getMessage());
+            return ResponseEntity.internalServerError().body(List.of(Map.of("error", "生成提示词失败: " + e.getMessage())));
+        }
+
+        List<String> descs = new ArrayList<>();
+        List<String> prompts = new ArrayList<>();
+        for (int i = 1; i <= count; i++) {
+            String descMarker = "[IMAGE_" + i + "]";
+            String promptMarker = "[PROMPT_" + i + "]";
+            String nextDescMarker = "[IMAGE_" + (i + 1) + "]";
+
+            int descStart = llmOut.indexOf(descMarker);
+            int promptStart = llmOut.indexOf(promptMarker);
+            int nextBlock = llmOut.indexOf(nextDescMarker);
+
+            String desc = "";
+            String prompt = "";
+            if (descStart >= 0 && promptStart > descStart) {
+                desc = llmOut.substring(descStart + descMarker.length(), promptStart).trim();
+            }
+            if (promptStart >= 0) {
+                int end = nextBlock > promptStart ? nextBlock : llmOut.length();
+                prompt = cleanPrompt(llmOut.substring(promptStart + promptMarker.length(), end));
+            }
+            descs.add(desc);
+            prompts.add(prompt);
+        }
+
+        List<CompletableFuture<Map<String, Object>>> futures = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            final int idx = i;
+            final String prompt = prompts.get(i);
+            final String desc = descs.get(i);
+            if (isBlank(prompt)) {
+                futures.add(CompletableFuture.completedFuture(
+                        Map.of("index", idx + 1, "description", desc, "error", "提示词为空")));
+                continue;
+            }
+            CompletableFuture<Map<String, Object>> future = CompletableFuture.supplyAsync(() -> {
+                try {
+                    String url = useSeedream
+                            ? imageGeneration.generateSeedream(prompt)
+                            : imageGeneration.generate(prompt, apiRatio);
+                    String finalUrl = maybeCropForGzh(url, userRatio);
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("index", idx + 1);
+                    m.put("description", desc);
+                    m.put("imageUrl", finalUrl);
+                    return m;
+                } catch (Exception e) {
+                    log.warn("[GzhBatchImages] 第 {} 张生图失败: {}", idx + 1, e.getMessage());
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("index", idx + 1);
+                    m.put("description", desc);
+                    m.put("error", e.getMessage());
+                    return m;
+                }
+            }, IMAGE_POOL);
+            futures.add(future);
+        }
+
+        List<Map<String, Object>> results = futures.stream()
+                .map(CompletableFuture::join)
+                .toList();
+        String batchImgTopic = req.getContent().length() > 80 ? req.getContent().substring(0, 80) : req.getContent();
+        Long contentId = generatedContent.save("gzh_article", batchImgTopic, req.getContent(), null, null, null, deepSeek.resolveModel(req.getModel()));
+        creditsService.deduct(resolveUserId(auth), 5, "gzh_images", "公众号配图", contentId);
+        return ResponseEntity.ok(results);
+    }
+
+    @PostMapping("/gzh-regen-one-image")
+    public ResponseEntity<Map<String, Object>> regenGzhOneImage(@RequestBody AgentRequest req,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
+        if (isBlank(req.getContent())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "文章内容不能为空"));
+        }
+        String desc = isBlank(req.getStyle()) ? "重新生成这张配图" : req.getStyle();
+        String userRatio = normalizeWechatRatio(req.getImageRatio());
+        String apiRatio = gzhApiRatio(userRatio);
+        boolean useSeedream = "seedream".equalsIgnoreCase(req.getImageProvider());
+        boolean isCover = req.getImageCount() != null && req.getImageCount() == 1; // 用 imageCount=1 标识"这是封面"
+
+        String system = ("""
+                你是一位公众号文章视觉设计师。根据文章内容和指定的画面描述，为单张图片生成图片提示词。
+
+                【风格基调】
+                - %s
+                - 杂志/编辑设计风，不要小红书卡片风
+                - 推荐配色：深蓝、墨绿、藏青、暖橙、米白、深灰
+                - 严禁水印、品牌 logo、二维码、低质量 AI 真人脸
+
+                【输出格式】
+                [IMAGE_PROMPT]
+                <完整英文 prompt，编辑设计风格。必须以 --ar %s 结尾。>
+                """ + PromptRules.outputDiscipline()).formatted(
+                        isCover ? "封面图：杂志海报感，主视觉冲击力强" : "正文配图：根据文章内容灵活选择概念插画 / 数据图 / 场景图",
+                        userRatio);
+        String userMsg = "文章内容:\n" + req.getContent().trim()
+                + "\n\n这张图的内容描述: " + desc;
+        String llmOut;
+        try {
+            llmOut = deepSeek.chat(system, userMsg, req.getModel());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "生成提示词失败: " + e.getMessage()));
+        }
+        String prompt = extractImagePrompt(llmOut);
+        if (isBlank(prompt)) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "解析提示词失败"));
+        }
+        try {
+            String rawUrl = useSeedream
+                    ? imageGeneration.generateSeedream(prompt)
+                    : imageGeneration.generate(prompt, apiRatio);
+            String imageUrl = maybeCropForGzh(rawUrl, userRatio);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("imageUrl", imageUrl);
+            result.put("description", desc);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "图片生成失败: " + e.getMessage()));
+        }
+    }
+
+    private static String normalizeWechatRatio(String ratio) {
+        if (ratio == null || ratio.trim().isEmpty()) return "16:9";
+        String r = ratio.trim();
+        if ("21:9".equals(r) || "16:9".equals(r) || "3:4".equals(r) || "1:1".equals(r) || "4:3".equals(r) || "9:16".equals(r)) return r;
+        return "16:9";
     }
 
     @PostMapping("/wechat-create")
@@ -593,36 +827,25 @@ public class AgentController {
         if (isBlank(req.getTopic())) {
             return ResponseEntity.badRequest().body(new AgentResponse("视频主题不能为空", null));
         }
-        String system = """
-                你是一位短视频(抖音/视频号/小红书视频)口播脚本写手, 专注于保险科普内容。请为用户生成一篇可直接拍摄的完整口播脚本。
 
-                【脚本要求】
-                1. 时长: 用户指定优先, 否则默认 60-90 秒(约 450-700 字)
-                2. 结构必须按以下顺序:
-                   - 钩子(0-3秒): 用强抓力开场 — 数据/反问/反常识/痛点共鸣 二选一
-                   - 痛点铺陈(3-15秒): 用一个具体场景或案例引共鸣
-                   - 干货核心(15-60秒): 3-5 个分点干货, 每点 ❌误区 → ✅正解
-                   - 行动召唤(60秒后): 引导评论/收藏/关注, 弱化推销
-                3. 语言要求:
-                   - 口语化, 每句不超过 20 字
-                   - 用方括号标注语气/动作: [严肃] [手势指向] [停顿1秒] [拿起合同道具]
-                   - 不要书面语和长句, 适合口播节奏
-                4. 必须包含至少 1 处情绪转折(从严肃到温暖, 或从吐槽到建议)
-                5. 末尾追加 3-5 个相关话题标签
+        boolean ragMode = "rag-video".equals(req.getModel());
 
-                【输出格式】
-                直接输出脚本正文, 不要任何前后说明、不要使用代码块包裹。
-                """ + PromptRules.shortVideoPlatform()
-                + PromptRules.insuranceCompliance()
-                + PromptRules.factuality()
-                + PromptRules.outputDiscipline();
         StringBuilder user = new StringBuilder("视频主题: ").append(req.getTopic());
         if (!isBlank(req.getStyle())) user.append("\n风格: ").append(req.getStyle());
         if (!isBlank(req.getDuration())) user.append("\n时长: ").append(req.getDuration());
-        String content = deepSeek.chat(system, user.toString(), req.getModel());
-        Long contentId = generatedContent.save("video_script", req.getTopic(), content, null, null, null, deepSeek.resolveModel(req.getModel()));
+
+        String system = ragMode
+                ? PromptRules.kouboScriptSystem() + videoSampleRag.buildAnalyzedContext(user.toString(), req.getStyle(), "短视频口播脚本创作", "chat")
+                : PromptRules.kouboScriptSystem();
+
+        String content = deepSeek.chat(system, user.toString(), ragMode ? "chat" : req.getModel());
+        String modelLabel = ragMode ? deepSeek.resolveModel("chat") + " + 爆款RAG" : deepSeek.resolveModel(req.getModel());
+
+        AgentResponse resp = new AgentResponse(content, modelLabel);
+        if (ragMode) resp.setCitations(videoSampleRag.getLastSearchResults());
+        Long contentId = generatedContent.save("video_script", req.getTopic(), content, null, null, null, modelLabel);
         creditsService.deduct(resolveUserId(auth), 8, "video_script", req.getTopic(), contentId);
-        return ResponseEntity.ok(new AgentResponse(content, deepSeek.resolveModel(req.getModel())));
+        return ResponseEntity.ok(resp);
     }
 
     @PostMapping("/video-to-script")
@@ -812,46 +1035,34 @@ public class AgentController {
             return ResponseEntity.badRequest()
                     .body(new AgentResponse("主题和脚本至少要提供一项", null));
         }
-        String system = """
-                你是一位短视频分镜师，擅长把口播脚本拆解成可执行的拍摄分镜。
 
-                【分镜要求】
-                1. 镜头数 6-12 个，总时长 45-90 秒
-                2. 单镜头时长 3-12 秒
-                3. 景别要有节奏变化：大全/全/中/近/特写
-                4. 第一个镜头必须是钩子，最后一个镜头必须有 CTA
-                5. 至少 2 个镜头使用对比构图（分屏/前后对比/反转）
+        boolean ragMode = "rag-video".equals(req.getModel());
 
-                【输出格式】
-                严格输出 JSON，不要加任何注释或代码块符号，格式如下：
-                {
-                  "segments": [
-                    {
-                      "index": 1,
-                      "duration": 8,
-                      "shot_type": "近景",
-                      "scene": "画面描述：主体+动作+道具+构图，要具体，便于拍摄或 AI 生成",
-                      "voiceover": "对应的口播原文，不要篡改",
-                      "subtitle": "简化版口播，≤14字",
-                      "notes": "转场/特效/表演备注，没有则留空字符串"
-                    }
-                  ]
-                }
-                """ + PromptRules.shortVideoPlatform()
-                + PromptRules.insuranceCompliance()
-                + PromptRules.factuality()
-                + PromptRules.outputDiscipline();
         StringBuilder user = new StringBuilder();
         if (hasTopic) user.append("视频主题: ").append(req.getTopic()).append("\n");
+        if (!isBlank(req.getPlatform())) user.append("发布平台: ").append(req.getPlatform()).append("\n");
         if (!isBlank(req.getStyle())) user.append("风格: ").append(req.getStyle()).append("\n");
         if (!isBlank(req.getDuration())) user.append("目标时长: ").append(req.getDuration()).append("\n");
+        if (!isBlank(req.getDirection())) user.append("内容方向: ").append(req.getDirection()).append("\n");
+        if (req.getInsuranceTypes() != null && !req.getInsuranceTypes().isEmpty())
+            user.append("险种: ").append(String.join("、", req.getInsuranceTypes())).append("\n");
+        if (req.getAudiences() != null && !req.getAudiences().isEmpty())
+            user.append("目标受众: ").append(String.join("、", req.getAudiences())).append("\n");
         if (hasScript) user.append("\n[已有口播脚本]\n").append(req.getScript());
-        String content = deepSeek.chat(system, user.toString(), req.getModel());
-        // 清洗 JSON：去掉可能的代码块标记
+
+        String system = ragMode
+                ? PromptRules.kouboStoryboardSystem() + videoSampleRag.buildAnalyzedContext(user.toString(), req.getStyle(), "口播视频分镜脚本创作", "chat")
+                : PromptRules.kouboStoryboardSystem();
+
+        String content = deepSeek.chat(system, user.toString(), ragMode ? "chat" : req.getModel());
+        String modelLabel = ragMode ? deepSeek.resolveModel("chat") + " + 爆款RAG" : deepSeek.resolveModel(req.getModel());
+
         String cleaned = content.replaceAll("(?s)```[a-zA-Z]*\\s*", "").replaceAll("```", "").trim();
-        Long contentId = generatedContent.save("drama_script", req.getTopic(), cleaned, null, null, null, deepSeek.resolveModel(req.getModel()));
+        AgentResponse resp = new AgentResponse(cleaned, modelLabel);
+        if (ragMode) resp.setCitations(videoSampleRag.getLastSearchResults());
+        Long contentId = generatedContent.save("drama_script", req.getTopic(), cleaned, null, null, null, modelLabel);
         creditsService.deduct(resolveUserId(auth), 12, "drama_script", req.getTopic(), contentId);
-        return ResponseEntity.ok(new AgentResponse(cleaned, deepSeek.resolveModel(req.getModel())));
+        return ResponseEntity.ok(resp);
     }
 
     @PostMapping("/video-title")
@@ -1000,9 +1211,9 @@ public class AgentController {
                     String voiceover = String.valueOf(m.getOrDefault("voiceover", ""));
                     int dur = ((Number) m.getOrDefault("duration", 8)).intValue();
                     String prompt = String.valueOf(m.getOrDefault("prompt", "A professional insurance advisor talking to camera, close-up, natural expression"));
-                    segs.add(new SeedanceService.Segment(voiceover, prompt, Math.max(3, Math.min(10, dur))));
+                    segs.add(new SeedanceService.Segment(voiceover, prompt, Math.max(8, Math.min(15, dur))));
                 }
-                results = seedance.generateSegmentsDirect(segs, req.getCharacterImageUrl(), req.getBackgroundImageUrl(), ratio, resolution);
+                results = seedance.generateSegmentsDirect(segs, req.getCharacterImageUrl(), req.getBackgroundImageUrl(), ratio, resolution, req.getReferenceAudioUrl());
             } else {
                 results = seedance.generateSegments(
                         script,
@@ -1010,7 +1221,8 @@ public class AgentController {
                         req.getBackgroundImageUrl(),
                         req.getStyle(),
                         ratio,
-                        resolution);
+                        resolution,
+                        req.getReferenceAudioUrl());
             }
             List<Map<String, Object>> segments = new ArrayList<>();
             for (SeedanceService.SegmentResult r : results) {
@@ -1027,6 +1239,53 @@ public class AgentController {
             return ResponseEntity.ok(Map.of("segments", segments, "total", results.size()));
         } catch (Exception e) {
             log.error("[Seedance] 视频生成失败: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * 单段视频生成 — 前端串行调用，每段返回 videoUrl + lastFrameUrl 用于下一段衔接。
+     * 请求体里要包含一个分镜段（storyboardSegments[0]），以及 previousLastFrameUrl / referenceAudioUrl 等串联字段。
+     */
+    @PostMapping("/video-generate-segment")
+    public ResponseEntity<?> generateVideoSegment(@RequestBody Map<String, Object> body,
+            @RequestHeader(value = "Authorization", required = false) String auth) {
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> seg = (Map<String, Object>) body.get("segment");
+            if (seg == null) return ResponseEntity.badRequest().body(Map.of("error", "segment 不能为空"));
+
+            String voiceover = String.valueOf(seg.getOrDefault("voiceover", ""));
+            int dur = ((Number) seg.getOrDefault("duration", 10)).intValue();
+            String prompt = String.valueOf(seg.getOrDefault("prompt", "A professional advisor talking to camera, close-up, natural expression"));
+
+            String characterImageUrl   = (String) body.get("characterImageUrl");
+            String backgroundImageUrl  = (String) body.get("backgroundImageUrl");
+            String previousLastFrameUrl = (String) body.get("previousLastFrameUrl");
+            String referenceAudioUrl   = (String) body.get("referenceAudioUrl");
+            String ratio       = (String) body.getOrDefault("videoRatio", "9:16");
+            String resolution  = (String) body.getOrDefault("videoResolution", "720p");
+            int index = ((Number) body.getOrDefault("index", 0)).intValue();
+            int total = ((Number) body.getOrDefault("total", 1)).intValue();
+
+            SeedanceService.Segment segment = new SeedanceService.Segment(
+                    voiceover, prompt, Math.max(8, Math.min(15, dur)));
+
+            SeedanceService.SingleSegmentResult result = seedance.generateSingleSegment(
+                    segment, characterImageUrl, backgroundImageUrl, ratio, resolution,
+                    previousLastFrameUrl, referenceAudioUrl, index, total);
+
+            // 每段扣 10 积分（之前整批 80 分，假设 8 段，平均每段 10）
+            creditsService.deduct(resolveUserId(auth), 10, "video_segment",
+                    "口播视频第" + (index + 1) + "段", null);
+
+            return ResponseEntity.ok(Map.of(
+                    "index", result.index(),
+                    "videoUrl", result.videoUrl() == null ? "" : result.videoUrl(),
+                    "lastFrameUrl", result.lastFrameUrl() == null ? "" : result.lastFrameUrl(),
+                    "durationEstimate", result.durationEstimate()));
+        } catch (Exception e) {
+            log.error("[Seedance/single] 视频段生成失败: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
     }

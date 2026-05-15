@@ -94,13 +94,14 @@ public class SeedanceService {
             String backgroundImageUrl,
             String style,
             String ratio,
-            String resolution) {
+            String resolution,
+            String referenceAudioUrl) {
 
         if (isBlank(script)) throw new IllegalArgumentException("口播脚本不能为空");
 
         List<Segment> segments = splitScript(script, style);
         log.info("[Seedance] 脚本已拆分为 {} 段", segments.size());
-        return submitAndPollSequential(segments, characterImageUrl, backgroundImageUrl, ratio, resolution);
+        return submitAndPollSequential(segments, characterImageUrl, backgroundImageUrl, ratio, resolution, referenceAudioUrl);
     }
 
     /**
@@ -111,32 +112,89 @@ public class SeedanceService {
             String characterImageUrl,
             String backgroundImageUrl,
             String ratio,
-            String resolution) {
+            String resolution,
+            String referenceAudioUrl) {
 
         if (segments == null || segments.isEmpty()) throw new IllegalArgumentException("分镜段列表不能为空");
         log.info("[Seedance] 直接使用前端分镜，共 {} 段", segments.size());
-        return submitAndPollSequential(segments, characterImageUrl, backgroundImageUrl, ratio, resolution);
+        return submitAndPollSequential(segments, characterImageUrl, backgroundImageUrl, ratio, resolution, referenceAudioUrl);
     }
+
+    /**
+     * 生成单个分镜段，前端串行调用此方法，每完成一段即返回，便于实时更新 UI。
+     * 前端负责传入上一段的 lastFrame 实现画面衔接。
+     */
+    public SingleSegmentResult generateSingleSegment(
+            Segment segment,
+            String characterImageUrl,
+            String backgroundImageUrl,
+            String ratio,
+            String resolution,
+            String previousLastFrameUrl,
+            String referenceAudioUrl,
+            int segmentIndex,
+            int totalSegments) {
+
+        if (segment == null) throw new IllegalArgumentException("分镜段不能为空");
+        RuntimeException lastErr = null;
+        for (int attempt = 1; attempt <= MAX_SEGMENT_ATTEMPTS; attempt++) {
+            try {
+                log.info("[Seedance/single] 提交第 {}/{} 段（第 {} 次），有上段帧={} 有音频参考={}",
+                        segmentIndex + 1, totalSegments, attempt,
+                        previousLastFrameUrl != null, !isBlank(referenceAudioUrl));
+                String predictionId = submitTask(segment, characterImageUrl, backgroundImageUrl,
+                        ratio, resolution, previousLastFrameUrl, referenceAudioUrl);
+                TaskOutput out = pollTask(predictionId);
+                return new SingleSegmentResult(
+                        segmentIndex + 1, segment.script(), segment.durationEstimate(),
+                        out.videoUrl(), out.lastFrameUrl());
+            } catch (RuntimeException e) {
+                lastErr = e;
+                log.warn("[Seedance/single] 第 {}/{} 段第 {}/{} 次失败: {}",
+                        segmentIndex + 1, totalSegments, attempt, MAX_SEGMENT_ATTEMPTS, e.getMessage());
+                if (attempt < MAX_SEGMENT_ATTEMPTS) sleep(5);
+            }
+        }
+        throw lastErr;
+    }
+
+    public record SingleSegmentResult(int index, String script, int durationEstimate,
+                                       String videoUrl, String lastFrameUrl) {}
 
     private static final int MAX_SEGMENT_ATTEMPTS = 2;
 
-    /** 提交一段 → 轮询完成 → 提交下一段，避免批量提交后第二段因等待过久而失效 */
+    /**
+     * 提交一段 → 轮询完成 → 提交下一段。
+     * 串联策略：
+     * - 上一段的 last_frame 作为下一段的 reference_image，保证画面无缝衔接
+     * - referenceAudioUrl 全程透传，保证音色一致
+     */
     private List<SegmentResult> submitAndPollSequential(
             List<Segment> segments, String characterImageUrl, String backgroundImageUrl,
-            String ratio, String resolution) {
+            String ratio, String resolution, String referenceAudioUrl) {
 
         List<SegmentResult> results = new ArrayList<>();
+        String previousLastFrame = null;
         for (int i = 0; i < segments.size(); i++) {
             Segment seg = segments.get(i);
             RuntimeException lastErr = null;
             for (int attempt = 1; attempt <= MAX_SEGMENT_ATTEMPTS; attempt++) {
                 try {
-                    log.info("[Seedance] 提交第 {}/{} 段（第 {} 次），比例={} 清晰度={}",
-                            i + 1, segments.size(), attempt, ratio, resolution);
-                    String predictionId = submitTask(seg, characterImageUrl, backgroundImageUrl, ratio, resolution);
+                    log.info("[Seedance] 提交第 {}/{} 段（第 {} 次），比例={} 清晰度={} 有上段帧={} 有音频参考={}",
+                            i + 1, segments.size(), attempt, ratio, resolution,
+                            previousLastFrame != null, !isBlank(referenceAudioUrl));
+                    String predictionId = submitTask(seg, characterImageUrl, backgroundImageUrl,
+                            ratio, resolution, previousLastFrame, referenceAudioUrl);
                     log.info("[Seedance] 轮询第 {}/{} 段，predictionId={}", i + 1, segments.size(), predictionId);
-                    String videoUrl = pollTask(predictionId);
-                    results.add(new SegmentResult(i + 1, seg.script(), seg.durationEstimate(), videoUrl));
+                    TaskOutput out = pollTask(predictionId);
+                    results.add(new SegmentResult(i + 1, seg.script(), seg.durationEstimate(), out.videoUrl()));
+                    // 更新串联帧供下一段使用
+                    if (!isBlank(out.lastFrameUrl())) {
+                        previousLastFrame = out.lastFrameUrl();
+                        log.info("[Seedance] 第 {} 段 last_frame 已捕获，将注入第 {} 段 reference_images", i + 1, i + 2);
+                    } else {
+                        log.warn("[Seedance] 第 {} 段未返回 last_frame，下一段将不带衔接帧", i + 1);
+                    }
                     lastErr = null;
                     break;
                 } catch (RuntimeException e) {
@@ -156,22 +214,24 @@ public class SeedanceService {
     private List<Segment> splitScript(String script, String style) {
         String systemPrompt = """
                 # 角色
-                你是专业的口播视频脚本拆分助手，专为 AI 视频生成 API（每次最多生成 15 秒）准备输入。
+                你是专业的口播视频脚本拆分助手，专为 AI 视频生成 API（每段 8-15 秒）准备输入。
 
                 # 任务
                 把用户给的口播脚本拆成多个片段，每片段满足：
-                - 口播字数 ≤ 70 字（对应 ≤15 秒，按 5 字/秒估算）
+                - **口播字数 40-60 字**（按 5 字/秒估算 = 8-12 秒），不允许出现少于 40 字的短段
                 - 在自然停顿处（句号、问号、感叹号、换行）切分
                 - 不得改动任何口播原文
+                - 不允许出现「8 秒只说 1-2 句」的空洞段落——主播必须从头到尾都在说
 
                 同时为每个片段生成 AI 视频生成提示词，要求：
-                - 专注「真人口播」风格：正脸出镜、自然表情、直视镜头
-                - 对画面的描述只出现对主角情绪、简单的肢体动作、进行描述。
-                禁止出现任何需要文字的内容，比如 xxx 清单上写着“不要出现文字！”。
-                - 视频画面中不要出现文字
+                - 专注「真人口播」风格：正脸出镜、自然表情、**全程直视镜头**
                 - 用英文描述画面（模型要求英文 prompt）
-                - 不要有浮夸的运镜
-                - 简洁有力，包含：景别、情绪、动作/手势（如有）
+                - prompt 只描述：当前段主角的情绪/微表情（如 thoughtful, smiling, concerned）
+                - ⚠️ 所有 segments 的 prompt 必须共享同一套设定：同一个人、同一身衣服、同一个姿势（全部坐着 or 全部站着，一旦定了不能改）、同一个背景
+                - ⛔ 严禁出现：paper / documents / reports / clipboard / phone / tablet / book in hands
+                - ✅ 手部允许：empty hands 或 natural gesture，最多一个 coffee cup
+                - 不要有任何运镜（no zoom/pan/tilt/movement），固定机位
+                - 不要在画面中出现任何文字
                 - 不要加入与脚本无关的场景设定
 
                 # 输出格式（严格 JSON，不要加任何注释或代码块符号）
@@ -180,7 +240,7 @@ public class SeedanceService {
                     {
                       "script": "这段的口播原文",
                       "prompt": "English video generation prompt for this segment",
-                      "duration_estimate": 6
+                      "duration_estimate": 10
                     }
                   ]
                 }
@@ -209,7 +269,7 @@ public class SeedanceService {
                 result.add(new Segment(
                         s.path("script").asText("").trim(),
                         s.path("prompt").asText("").trim(),
-                        Math.max(3, Math.min(10, s.path("duration_estimate").asInt(8)))));
+                        Math.max(8, Math.min(15, s.path("duration_estimate").asInt(10)))));
             }
             if (!result.isEmpty()) return result;
         } catch (Exception e) {
@@ -246,15 +306,26 @@ public class SeedanceService {
     // 响应：data.id = predictionId
 
     private String submitTask(Segment seg, String characterImageUrl, String backgroundImageUrl,
-                              String ratio, String resolution) {
+                              String ratio, String resolution,
+                              String previousLastFrameUrl, String referenceAudioUrl) {
         try {
-            // reference_images：人物图可选（测试时可不传），背景图也可选
+            // reference_images：人物图 + 背景图 + 上一段最后一帧（用于场景衔接）
             ArrayNode refImages = mapper.createArrayNode();
             if (!isBlank(characterImageUrl)) {
                 refImages.add(resolveImageRef(characterImageUrl));
             }
             if (!isBlank(backgroundImageUrl)) {
                 refImages.add(resolveImageRef(backgroundImageUrl));
+            }
+            if (!isBlank(previousLastFrameUrl)) {
+                // 上一段的最后一帧，让本段从相同画面开始，避免坐/站、服装、背景跳变
+                refImages.add(previousLastFrameUrl);
+            }
+
+            // reference_audios：声音参考，全片所有段使用同一个音频，保证音色一致
+            ArrayNode refAudios = mapper.createArrayNode();
+            if (!isBlank(referenceAudioUrl)) {
+                refAudios.add(referenceAudioUrl);
             }
 
             log.info(refImages.toString());
@@ -267,13 +338,13 @@ public class SeedanceService {
             body.put("prompt", buildSegmentPrompt(seg));
             body.set("reference_images", refImages);
             body.set("reference_videos", mapper.createArrayNode());
-            body.set("reference_audios", mapper.createArrayNode());
+            body.set("reference_audios", refAudios);
             body.put("duration", seg.durationEstimate());
             body.put("resolution", finalResolution);
             body.put("ratio", finalRatio);
             body.put("generate_audio", true);
             body.put("watermark", false);
-            body.put("return_last_frame", false);
+            body.put("return_last_frame", true);
 
             log.info(body.toString());
 
@@ -310,20 +381,39 @@ public class SeedanceService {
         }
     }
 
+    /**
+     * 全片一致性锚定：所有分段共享同一套人物/姿势/视线/手部约束，避免段间跳变。
+     * 这段英文前缀会拼到每一段的 Seedance prompt 开头。
+     */
+    private static final String CHARACTER_ANCHOR =
+            "CRITICAL CONTINUITY: this clip MUST visually match the previous clip (provided as reference image). "
+            + "Identical background, identical room/setting, identical lighting, identical camera angle and framing. "
+            + "Same person: identical face, hair, clothing, seated upright posture in the exact same position. "
+            + "Do not change the scene, do not move to a new location, do not redesign the environment. "
+            + "The character looks straight into the camera the entire time, maintaining direct eye contact. "
+            + "Hands are empty or making natural conversational gestures. "
+            + "Strictly NO paper, NO documents, NO reports, NO clipboard, NO phone, NO tablet, NO book in hands. "
+            + "Static locked camera, no zoom, no pan, no movement. "
+            + "ABSOLUTELY NO subtitles, NO captions, NO burned-in text, NO on-screen text overlays of any kind. "
+            + "The video frame must be free of any visible text, signs, watermarks, or written words. ";
+
     private String buildSegmentPrompt(Segment seg) {
-        return seg.prompt() + ". The character is saying: \"" + seg.script() + "\"";
+        return CHARACTER_ANCHOR + seg.prompt() + ". The character is saying: \"" + seg.script() + "\"";
     }
 
     // ─── Step 3: 轮询任务 ─────────────────────────────────────────
     // GET /api/v1/model/prediction/{predictionId}
     // 响应：data.status = "completed"/"succeeded"/"failed"，data.outputs[0] = video URL
 
-    private String pollTask(String predictionId) {
+    /** 轮询结果：包含成片视频 URL 和（可选）最后一帧图像 URL */
+    public record TaskOutput(String videoUrl, String lastFrameUrl) {}
+
+    private TaskOutput pollTask(String predictionId) {
         long deadline = System.nanoTime() + Duration.ofSeconds(pollTimeoutSeconds).toNanos();
         int consecutiveErrors = 0;
         while (System.nanoTime() < deadline) {
             try {
-                String result = queryTask(predictionId);
+                TaskOutput result = queryTask(predictionId);
                 consecutiveErrors = 0;
                 if (result != null) return result;
             } catch (Exception e) {
@@ -338,7 +428,7 @@ public class SeedanceService {
         throw new RuntimeException("AtlasCloud 任务 " + predictionId + " 轮询超时（" + pollTimeoutSeconds + "s）");
     }
 
-    private String queryTask(String predictionId) throws Exception {
+    private TaskOutput queryTask(String predictionId) throws Exception {
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(trimSlash(baseUrl) + "/api/v1/model/prediction/" + predictionId))
                 .timeout(Duration.ofSeconds(timeoutSeconds))
@@ -363,12 +453,29 @@ public class SeedanceService {
         }
 
         if (status.equals("completed") || status.equals("succeeded")) {
-            // outputs 是字符串数组，第 0 个元素为视频 URL
+            log.info("[Seedance] 任务完成，完整响应：{}", truncate(resp.body(), 2000));
+
             JsonNode outputs = node.path("outputs");
+            String videoUrl = "";
+            String lastFrame = "";
             if (outputs.isArray() && !outputs.isEmpty()) {
-                String url = outputs.get(0).asText("");
-                if (!isBlank(url)) return url;
+                videoUrl = outputs.get(0).asText("");
+                // outputs[1] 可能就是 last_frame（很多 SD 类 API 是这种约定）
+                if (outputs.size() >= 2) lastFrame = outputs.get(1).asText("");
             }
+            // 兼容多种字段命名，按优先级覆盖 outputs[1]
+            for (String key : new String[]{
+                    "last_frame", "lastFrame", "last_frame_url",
+                    "last_frame_image", "lastFrameUrl", "lastFrameImage",
+                    "tail_frame", "tailFrame", "endFrame", "end_frame"
+            }) {
+                String v = node.path(key).asText("");
+                if (!isBlank(v)) { lastFrame = v; break; }
+            }
+            log.info("[Seedance] 解析结果：videoUrl={}, lastFrame={}",
+                    truncate(videoUrl, 120), truncate(lastFrame, 120));
+
+            if (!isBlank(videoUrl)) return new TaskOutput(videoUrl, isBlank(lastFrame) ? null : lastFrame);
             log.warn("[Seedance] 任务已完成但 outputs 为空，resp={}", truncate(resp.body(), 500));
         }
         return null; // 未完成，继续轮询

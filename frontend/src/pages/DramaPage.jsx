@@ -113,6 +113,7 @@ export default function DramaPage({
   const [licenseChecked, setLicenseChecked] = useState(ST.licenseChecked)
   const [videoRatio, setVideoRatio] = useState(ST.videoRatio)
   const [videoResolution, setVideoResolution] = useState(ST.videoResolution)
+  const [citations, setCitations] = useState([])
   const charFileRef = useRef(null)
   const bgFileRef = useRef(null)
 
@@ -237,6 +238,7 @@ export default function DramaPage({
         callAgent('video-storyboard', { topic, style: direction, duration }),
       ])
       setScript(sc?.content || '')
+      if (sc?.citations) setCitations(sc.citations)
       setStoryboardSegs(parseStoryboardJson(sb?.content || ''))
       setStep(2)
     } catch (err) {
@@ -518,6 +520,21 @@ export default function DramaPage({
 
               {/* 右：上传 + 生成 */}
               <aside className="sb-aside">
+                {citations.length > 0 && (
+                  <div className="drama-card" style={{ marginBottom: 12, padding: '12px 16px' }}>
+                    <div style={{ fontSize: 11, fontFamily: 'var(--mono, monospace)', color: 'var(--ink-3, #888)', marginBottom: 8 }}>
+                      — Citations · 爆款样本引用
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {citations.map((cite, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 8, fontSize: 12, color: 'var(--ink-2, #555)' }}>
+                          <span style={{ flexShrink: 0, fontFamily: 'var(--mono, monospace)', color: 'var(--clay, #c8855a)' }}>[{cite.index}]</span>
+                          <span>{cite.title || '爆款样本 ' + cite.index}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <UploadPanel
                   characterPreview={characterPreview} characterUploading={characterUploading}
                   backgroundPreview={backgroundPreview} backgroundUploading={backgroundUploading}

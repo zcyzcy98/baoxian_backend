@@ -212,6 +212,25 @@ export async function regenOneImage(content, imageDescription, imageRatio, image
   return postJson('/api/agents/xhs-regen-one-image', { content, style: imageDescription, imageRatio, imageProvider })
 }
 
+// ─── 公众号配图 ──────────────────────────────────────────────────
+export async function generateGzhImage(payload) {
+  return postJson('/api/agents/gzh-image', payload)
+}
+
+export async function generateGzhBatchImages(content, imageCount, imageRatio, imageProvider) {
+  return postJson('/api/agents/gzh-batch-images', { content, imageCount, imageRatio, imageProvider })
+}
+
+export async function regenGzhOneImage(content, imageDescription, imageRatio, imageProvider, isCover) {
+  return postJson('/api/agents/gzh-regen-one-image', {
+    content,
+    style: imageDescription,
+    imageRatio,
+    imageProvider,
+    imageCount: isCover ? 1 : 0,
+  })
+}
+
 export async function parseRefMaterial(file) {
   const fd = new FormData()
   fd.append('file', file)
@@ -246,6 +265,10 @@ export async function parseRefUrl(url) {
 
 export async function generateSeedanceVideo(payload) {
   return postJson('/api/agents/video-generate-seedance', payload)
+}
+
+export async function generateSeedanceSegment(payload) {
+  return postJson('/api/agents/video-generate-segment', payload)
 }
 
 export async function mergeVideos(urls) {

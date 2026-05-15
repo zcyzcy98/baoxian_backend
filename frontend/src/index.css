@@ -382,8 +382,6 @@ textarea.text-field {
 .steps {
   display: flex;
   align-items: center;
-  max-width: 720px;
-  margin: 0 auto;
 }
 .step {
   flex: 1;
@@ -404,7 +402,7 @@ textarea.text-field {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--serif-en);
+  font-family: var(--sans);
   font-weight: 600;
   font-size: 14px;
   border: 2px solid var(--bone);

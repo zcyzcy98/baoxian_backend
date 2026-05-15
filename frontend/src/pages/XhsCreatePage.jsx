@@ -45,6 +45,162 @@ function CopyBtn({ text, label = '复制全文' }) {
   )
 }
 
+function RefMaterialModal({ show, onClose, onAdd }) {
+  const [tab, setTab] = useState('file')
+  const [rawPaste, setRawPaste] = useState('')
+  const [cleanUrl, setCleanUrl] = useState('')
+  const [extracting, setExtracting] = useState(false)
+  const [error, setError] = useState('')
+
+  const detectPlatform = (url) => {
+    if (!url) return ''
+    const l = url.toLowerCase()
+    if (l.includes('xiaohongshu') || l.includes('xhslink')) return 'xhs'
+    if (l.includes('weixin') || l.includes('mp.weixin')) return 'gzh'
+    if (l.includes('douyin') || l.includes('iesdouyin')) return 'douyin'
+    return ''
+  }
+  const PLATFORM_LABEL = { xhs: '小红书', gzh: '公众号', douyin: '抖音' }
+  const PLATFORM_COLOR = { xhs: '#FF2442', gzh: '#07C160', douyin: '#111' }
+
+  const platform = detectPlatform(cleanUrl)
+
+  const handlePasteChange = (text) => {
+    setRawPaste(text)
+    setError('')
+    const m = text.match(/https?:\/\/[^\s一-龥\[\]【】「」（）()]+/)
+    setCleanUrl(m ? m[0].replace(/[,，。.!！?？]+$/, '') : '')
+  }
+
+  const handleSubmit = async () => {
+    if (!cleanUrl || extracting) return
+    setExtracting(true)
+    setError('')
+    try {
+      const data = await parseRefUrl(cleanUrl)
+      onAdd({
+        name: (data.fileName || cleanUrl).length > 60 ? (data.fileName || cleanUrl).slice(0, 60) + '...' : (data.fileName || cleanUrl),
+        type: data.fileType || 'link',
+        label: PLATFORM_LABEL[data.fileType] || '链接',
+        text: data.extractedText || '参考链接: ' + cleanUrl,
+      })
+      setRawPaste(''); setCleanUrl(''); onClose()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setExtracting(false)
+    }
+  }
+
+  const handleFilePick = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.pdf,.docx,.jpg,.jpeg,.png,.gif,.webp'
+    input.onchange = async (e) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      const isImage = file.type?.startsWith('image/')
+      if (isImage) {
+        onAdd({ name: file.name, type: 'img', text: '参考图片: ' + file.name })
+        onClose()
+        return
+      }
+      try {
+        const result = await parseRefMaterial(file)
+        onAdd({
+          name: result.fileName || file.name,
+          type: result.fileType?.includes('pdf') ? 'pdf' : 'doc',
+          text: result.extractedText || '',
+        })
+        onClose()
+      } catch (e) {
+        setError(e.message)
+      }
+    }
+    input.click()
+  }
+
+  if (!show) return null
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <div className="modal-top">
+          <h3>添加参考资料</h3>
+          <button className="modal-close-btn" onClick={onClose}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <div className="modal-tabs">
+          <button className={`mtab ${tab === 'file' ? 'active' : ''}`} onClick={() => setTab('file')}>
+            上传文件
+            <span className="mtab-badge">PDF/图片</span>
+          </button>
+          <button className={`mtab ${tab === 'link' ? 'active' : ''}`} onClick={() => setTab('link')}>
+            粘贴链接
+            <span className="mtab-badge">自动提取</span>
+          </button>
+        </div>
+
+        {tab === 'link' ? (
+          <div className="modal-field">
+            <label>直接粘贴分享内容 <span className="field-hint">支持小红书 / 抖音 / 公众号，可连表情文字一起粘贴</span></label>
+            <textarea
+              className="modal-textarea modal-textarea-link"
+              value={rawPaste}
+              rows={3}
+              placeholder="直接粘贴分享文本即可，例如：\n24 【一篇教你车险三家怎么买】 😆 https://www.xiaohongshu.com/..."
+              onChange={e => handlePasteChange(e.target.value)}
+            />
+            {cleanUrl && (
+              <div className="url-parsed-preview">
+                {platform && (
+                  <span className="url-platform-badge" style={{ background: PLATFORM_COLOR[platform] }}>
+                    {PLATFORM_LABEL[platform]}
+                  </span>
+                )}
+                <span className="url-parsed-text">{cleanUrl}</span>
+              </div>
+            )}
+            {rawPaste && !cleanUrl && (
+              <p className="field-tip field-tip-warn">未识别到有效链接，请检查粘贴内容</p>
+            )}
+            {!rawPaste && (
+              <p className="field-tip">系统自动从分享文本中提取链接并解析内容</p>
+            )}
+            {error && <p className="field-tip field-tip-warn">{error}</p>}
+          </div>
+        ) : (
+          <div className="modal-field">
+            <label>上传文件 <span className="field-hint">支持 PDF / DOCX / 图片</span></label>
+            <div className="file-drop-zone" onClick={handleFilePick}>
+              <div className="file-drop-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+              </div>
+              <p className="file-drop-text">点击选择文件</p>
+              <p className="file-drop-hint">PDF / DOCX / JPG / PNG，建议 20MB 以内</p>
+            </div>
+            {error && <p className="field-tip field-tip-warn" style={{ marginTop: 8 }}>{error}</p>}
+          </div>
+        )}
+
+        <div className="modal-footer">
+          <button className="btn-ghost" onClick={onClose}>取消</button>
+          {tab === 'link' && (
+            <button className="btn-solid" onClick={handleSubmit} disabled={!cleanUrl || extracting}>
+              {extracting ? '解析中…' : '添加链接'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function XhsCreatePage({
   topicPrefill, onPrefillConsumed,
   contentPrefill, onContentPrefillConsumed,
@@ -77,10 +233,9 @@ export default function XhsCreatePage({
     refMaterials: [],
     citations: [],
     regenLoadingIndex: -1,
-    showLinkInput: false,
-    linkUrl: '',
     styleProfile: null,
     imgMode: null,
+    showRefModal: false,
   }
   const [step, setStep] = useState(ST.step)
   const [loading, setLoading] = useState(ST.loading)
@@ -108,10 +263,9 @@ export default function XhsCreatePage({
   const [refMaterials, setRefMaterials] = useState(ST.refMaterials)
   const [citations, setCitations] = useState(ST.citations)
   const [regenLoadingIndex, setRegenLoadingIndex] = useState(ST.regenLoadingIndex)
-  const [showLinkInput, setShowLinkInput] = useState(ST.showLinkInput)
-  const [linkUrl, setLinkUrl] = useState(ST.linkUrl)
   const [styleProfile, setStyleProfile] = useState(ST.styleProfile)
   const [imgMode, setImgMode] = useState(ST.imgMode)
+  const [showRefModal, setShowRefModal] = useState(ST.showRefModal)
 
   const resetState = () => {
     setStep(ST.step)
@@ -139,10 +293,9 @@ export default function XhsCreatePage({
     setRefMaterials(ST.refMaterials)
     setCitations(ST.citations)
     setRegenLoadingIndex(ST.regenLoadingIndex)
-    setShowLinkInput(ST.showLinkInput)
-    setLinkUrl(ST.linkUrl)
     setStyleProfile(ST.styleProfile)
     setImgMode(ST.imgMode)
+    setShowRefModal(ST.showRefModal)
     setTitlesLoaded(ST.titlesLoaded)
   }
 
@@ -302,53 +455,6 @@ export default function XhsCreatePage({
     }
   }
 
-  const handleAddRef = (type) => {
-    if (type === 'file') {
-      const input = document.createElement('input')
-      input.type = 'file'
-      input.accept = '.pdf,.docx'
-      input.onchange = async (e) => {
-        const file = e.target.files?.[0]
-        if (!file) return
-        try {
-          const result = await parseRefMaterial(file)
-          setRefMaterials(prev => [...prev, {
-            name: result.fileName || file.name,
-            type: result.fileType?.includes('pdf') ? 'pdf' : 'doc',
-            text: result.extractedText || '',
-          }])
-        } catch (err) {
-          alert('解析参考材料失败: ' + err.message)
-        }
-      }
-      input.click()
-    } else if (type === 'link') {
-      setLinkUrl('')
-      setShowLinkInput(true)
-    }
-  }
-
-  const handleConfirmLink = async () => {
-    const url = linkUrl.trim()
-    if (!url) { setShowLinkInput(false); return }
-    setShowLinkInput(false)
-    setLinkUrl('')
-    try {
-      const data = await parseRefUrl(url)
-      setRefMaterials(prev => [...prev, {
-        name: data.fileName || url,
-        type: data.fileType || 'link',
-        text: data.extractedText || '参考链接: ' + url,
-      }])
-    } catch (e) {
-      setRefMaterials(prev => [...prev, {
-        name: url.length > 50 ? url.substring(0, 50) + '...' : url,
-        type: 'link',
-        text: '参考链接: ' + url + '（内容提取失败）',
-      }])
-    }
-  }
-
   const handleRemoveRef = (idx) => {
     setRefMaterials(prev => prev.filter((_, i) => i !== idx))
   }
@@ -501,43 +607,26 @@ export default function XhsCreatePage({
               <div className="form-row">
                 <div className="label">参考材料</div>
                 <div className="control">
+                  <button className="btn-add-ref-material" onClick={() => setShowRefModal(true)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span>上传参考资料</span>
+                  </button>
+                  <span className="ref-hint" style={{ marginLeft: 12 }}>链接 / PDF / DOCX / 图片</span>
+
                   {refMaterials.length > 0 && (
                     <div className="refs-list">
                       {refMaterials.map((ref, i) => (
                         <div key={i} className="ref-item">
                           <div className={`ref-ico ${ref.type}`}>
-                            {ref.type === 'pdf' ? 'PDF' : ref.type === 'doc' ? 'DOC' : ref.type === 'xhs' ? '红' : ref.type === 'gzh' ? '公' : ref.type === 'douyin' ? '抖' : '🔗'}
+                            {ref.type === 'pdf' ? 'PDF' : ref.type === 'doc' ? 'DOC' : ref.type === 'img' ? '图' : ref.type === 'xhs' ? '红' : ref.type === 'gzh' ? '公' : ref.type === 'douyin' ? '抖' : '🔗'}
                           </div>
-                          <span className="ref-name">{ref.name}</span>
+                          <div className="ref-info">
+                            <span className="ref-name">{ref.name}</span>
+                            {ref.label && <span className="ref-tag">{ref.label}</span>}
+                          </div>
                           <button className="ref-remove" onClick={() => handleRemoveRef(i)}>×</button>
                         </div>
                       ))}
-                    </div>
-                  )}
-                  <div className="ref-actions">
-                    <button className="btn-add-ref" onClick={() => handleAddRef('file')}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                      <span>添加文件</span>
-                    </button>
-                    <button className="btn-add-ref" onClick={() => handleAddRef('link')}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                      <span>添加链接</span>
-                    </button>
-                    <span className="ref-hint">支持 PDF / DOCX / 链接 · AI 会读完再写</span>
-                  </div>
-                  {showLinkInput && (
-                    <div className="link-input-row" style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-                      <input
-                        type="text"
-                        className="text-field"
-                        value={linkUrl}
-                        onChange={e => setLinkUrl(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleConfirmLink(); if (e.key === 'Escape') setShowLinkInput(false) }}
-                        placeholder="粘贴参考链接 https://..."
-                        autoFocus
-                      />
-                      <button className="btn-add-ref" onClick={handleConfirmLink} style={{ borderStyle: 'solid', whiteSpace: 'nowrap' }}>确认</button>
-                      <button className="btn-add-ref" onClick={() => setShowLinkInput(false)} style={{ borderStyle: 'solid', whiteSpace: 'nowrap' }}>取消</button>
                     </div>
                   )}
                 </div>
@@ -975,6 +1064,10 @@ export default function XhsCreatePage({
           )}
         </div>
       )}
+
+      {/* 参考资料弹窗 */}
+      <RefMaterialModal show={showRefModal} onClose={() => setShowRefModal(false)}
+        onAdd={(ref) => { setRefMaterials(prev => [...prev, ref]) }} />
 
       {/* Lightbox */}
       {lightboxUrl && (

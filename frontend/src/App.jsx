@@ -12,6 +12,7 @@ import GzhCreatePage from './pages/GzhCreatePage'
 import XhsRewritePage from './pages/XhsRewritePage'
 import GzhRewritePage from './pages/GzhRewritePage'
 import DramaPage from './pages/DramaPage'
+import VideoKouboPage from './pages/VideoKouboPage'
 import ViralXhsPage from './pages/ViralXhsPage'
 import ViralDouyinPage from './pages/ViralDouyinPage'
 import AdvisoryPage from './pages/AdvisoryPage'
@@ -24,6 +25,7 @@ const PAGE_MAP = {
   'topic-square': { component: TopicSquarePage, breadcrumb: ['选题广场'] },
   'xhs-create': { component: XhsCreatePage, breadcrumb: ['内容创作', '小红书创作'] },
   'video-create': { component: DramaPage, breadcrumb: ['内容创作', '视频创作'] },
+  'video-koubo': { component: VideoKouboPage, breadcrumb: ['内容创作', '口播视频'] },
   'gzh-create': { component: GzhCreatePage, breadcrumb: ['内容创作', '公众号创作'] },
   'xhs-rewrite': { component: XhsRewritePage, breadcrumb: ['内容创作', '小红书仿写'] },
   'gzh-rewrite': { component: GzhRewritePage, breadcrumb: ['内容创作', '公众号仿写'] },

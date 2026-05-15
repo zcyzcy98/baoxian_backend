@@ -35,6 +35,13 @@ public class AgentRequest {
     private String videoResolution;
     // 参考材料文本（PDF/DOCX/链接的提取内容），注入用户 prompt
     private String references;
+    // 口播/内容创作扩展字段
+    private String platform;
+    private String direction;
+    private List<String> insuranceTypes;
+    private List<String> audiences;
+    // 声音参考（Seedance reference_audios），保证多段视频音色一致
+    private String referenceAudioUrl;
 
     public String getTopic() { return topic; }
     public void setTopic(String topic) { this.topic = topic; }
@@ -119,4 +126,19 @@ public class AgentRequest {
 
     public String getReferences() { return references; }
     public void setReferences(String references) { this.references = references; }
+
+    public String getPlatform() { return platform; }
+    public void setPlatform(String platform) { this.platform = platform; }
+
+    public String getDirection() { return direction; }
+    public void setDirection(String direction) { this.direction = direction; }
+
+    public List<String> getInsuranceTypes() { return insuranceTypes; }
+    public void setInsuranceTypes(List<String> insuranceTypes) { this.insuranceTypes = insuranceTypes; }
+
+    public List<String> getAudiences() { return audiences; }
+    public void setAudiences(List<String> audiences) { this.audiences = audiences; }
+
+    public String getReferenceAudioUrl() { return referenceAudioUrl; }
+    public void setReferenceAudioUrl(String referenceAudioUrl) { this.referenceAudioUrl = referenceAudioUrl; }
 }

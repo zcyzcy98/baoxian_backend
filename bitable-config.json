@@ -8,4 +8,11 @@
   "category" : "飞书",
   "active" : true,
   "kind" : "HOT_NOTE"
+}, {
+  "id" : "59fab18c-3542-4955-ada7-29a7250d70f1",
+  "name" : "短视频爆款样本库",
+  "appToken" : "XJVkwZVrsia2eIkgis8cYUgYnXc",
+  "tableId" : "tbl0Ylg7YIMgwjnD",
+  "category" : "video",
+  "active" : true
 } ]

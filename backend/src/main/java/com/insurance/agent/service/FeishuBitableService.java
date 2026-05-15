@@ -115,15 +115,95 @@ public class FeishuBitableService {
         if (input.matches("^[a-zA-Z0-9_-]{10,}$")) {
             return input;
         }
-        if (input.contains("bitable")) {
+        // /base/{appToken} 格式
+        if (input.contains("/base/")) {
+            int idx = input.indexOf("/base/");
+            String remainder = input.substring(idx + 6);
+            int end = remainder.indexOf('?');
+            return end > 0 ? remainder.substring(0, end) : remainder.split("/")[0];
+        }
+        // 旧格式 /bitable/{appToken}
+        if (input.contains("bitable/")) {
             int idx = input.indexOf("bitable/");
-            if (idx >= 0) {
-                String remainder = input.substring(idx + 8);
-                int slashIdx = remainder.indexOf('/');
-                return slashIdx > 0 ? remainder.substring(0, slashIdx) : remainder;
-            }
+            String remainder = input.substring(idx + 8);
+            int slashIdx = remainder.indexOf('/');
+            return slashIdx > 0 ? remainder.substring(0, slashIdx) : remainder;
         }
         return null;
+    }
+
+    /** 从 URL 中提取 wiki 节点 token（/wiki/{token}?...） */
+    public String extractWikiToken(String url) {
+        if (url == null) return null;
+        if (url.contains("/wiki/")) {
+            int idx = url.indexOf("/wiki/");
+            String remainder = url.substring(idx + 6);
+            int end = remainder.indexOf('?');
+            return end > 0 ? remainder.substring(0, end) : remainder.split("/")[0];
+        }
+        return null;
+    }
+
+    /** 从 URL 中提取 tableId（?table=xxx 参数） */
+    public String extractTableId(String url) {
+        if (url == null) return null;
+        int idx = url.indexOf("table=");
+        if (idx < 0) return null;
+        String remainder = url.substring(idx + 6);
+        int end = remainder.indexOf('&');
+        return end > 0 ? remainder.substring(0, end) : remainder;
+    }
+
+    /**
+     * 通过 wiki 节点 token 解析出多维表格的 appToken。
+     * 调用 Feishu Wiki API GET /wiki/v2/spaces/get_node?token={wikiToken}
+     */
+    public String resolveAppTokenFromWiki(String wikiToken) {
+        String accessToken = getAccessToken(null);
+        if (accessToken == null || wikiToken == null || wikiToken.isBlank()) return null;
+        try {
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(FEISHU_BASE_URL + "/wiki/v2/spaces/get_node?token=" + wikiToken))
+                    .timeout(Duration.ofSeconds(10))
+                    .header("Authorization", "Bearer " + accessToken)
+                    .GET().build();
+            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+            log.info("[Wiki] get_node status={} body={}", resp.statusCode(),
+                    resp.body().length() > 200 ? resp.body().substring(0, 200) : resp.body());
+            if (resp.statusCode() == 200) {
+                JsonNode root = mapper.readTree(resp.body());
+                String objToken = root.path("data").path("node").path("obj_token").asText(null);
+                if (objToken != null && !objToken.isBlank()) return objToken;
+            }
+        } catch (Exception e) {
+            log.error("[Wiki] 解析 wiki token 失败: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * 从任意飞书 URL（wiki 或 base）中自动解析 appToken 和 tableId。
+     * 支持格式：
+     *   /wiki/{wikiToken}?table={tableId}
+     *   /base/{appToken}?table={tableId}
+     */
+    public Map<String, String> resolveFromUrl(String url) {
+        if (url == null || url.isBlank()) return Map.of("error", "URL 不能为空");
+        String tableId = extractTableId(url);
+        String appToken = extractAppToken(url);
+        if (appToken == null && url.contains("/wiki/")) {
+            String wikiToken = extractWikiToken(url);
+            if (wikiToken != null) {
+                // 先尝试通过 Wiki API 拿 obj_token，失败则直接用 wiki token 兜底
+                String resolved = resolveAppTokenFromWiki(wikiToken);
+                appToken = (resolved != null) ? resolved : wikiToken;
+            }
+        }
+        if (appToken == null) return Map.of("error", "无法从 URL 解析 appToken，请检查 URL 格式");
+        Map<String, String> result = new java.util.LinkedHashMap<>();
+        result.put("appToken", appToken);
+        if (tableId != null) result.put("tableId", tableId);
+        return result;
     }
 
     public Map<String, Object> getBitableInfo(String accessToken, String appToken) {

@@ -119,13 +119,13 @@ public class DeepSeekService {
             HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
                 log.warn("[AI 异常] model={} status={} body={}", model, resp.statusCode(), truncate(resp.body(), 500));
-                throw new RuntimeException("AI API 返回 " + resp.statusCode() + ": " + truncate(resp.body(), 300));
+                throw new RuntimeException("AI 模型调用失败（" + resp.statusCode() + "），请稍后重试");
             }
             JsonNode root = mapper.readTree(resp.body());
             JsonNode choice = root.path("choices").path(0).path("message").path("content");
             if (choice.isMissingNode() || choice.isNull()) {
                 log.warn("[AI 异常] 响应格式异常 model={} body={}", model, truncate(resp.body(), 500));
-                throw new RuntimeException("AI 响应格式异常: " + truncate(resp.body(), 300));
+                throw new RuntimeException("AI 返回内容解析失败，请稍后重试");
             }
             String result = choice.asText();
             log.info("[AI 响应] model={} 长度={} 内容={}", model, result.length(), truncate(result, 500));

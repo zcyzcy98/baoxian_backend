@@ -10,8 +10,8 @@ const NAV_STRUCTURE = [
         id: 'content', label: '内容创作', icon: 'doc', collapsible: true,
         children: [
           { id: 'xhs-create', label: '小红书创作' },
-          { id: 'video-create', label: '视频创作' },
           { id: 'gzh-create', label: '公众号创作' },
+          { id: 'video-koubo', label: '口播视频' },
           { id: 'xhs-rewrite', label: '小红书仿写' },
           { id: 'gzh-rewrite', label: '公众号仿写' },
           { id: 'video-rip', label: '视频仿做' },
