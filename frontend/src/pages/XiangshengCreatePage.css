@@ -1,0 +1,454 @@
+/* ── CSS Variables ───────────────────────────────────────────────────────────── */
+.xs-page {
+  --clay: #CC785C;
+  --clay-deep: #A85A40;
+  --clay-soft: #E9B79E;
+  --clay-tint: #F5E2D5;
+  --pine: #3F5C52;
+  --pine-soft: #C9D4CD;
+  --pine-tint: #E1E8E4;
+  --paper: #FAF9F5;
+  --ivory: #F5F1EB;
+  --bone: #EFEAE0;
+  --line: #E4DDCE;
+  --line-2: #D9D0BE;
+  --ink-3: #6B6862;
+  --ink-2: #3A3935;
+  --ink: #1F1F1E;
+  --leaf: #5C8A5C;
+  --serif: 'Noto Serif SC', 'Source Han Serif SC', Georgia, serif;
+  --serif-en: 'Fraunces', Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+  --r-sm: 6px; --r-md: 10px; --r-lg: 16px;
+
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--ivory);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* ── Page Head ─────────────────────────────────────────────────────────────── */
+.xs-page-head {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 22px 32px 36px;
+  margin-bottom: 20px;
+}
+
+.xs-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.xs-title-row h2 {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+}
+
+.xs-style-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 99px;
+  background: var(--clay-tint);
+  color: var(--clay-deep);
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: 10px;
+  vertical-align: middle;
+}
+
+/* ── Steps ─────────────────────────────────────────────────────────────────── */
+.xs-steps {
+  display: flex;
+  align-items: center;
+}
+
+.xs-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  padding: 0 8px;
+}
+
+.xs-step .dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bone);
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--serif-en);
+  font-weight: 600;
+  font-size: 14px;
+  border: 2px solid var(--bone);
+  transition: all .2s;
+  position: relative;
+  z-index: 2;
+}
+
+.xs-step .slabel {
+  font-size: 13px;
+  color: var(--ink-3);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.xs-step.done .dot { background: var(--leaf); border-color: var(--leaf); color: #fff; }
+.xs-step.done .slabel { color: var(--ink-2); }
+.xs-step.active .dot {
+  background: var(--clay);
+  border-color: var(--clay);
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(204,120,92,.18);
+}
+.xs-step.active .slabel { color: var(--clay-deep); font-weight: 600; }
+
+.xs-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: calc(50% + 16px);
+  right: calc(-50% + 16px);
+  top: 16px;
+  height: 2px;
+  background: var(--bone);
+  z-index: 1;
+}
+.xs-step.done:not(:last-child)::after { background: var(--leaf); }
+
+/* ── Section Card ──────────────────────────────────────────────────────────── */
+.xs-section-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 28px 32px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.xs-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.xs-section-label::before {
+  content: '';
+  width: 3px;
+  height: 14px;
+  background: var(--clay);
+  border-radius: 2px;
+}
+
+/* ── Field ──────────────────────────────────────────────────────────────────── */
+.xs-field {
+  margin-bottom: 16px;
+}
+
+.xs-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-3);
+  margin-bottom: 6px;
+}
+
+.xs-field input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.xs-field input:focus {
+  border-color: var(--clay);
+}
+
+/* ── Style Grid ─────────────────────────────────────────────────────────────── */
+.xs-style-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.xs-style-card {
+  padding: 12px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--paper);
+}
+
+.xs-style-card:hover {
+  border-color: var(--line-2);
+  background: var(--bone);
+}
+
+.xs-style-card.active {
+  border-color: var(--clay);
+  background: var(--clay-tint);
+}
+
+.xs-style-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.xs-style-card.active .xs-style-name {
+  color: var(--clay-deep);
+}
+
+.xs-style-desc {
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.4;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────────── */
+.xs-btn {
+  padding: 8px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: 14px;
+  cursor: pointer;
+  background: var(--paper);
+  color: var(--ink-2);
+  transition: all 0.12s;
+}
+
+.xs-btn:hover {
+  background: var(--bone);
+  border-color: var(--line-2);
+}
+
+.xs-btn.primary {
+  background: var(--clay);
+  color: #fff;
+  border-color: var(--clay);
+}
+
+.xs-btn.primary:hover {
+  background: var(--clay-deep);
+  border-color: var(--clay-deep);
+}
+
+.xs-btn.primary:disabled {
+  background: var(--bone);
+  border-color: var(--bone);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+.xs-btn.sm {
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+/* ── Result header ──────────────────────────────────────────────────────────── */
+.xs-result-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.xs-result-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Textarea ───────────────────────────────────────────────────────────────── */
+.xs-textarea {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: 14px;
+  line-height: 1.8;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.xs-textarea:focus {
+  border-color: var(--clay);
+}
+
+/* ── Tabs ───────────────────────────────────────────────────────────────────── */
+.xs-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.xs-tab {
+  padding: 10px 20px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  color: var(--ink-3);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+
+.xs-tab:hover {
+  color: var(--ink);
+}
+
+.xs-tab.active {
+  color: var(--clay-deep);
+  border-bottom-color: var(--clay);
+  font-weight: 500;
+}
+
+/* ── Pre output (markdown) ─────────────────────────────────────────────── */
+.xs-pre {
+  background: var(--ivory);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 20px;
+  font-size: 13px;
+  line-height: 1.8;
+  word-break: break-word;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  font-family: inherit;
+  margin: 0;
+  color: var(--ink);
+}
+
+.xs-pre h1, .xs-pre h2, .xs-pre h3, .xs-pre h4 {
+  font-family: var(--serif);
+  color: var(--ink);
+  margin: 18px 0 10px;
+  line-height: 1.4;
+}
+.xs-pre h1 { font-size: 18px; }
+.xs-pre h2 { font-size: 16px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+.xs-pre h3 { font-size: 14.5px; color: var(--clay-deep); }
+.xs-pre h4 { font-size: 13.5px; }
+
+.xs-pre p { margin: 0 0 10px; }
+
+.xs-pre ul, .xs-pre ol {
+  padding-left: 20px;
+  margin: 0 0 10px;
+}
+
+.xs-pre li { margin-bottom: 4px; }
+
+.xs-pre strong { color: var(--ink); font-weight: 600; }
+.xs-pre em { color: var(--ink-3); }
+
+.xs-pre code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: var(--bone);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+  color: var(--clay-deep);
+}
+
+.xs-pre pre {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 0 0 10px;
+}
+
+.xs-pre pre code {
+  background: none;
+  padding: 0;
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+.xs-pre blockquote {
+  border-left: 3px solid var(--clay);
+  margin: 0 0 10px;
+  padding: 4px 14px;
+  color: var(--ink-3);
+  background: rgba(204,120,92,.04);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+
+.xs-pre table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 10px;
+  font-size: 12.5px;
+}
+.xs-pre th, .xs-pre td {
+  border: 1px solid var(--line);
+  padding: 6px 10px;
+  text-align: left;
+}
+.xs-pre th {
+  background: var(--bone);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.xs-pre tr:nth-child(even) td { background: rgba(239,234,224,.3); }
+
+.xs-pre hr {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 14px 0;
+}
+
+/* ── Nav buttons ────────────────────────────────────────────────────────────── */
+.xs-nav-btns {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  flex-shrink: 0;
+}

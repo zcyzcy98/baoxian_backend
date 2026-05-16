@@ -15,6 +15,7 @@ const NAV_STRUCTURE = [
           { id: 'xhs-rewrite', label: '小红书仿写' },
           { id: 'gzh-rewrite', label: '公众号仿写' },
           { id: 'video-rip', label: '视频仿做' },
+          { id: 'xiangsheng', label: '相声剧本创作' },
         ],
       },
       {

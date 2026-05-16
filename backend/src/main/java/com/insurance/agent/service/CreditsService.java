@@ -53,7 +53,11 @@ public class CreditsService {
         Map.entry("xhs_title",    "小红书标题生成"),
         Map.entry("gzh_title",    "公众号标题生成"),
         Map.entry("video_title",  "视频标题文案"),
-        Map.entry("video_cover",  "视频封面图")
+        Map.entry("video_cover",  "视频封面图"),
+        Map.entry("xiangsheng_create", "相声剧本创作"),
+        Map.entry("xiangsheng_stage1", "相声台词生成"),
+        Map.entry("xiangsheng_stage2", "相声分镜生成"),
+        Map.entry("xiangsheng_stage3", "相声分组提示词")
     );
 
     // Action codes → platform tags for display
@@ -74,7 +78,11 @@ public class CreditsService {
         Map.entry("xhs_title",   "xhs"),
         Map.entry("gzh_title",   "gzh"),
         Map.entry("video_title", "video"),
-        Map.entry("video_cover", "video")
+        Map.entry("video_cover", "video"),
+        Map.entry("xiangsheng_create", "video"),
+        Map.entry("xiangsheng_stage1", "video"),
+        Map.entry("xiangsheng_stage2", "video"),
+        Map.entry("xiangsheng_stage3", "video")
     );
 
     private final DataSource dataSource;

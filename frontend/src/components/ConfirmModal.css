@@ -1,0 +1,117 @@
+/* 共享确认弹窗 — 复用项目"米白纸感 + 黏土色按钮"的视觉语言 */
+
+.confirm-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(31, 31, 30, .5);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+  animation: confirm-fade-in .15s ease;
+}
+
+@keyframes confirm-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.confirm-modal-sheet {
+  background: var(--paper, #fefcf8);
+  border-radius: var(--r-lg, 12px);
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  padding: 24px 28px 20px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .2);
+  animation: confirm-slide-up .18s ease;
+}
+
+@keyframes confirm-slide-up {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.confirm-modal-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.confirm-modal-top h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink, #1f1f1e);
+  margin: 0;
+}
+
+.confirm-modal-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--ink-3, #9b958e);
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .12s;
+}
+
+.confirm-modal-close:hover {
+  background: var(--bone, #f3eee6);
+  color: var(--ink, #1f1f1e);
+}
+
+.confirm-modal-body {
+  font-size: 13.5px;
+  color: var(--ink-2, #4a4744);
+  line-height: 1.75;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  background: var(--ivory, #faf6ef);
+  border-left: 3px solid var(--clay, #b46a4b);
+  border-radius: var(--r-sm, 8px);
+}
+
+.confirm-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.confirm-btn-ghost {
+  padding: 9px 18px;
+  border: 1.5px solid var(--line, #e4ddd2);
+  border-radius: var(--r-sm, 8px);
+  background: transparent;
+  color: var(--ink-2, #4a4744);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .12s;
+}
+
+.confirm-btn-ghost:hover {
+  border-color: var(--line-2, #d4ccc0);
+  color: var(--ink, #1f1f1e);
+}
+
+.confirm-btn-solid {
+  padding: 9px 20px;
+  background: var(--clay, #b46a4b);
+  color: #fff;
+  border: none;
+  border-radius: var(--r-sm, 8px);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .12s;
+}
+
+.confirm-btn-solid:hover {
+  background: var(--clay-deep, #9b563a);
+}

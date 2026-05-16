@@ -339,3 +339,62 @@ export async function revokeAccess(phone, adminKey = 'chengzhi-admin-2024') {
   })
   return res.json()
 }
+
+// ─── 相声剧本创作 ──────────────────────────────────────────
+export async function fetchXiangshengStyles() {
+  const res = await fetch('/api/xiangsheng/styles', { headers: authHeaders() })
+  if (!res.ok) throw new Error('获取风格列表失败')
+  return res.json()
+}
+
+export async function createXiangsheng(topic, styleIndex, model = 'chat') {
+  const res = await fetch('/api/xiangsheng/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ topic, styleIndex, model }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || '相声剧本生成失败')
+  }
+  return res.json()
+}
+
+export async function createXiangshengStage1(topic, styleIndex, model = 'chat') {
+  const res = await fetch('/api/xiangsheng/stage1', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ topic, styleIndex, model }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || '台词生成失败')
+  }
+  return res.json()
+}
+
+export async function createXiangshengStage2(dialogue, model = 'chat') {
+  const res = await fetch('/api/xiangsheng/stage2', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ dialogue, model }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || '分镜生成失败')
+  }
+  return res.json()
+}
+
+export async function createXiangshengStage3(storyboard, model = 'chat') {
+  const res = await fetch('/api/xiangsheng/stage3', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ storyboard, model }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || '分组提示词生成失败')
+  }
+  return res.json()
+}

@@ -20,6 +20,7 @@ import ProfilePage from './pages/ProfilePage'
 import StylePage from './pages/StylePage'
 import KnowledgePage from './pages/KnowledgePage'
 import CreditsPage from './pages/CreditsPage'
+import XiangshengCreatePage from './pages/XiangshengCreatePage'
 
 const PAGE_MAP = {
   'topic-square': { component: TopicSquarePage, breadcrumb: ['选题广场'] },
@@ -30,6 +31,7 @@ const PAGE_MAP = {
   'xhs-rewrite': { component: XhsRewritePage, breadcrumb: ['内容创作', '小红书仿写'] },
   'gzh-rewrite': { component: GzhRewritePage, breadcrumb: ['内容创作', '公众号仿写'] },
   'video-rip': { component: DramaPage, breadcrumb: ['内容创作', '视频仿做'] },
+  'xiangsheng': { component: XiangshengCreatePage, breadcrumb: ['内容创作', '相声剧本创作'] },
   'viral-xhs': { component: ViralXhsPage, breadcrumb: ['爆款拆解', '拆解小红书爆款'] },
   'viral-douyin': { component: ViralDouyinPage, breadcrumb: ['爆款拆解', '拆解抖音爆款'] },
   'advisory': { component: AdvisoryPage, breadcrumb: ['答疑逼单'] },
