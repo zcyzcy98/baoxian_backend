@@ -16,6 +16,22 @@ public class CreditsService {
     private static final Logger log = LoggerFactory.getLogger(CreditsService.class);
     private static final int INITIAL_CREDITS = 8000;
 
+    // 用于在同一次请求中传递积分消耗信息，供 Filter 读取并写入响应头
+    private static final ThreadLocal<Integer> LAST_COST = new ThreadLocal<>();
+    private static final ThreadLocal<Integer> LAST_REMAINING = new ThreadLocal<>();
+
+    public static Integer popLastCost() {
+        Integer v = LAST_COST.get();
+        LAST_COST.remove();
+        return v;
+    }
+
+    public static Integer popLastRemaining() {
+        Integer v = LAST_REMAINING.get();
+        LAST_REMAINING.remove();
+        return v;
+    }
+
     // Action codes → display labels
     static final Map<String, String> ACTION_LABEL = Map.ofEntries(
         Map.entry("xhs_text",      "小红书文字创作"),
@@ -137,15 +153,15 @@ public class CreditsService {
      * Atomically deducts credits. Throws InsufficientCreditsException if balance < amount.
      * Records the transaction.
      */
-    public void deduct(long userId, int amount, String action, String description) {
-        deduct(userId, amount, action, description, null);
+    public int deduct(long userId, int amount, String action, String description) {
+        return deduct(userId, amount, action, description, null);
     }
 
     /**
-     * Deduct with content association.
+     * Deduct with content association. Returns new balance.
      */
-    public void deduct(long userId, int amount, String action, String description, Long contentId) {
-        if (amount <= 0) return;
+    public int deduct(long userId, int amount, String action, String description, Long contentId) {
+        if (amount <= 0) return getBalance(userId);
         Connection c = null;
         try {
             c = dataSource.getConnection();
@@ -193,7 +209,10 @@ public class CreditsService {
             }
 
             c.commit();
+            LAST_COST.set(amount);
+            LAST_REMAINING.set(newBalance);
             log.info("[Credits] userId={} action={} -{}分 余{}分", userId, action, amount, newBalance);
+            return newBalance;
 
         } catch (InsufficientCreditsException e) {
             throw e;
@@ -245,6 +264,7 @@ public class CreditsService {
         String where = switch (filter) {
             case "create" -> "AND action NOT IN ('advisory','topic_refresh','topup')";
             case "qa"     -> "AND action = 'advisory'";
+            case "topup"  -> "AND action = 'topup'";
             default       -> "";
         };
         String sql = "SELECT id, delta, balance_after, action, description, content_id, created_at " +

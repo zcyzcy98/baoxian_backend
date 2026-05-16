@@ -14,5 +14,6 @@
   "appToken" : "XJVkwZVrsia2eIkgis8cYUgYnXc",
   "tableId" : "tbl0Ylg7YIMgwjnD",
   "category" : "video",
-  "active" : true
+  "active" : true,
+  "showInTopicSquare" : false
 } ]

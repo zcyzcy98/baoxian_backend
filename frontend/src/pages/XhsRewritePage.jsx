@@ -70,23 +70,19 @@ export default function XhsRewritePage({
   const goStep = (n) => {
     if (n < 1 || n > 3 || n === step) return
     const doGo = () => setStep(n)
-    if (step === 3 && n < 3 && imgResults.length > 0) {
-      confirm({
-        title: '返回会丢失配图',
-        message: '当前生成的配图结果将会丢失，且不可恢复。确定要返回吗？',
-        confirmText: '确认返回',
-        onConfirm: doGo,
-      })
-      return
-    }
-    if (step === 2 && n === 1 && result) {
-      confirm({
-        title: '返回会丢失仿写结果',
-        message: '当前生成的仿写结果将会丢失，需要重新仿写。确定要返回吗？',
-        confirmText: '确认返回',
-        onConfirm: doGo,
-      })
-      return
+    if (n < step) {
+      const willLose = []
+      if (n < 2 && step >= 2 && result) willLose.push('仿写结果')
+      if (n < 3 && step >= 3 && imgResults.length > 0) willLose.push('已生成的配图')
+      if (willLose.length > 0) {
+        confirm({
+          title: '返回会丢失内容',
+          message: `当前 ${willLose.join('、')} 将会丢失，且不可恢复。确定要返回吗？`,
+          confirmText: '确认返回',
+          onConfirm: doGo,
+        })
+        return
+      }
     }
     doGo()
   }

@@ -97,7 +97,7 @@ public class HotTopicRepository {
     /** 查询全部热点（按创建时间倒序，取最近200条），用于 /daily 展示全部+时间衰减 */
     public List<HotTopic> findAll() {
         List<HotTopic> list = new ArrayList<>();
-        String sql = "SELECT * FROM hot_topics ORDER BY created_at DESC LIMIT 200";
+        String sql = "SELECT * FROM hot_topics WHERE source_site != '短视频爆款样本库' ORDER BY created_at DESC LIMIT 200";
         try (Connection c = getConn(); PreparedStatement ps = c.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {

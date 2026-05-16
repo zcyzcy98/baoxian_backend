@@ -67,6 +67,22 @@ public class UserProfileService {
             log.error("[Profile] 读取失败", e);
         }
 
+        // 读取 users 表的 created_at
+        String userSql = "SELECT created_at FROM users WHERE id = ?";
+        try (Connection c = getConn(); PreparedStatement ps = c.prepareStatement(userSql)) {
+            ps.setLong(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Timestamp ts = rs.getTimestamp("created_at");
+                    if (ts != null) {
+                        dto.setCreatedAt(ts.toInstant().toString());
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            log.error("[Profile] 读取 users.created_at 失败", e);
+        }
+
         dto.setPlatforms(getPlatforms(userId));
         return dto;
     }

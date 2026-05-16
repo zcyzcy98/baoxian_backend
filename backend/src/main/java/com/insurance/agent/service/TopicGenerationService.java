@@ -355,6 +355,7 @@ public class TopicGenerationService {
                                                 UserProfile profile,
                                                 List<String> insuranceFilter,
                                                 List<String> demographicFilter,
+                                                String sourceCategory,
                                                 int limit) {
         if (cachedTopics == null || cachedTopics.isEmpty()) {
             return List.of();
@@ -366,6 +367,11 @@ public class TopicGenerationService {
             enrichCandidate(c);
             int matchScore = computeMatchScore(c, profile);
             scored.add(new ScoredCandidate(c, matchScore));
+        }
+
+        // 按来源分类筛选（爆款库/热点库）
+        if (sourceCategory != null && !sourceCategory.isBlank()) {
+            scored.removeIf(s -> !sourceCategory.equals(s.candidate.getSourceCategory()));
         }
 
         // 按险种筛选
@@ -384,7 +390,7 @@ public class TopicGenerationService {
             });
         }
 
-        // 按综合得分降序：原始热度 + 匹配分 - 时间衰减
+        // 按综合得分降序
         scored.sort((a, b) -> Integer.compare(b.totalScore(), a.totalScore()));
 
         Set<String> seen = new HashSet<>();
@@ -392,47 +398,15 @@ public class TopicGenerationService {
         for (ScoredCandidate s : scored) {
             String key = s.candidate.getTitle() == null ? "" : s.candidate.getTitle().trim();
             if (seen.add(key) && !key.isEmpty()) {
-                out.add(s.candidate); // 保留排名顺序（由 totalScore 决定），后续按组赋分
+                out.add(s.candidate);
                 if (out.size() >= Math.max(1, limit)) break;
             }
         }
 
-        // ——————————————————————————————————————————————————————————
-        // 按来源分组赋予差异化分数段，彻底解决全局归一化导致的 "二值化" 问题
-        //   BITABLE (飞书知识库)：最终分 62–95，前端显示 6.2–9.5
-        //   TOPHUB  (今日热榜)  ：最终分 25–58，前端显示 2.5–5.8
-        //   两组各自线性分布，组内顺序由 matchScore + 时间衰减决定（已排好序）
-        //   BITABLE 最低分 62 > TOPHUB 最高分 58，来源优先级始终成立
-        // ——————————————————————————————————————————————————————————
-        List<TopicCandidate> bitableGroup = new ArrayList<>();
-        List<TopicCandidate> tophubGroup  = new ArrayList<>();
-        for (TopicCandidate c : out) {
-            if (c.getSource() == TopicCandidate.Source.TOPHUB) {
-                tophubGroup.add(c);
-            } else {
-                bitableGroup.add(c);
-            }
-        }
-
-        boolean hasBitable = !bitableGroup.isEmpty();
-        boolean hasTophub  = !tophubGroup.isEmpty();
-
-        if (hasBitable && hasTophub) {
-            assignRankScores(bitableGroup, 62, 95);
-            assignRankScores(tophubGroup,  25, 58);
-        } else if (hasBitable) {
-            // 只有飞书数据：拉伸到更宽范围，区分度更好
-            assignRankScores(bitableGroup, 52, 95);
-        } else {
-            // 只有热榜数据：同样拉伸
-            assignRankScores(tophubGroup, 15, 85);
-        }
-
-        // 合并并按最终分数降序返回
-        List<TopicCandidate> merged = new ArrayList<>(bitableGroup);
-        merged.addAll(tophubGroup);
-        merged.sort((a, b) -> Integer.compare(b.getScore(), a.getScore()));
-        return merged;
+        // 统一评分：所有来源平等，线性映射到 15-85
+        assignRankScores(out, 15, 85);
+        out.sort((a, b) -> Integer.compare(b.getScore(), a.getScore()));
+        return out;
     }
 
     /**
@@ -576,6 +550,160 @@ public class TopicGenerationService {
         }
 
         return Math.min(8, bonus);
+    }
+
+    /**
+     * 手动刷新专用：独立评分体系。
+     * AI 评分占主导（最高 65 分），个人标签加成最多 +20，热度微调最多 +10，封顶 95。
+     *
+     * 计分明细：
+     *   - AI 评分基础分（aiScore 1-5）：12 / 22 / 35 / 50 / 65
+     *   - 险种匹配：每个 +5，最多 +10
+     *   - 客群匹配：每个 +5，最多 +10
+     *   - 热度微调：(heatScore - 10) / 4，最多 +10
+     */
+    public List<TopicCandidate> generateForManualRefresh(UserProfile profile, int limit,
+                                                         List<String> insuranceFilter,
+                                                         List<String> demographicFilter) {
+        if (!topHubDataService.isConfigured()) {
+            log.warn("[ManualRefresh] TopHub API 未配置");
+            return List.of();
+        }
+
+        // 1) 拉 100 条热榜
+        List<TopicCandidate> hot;
+        try {
+            hot = topHubDataService.fetchHotTopics(100, HotTopicCollector.getSourceHashids());
+        } catch (Exception e) {
+            log.warn("[ManualRefresh] 拉热榜失败: {}", e.getMessage());
+            return List.of();
+        }
+
+        // 2) AI 增强（会写入 whyThisTopic / insuranceTypes / demographics / platforms / aiScore）
+        List<TopicCandidate> enriched = aiFilter.enrichWithAi(hot);
+
+        // 3) 应用手动刷新独立评分
+        for (TopicCandidate c : enriched) {
+            int heat = c.getScore(); // 此时是 AI 处理后的分（aiScore*5.5 + heat*0.25，已封顶 50）
+            int aiBase = aiBaseForManualRefresh(c.getAiScore());
+            int profileBonus = manualRefreshProfileBonus(c, profile);
+            int heatBonus = Math.min(10, Math.max(0, (heat - 10) / 4));
+            int finalScore = Math.min(95, Math.max(10, aiBase + profileBonus + heatBonus));
+            c.setScore(finalScore);
+            enrichCandidate(c);
+        }
+
+        // 4) 应用前端筛选
+        if (insuranceFilter != null && !insuranceFilter.isEmpty()) {
+            enriched.removeIf(c -> {
+                List<String> types = c.getInsuranceTypes();
+                return types == null || types.isEmpty() || Collections.disjoint(types, insuranceFilter);
+            });
+        }
+        if (demographicFilter != null && !demographicFilter.isEmpty()) {
+            enriched.removeIf(c -> {
+                List<String> demos = c.getDemographics();
+                return demos == null || demos.isEmpty() || Collections.disjoint(demos, demographicFilter);
+            });
+        }
+
+        // 5) 按分降序 + 去重 + 截断
+        enriched.sort((a, b) -> Integer.compare(b.getScore(), a.getScore()));
+        Set<String> seen = new HashSet<>();
+        List<TopicCandidate> out = new ArrayList<>();
+        for (TopicCandidate c : enriched) {
+            String key = c.getTitle() == null ? "" : c.getTitle().trim();
+            if (seen.add(key) && !key.isEmpty()) {
+                out.add(c);
+                if (out.size() >= Math.max(1, limit)) break;
+            }
+        }
+        return out;
+    }
+
+    /** AI 评分 1-5 → 基础分 */
+    private static int aiBaseForManualRefresh(int aiScore) {
+        return switch (aiScore) {
+            case 5 -> 65;
+            case 4 -> 50;
+            case 3 -> 35;
+            case 2 -> 22;
+            case 1 -> 12;
+            default -> 18; // AI 没返回结果时给个中等分
+        };
+    }
+
+    /** 手动刷新场景的个人画像加成（最多 +20，分两类各封顶 +10） */
+    private static int manualRefreshProfileBonus(TopicCandidate c, UserProfile profile) {
+        if (profile == null || profile.isEmpty()) return 0;
+        int insBonus = 0;
+        int demoBonus = 0;
+
+        List<String> products = profile.getPrimaryProducts();
+        List<String> insTypes = c.getInsuranceTypes();
+        if (products != null && insTypes != null) {
+            for (String p : products) {
+                if (p == null) continue;
+                for (String t : insTypes) {
+                    if (t != null && (t.contains(p) || p.contains(t))) {
+                        insBonus += 5;
+                        break;
+                    }
+                }
+                if (insBonus >= 10) break;
+            }
+        }
+
+        List<String> audiences = profile.getTargetAudiences();
+        List<String> demos = c.getDemographics();
+        if (audiences != null && demos != null) {
+            for (String a : audiences) {
+                if (a == null) continue;
+                for (String d : demos) {
+                    if (d != null && (d.contains(a) || a.contains(d))) {
+                        demoBonus += 5;
+                        break;
+                    }
+                }
+                if (demoBonus >= 10) break;
+            }
+        }
+
+        return Math.min(10, insBonus) + Math.min(10, demoBonus);
+    }
+
+    /**
+     * 关键词搜索 + AI 增强 + 手动刷新一致的评分。
+     * 走 TopHub search API 拉回相关条目，过一遍 DeepSeek 给每条补全
+     * whyThisTopic / 险种 / 客群 / 平台，再用和手动刷新一致的评分体系打分。
+     */
+    public List<TopicCandidate> searchWithAi(String keyword, int limit, String hashid, UserProfile profile) {
+        if (keyword == null || keyword.isBlank()) return List.of();
+
+        List<TopicCandidate> raw = topHubDataService.searchByKeyword(keyword.trim(), limit, hashid);
+        if (raw.isEmpty()) return List.of();
+
+        // AI 增强：补全 whyThisTopic / insuranceTypes / demographics / platforms / aiScore
+        List<TopicCandidate> enriched;
+        try {
+            enriched = aiFilter.enrichWithAi(raw);
+        } catch (Exception e) {
+            log.warn("[Search] AI 增强失败，返回裸数据: {}", e.getMessage());
+            enriched = raw;
+        }
+
+        // 复用手动刷新的评分体系
+        for (TopicCandidate c : enriched) {
+            int heat = c.getScore();
+            int aiBase = aiBaseForManualRefresh(c.getAiScore());
+            int profileBonus = manualRefreshProfileBonus(c, profile);
+            int heatBonus = Math.min(10, Math.max(0, (heat - 10) / 4));
+            c.setScore(Math.min(95, Math.max(10, aiBase + profileBonus + heatBonus)));
+            enrichCandidate(c);
+        }
+
+        enriched.sort((a, b) -> Integer.compare(b.getScore(), a.getScore()));
+        return enriched;
     }
 
     /** 单条用户输入选题: 直接包成 TopicCandidate, 给最高优先级. */

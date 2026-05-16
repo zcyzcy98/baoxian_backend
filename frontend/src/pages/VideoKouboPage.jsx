@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { callAgent, generateSeedanceSegment, mergeVideos } from '../api'
+import { callAgent, generateSeedanceSegment, mergeVideos, fetchStyleProfile } from '../api'
 import ConfirmModal, { useConfirmModal } from '../components/ConfirmModal'
 import './VideoKouboPage.css'
 
@@ -26,6 +26,14 @@ const STYLE_OPTIONS = [
   { id: 'warm', label: '通用温暖风格', desc: '亲切、生活化、像跟朋友聊天' },
   { id: 'sharp', label: '通用犀利风格', desc: '痛点直击、节奏快、容易爆' },
 ]
+
+// 与后端 PromptRules.kouboStyleRules 的关键词匹配对齐
+const STYLE_MAP = {
+  personal: '温暖克制，擅讲案例',
+  professional: '严谨专业，引经据典，数据驱动',
+  warm: '亲切温暖，生活化，像跟朋友聊天',
+  sharp: '犀利直击，痛点先行，节奏快',
+}
 
 const VOICE_TEMPLATES = [
   { id: 'f1', label: '女声 1', file: '/voice/女 1.mp3', tone: '温柔亲切' },
@@ -242,6 +250,15 @@ export default function VideoKouboPage({ topicPrefill, onPrefillConsumed, isActi
   const [insuranceTypes, setInsuranceTypes] = useState([])
   const [audiences, setAudiences] = useState([])
   const [styleOption, setStyleOption] = useState('')
+  const [styleProfile, setStyleProfile] = useState(null)
+
+  // personal 风格时自动拉取风格档案
+  useEffect(() => {
+    if (styleOption === 'personal' && !styleProfile) {
+      fetchStyleProfile().then(p => { if (p) setStyleProfile(p) }).catch(() => {})
+    }
+    if (styleOption !== 'personal') setStyleProfile(null)
+  }, [styleOption])
   const [refMaterials, setRefMaterials] = useState([])
 
   // Step 2 storyboard
@@ -390,7 +407,7 @@ export default function VideoKouboPage({ topicPrefill, onPrefillConsumed, isActi
         duration: durationText,
         insuranceTypes,
         audiences,
-        style: styleOption,
+        style: buildStyleParam(),
       }
       const [sbResult, titleResult] = await Promise.all([
         callAgent('video-storyboard', payload, 'rag-video'),
@@ -597,6 +614,28 @@ export default function VideoKouboPage({ topicPrefill, onPrefillConsumed, isActi
 
   // ── 步骤切换 + 返回确认 ──────────────────────────────────────────────────
   const { confirm, props: confirmProps } = useConfirmModal()
+
+  // 构建传给后端的 style 字符串（与 XHS/GZH 同款 pattern，与 kouboStyleRules 关键词匹配对齐）
+  const buildStyleParam = () => {
+    if (!styleOption || !STYLE_MAP[styleOption]) return styleOption || undefined
+    if (styleOption === 'personal' && styleProfile) {
+      const p = styleProfile.profile || styleProfile
+      const parts = ['[个人风格档案]']
+      if (p.signature) parts.push('签名: ' + p.signature)
+      if (p.traits) {
+        const traitsText = Array.isArray(p.traits)
+          ? p.traits.map(t => typeof t === 'string' ? t : (t.name || t.label || t.description || '')).filter(Boolean).join('；')
+          : String(p.traits)
+        if (traitsText) parts.push('特征: ' + traitsText)
+      }
+      if (p.radar) {
+        const radarText = Object.entries(p.radar).map(([k, v]) => k + ':' + v).join('，')
+        if (radarText) parts.push('维度: ' + radarText)
+      }
+      return parts.join('\n')
+    }
+    return '风格: ' + STYLE_MAP[styleOption]
+  }
 
   const goStep = (n) => {
     if (n < 1 || n > 3 || n === step) return

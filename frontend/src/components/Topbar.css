@@ -1,4 +1,41 @@
 /* Topbar */
+.credits-chip-wrap {
+  position: relative;
+}
+
+.credits-toast {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--clay);
+  color: #fff;
+  font-family: var(--serif);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 16px;
+  border-radius: var(--r-sm);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: var(--sh-clay);
+  animation: creditsToastIn 0.25s ease, creditsToastOut 0.3s ease 4.2s forwards;
+  pointer-events: none;
+  z-index: 100;
+}
+.credits-toast-icon {
+  color: var(--sand-soft);
+  font-size: 11px;
+}
+@keyframes creditsToastIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes creditsToastOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-4px); }
+}
+
 .breadcrumb {
   display: flex;
   align-items: center;

@@ -533,25 +533,19 @@ export default function XhsCreatePage({
   const goStep = (n) => {
     if (n < 1 || n > 3 || n === step) return
     const doGo = () => setStep(n)
-    // Step 3 → 1/2：有配图结果时确认
-    if (step === 3 && n < 3 && (images.length > 0 || batchImgResults.length > 0)) {
-      confirm({
-        title: '返回会丢失配图',
-        message: '当前生成的配图结果将会丢失，且不可恢复。确定要返回吗？',
-        confirmText: '确认返回',
-        onConfirm: doGo,
-      })
-      return
-    }
-    // Step 2 → 1：有正文时确认
-    if (step === 2 && n === 1 && bodyContent) {
-      confirm({
-        title: '返回会丢失正文',
-        message: '当前生成的标题候选与正文将会丢失，且不可恢复。确定要返回吗？',
-        confirmText: '确认返回',
-        onConfirm: doGo,
-      })
-      return
+    if (n < step) {
+      const willLose = []
+      if (n < 2 && step >= 2 && (bodyContent || titles.length > 0)) willLose.push('标题候选与正文')
+      if (n < 3 && step >= 3 && (images.length > 0 || batchImgResults.length > 0)) willLose.push('已生成的配图')
+      if (willLose.length > 0) {
+        confirm({
+          title: '返回会丢失内容',
+          message: `当前 ${willLose.join('、')} 将会丢失，且不可恢复。确定要返回吗？`,
+          confirmText: '确认返回',
+          onConfirm: doGo,
+        })
+        return
+      }
     }
     doGo()
   }

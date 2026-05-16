@@ -76,7 +76,7 @@ public class TopicController {
         }
 
         list = generation.filterByProfile(list, r.getProfile(),
-                r.getInsuranceTypesFilter(), r.getDemographicsFilter(), limit);
+                r.getInsuranceTypesFilter(), r.getDemographicsFilter(), r.getSourceCategory(), limit);
 
         int activeBitables = 0;
         for (BitableConfig cfg : bitableConfig.getAllConfigs()) {
@@ -95,9 +95,15 @@ public class TopicController {
         return ResponseEntity.ok(out);
     }
 
-    /** 手动刷新数据 — 扣 1 积分，实时拉取 TopHubData 非个性化热点. */
+    /**
+     * 手动刷新数据 — 扣 1 积分。
+     * 实时调用 TopHubData 拉热榜 → AI 分析（whyThisTopic / 险种 / 客群 / 平台）→
+     * 按用户画像个性化排序，返回完整富文本字段。
+     */
     @PostMapping("/refresh")
-    public ResponseEntity<Map<String, Object>> refresh(@RequestHeader(value = "Authorization", required = false) String auth) {
+    public ResponseEntity<Map<String, Object>> refresh(
+            @RequestHeader(value = "Authorization", required = false) String auth,
+            @RequestBody(required = false) DailyRequest req) {
         long userId = resolveUserId(auth);
         if (userId == 0) {
             return ResponseEntity.status(401).body(Map.of("success", false, "error", "请先登录"));
@@ -108,8 +114,16 @@ public class TopicController {
 
         int newBalance = creditsService.getBalance(userId);
 
-        List<TopicCandidate> list = topHubDataService.fetchHotTopics(50,
-                HotTopicCollector.getSourceHashids());
+        DailyRequest r = req == null ? new DailyRequest() : req;
+        int limit = r.getLimit() <= 0 ? 30 : Math.min(100, r.getLimit());
+
+        // 手动刷新独立评分：AI 主导（最高 65）+ 个人标签加成（+20）+ 热度微调（+10），封顶 95
+        List<TopicCandidate> list = generation.generateForManualRefresh(
+                r.getProfile(),
+                limit,
+                r.getInsuranceTypesFilter(),
+                r.getDemographicsFilter()
+        );
 
         Map<String, Object> out = new HashMap<>();
         out.put("success", true);
@@ -130,8 +144,9 @@ public class TopicController {
         return ResponseEntity.ok(out);
     }
 
-    /** 按关键词搜索全网热点（通过 TopHubData API）. */
+    /** 按关键词搜索全网热点（TopHubData API）+ AI 增强 + 个性化评分. */
     @PostMapping("/search")
+    @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> search(@RequestBody Map<String, Object> body) {
         String keyword = body == null ? null : (String) body.get("keyword");
         if (keyword == null || keyword.isBlank()) {
@@ -144,7 +159,14 @@ public class TopicController {
 
         String hashid = body == null ? null : (String) body.get("hashid");
 
-        List<TopicCandidate> results = topHubDataService.searchByKeyword(keyword.trim(), limit, hashid);
+        // 可选：前端可在 body 里带 profile，用户画像加成生效
+        UserProfile profile = null;
+        Object p = body.get("profile");
+        if (p instanceof Map) {
+            profile = mapToProfile((Map<?, ?>) p);
+        }
+
+        List<TopicCandidate> results = generation.searchWithAi(keyword.trim(), limit, hashid, profile);
 
         Map<String, Object> out = new HashMap<>();
         out.put("success", true);
@@ -188,14 +210,15 @@ public class TopicController {
         ));
     }
 
-    /** 手动触发飞书知识库采集 */
+    /** 手动触发飞书知识库采集（先清今日 BITABLE 记录，再重新采集） */
     @PostMapping("/debug/collect-bitable")
     public ResponseEntity<Map<String, Object>> debugCollectBitable() {
+        int deleted = hotTopicRepository.deleteByBatchDateAndSource(LocalDate.now(), "BITABLE");
         collector.collectBitableTopics();
         int cacheSize = collector.getCachedTopics().size();
         return ResponseEntity.ok(Map.of(
                 "success", true,
-                "message", "飞书知识库采集完成",
+                "message", "清库 " + deleted + " 条 BITABLE + 采集完成",
                 "cacheSize", cacheSize
         ));
     }
@@ -300,6 +323,7 @@ public class TopicController {
         private int limit;
         private List<String> insuranceTypesFilter;
         private List<String> demographicsFilter;
+        private String sourceCategory;
 
         public UserProfile getProfile() { return profile; }
         public void setProfile(UserProfile profile) { this.profile = profile; }
@@ -311,5 +335,7 @@ public class TopicController {
         public void setInsuranceTypesFilter(List<String> insuranceTypesFilter) { this.insuranceTypesFilter = insuranceTypesFilter; }
         public List<String> getDemographicsFilter() { return demographicsFilter; }
         public void setDemographicsFilter(List<String> demographicsFilter) { this.demographicsFilter = demographicsFilter; }
+        public String getSourceCategory() { return sourceCategory; }
+        public void setSourceCategory(String sourceCategory) { this.sourceCategory = sourceCategory; }
     }
 }

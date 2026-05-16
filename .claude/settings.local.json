@@ -55,7 +55,8 @@
       "Read(//private/tmp/**)",
       "Bash(java -version)",
       "Bash(ps *)",
-      "Bash(curl -s \"http://localhost:5174/src/pages/DramaPage.jsx\")"
+      "Bash(curl -s \"http://localhost:5174/src/pages/DramaPage.jsx\")",
+      "Bash(unzip -o \"/Users/yang2krown/Downloads/crosstalk-script-v3.zip\" -d crosstalk-script)"
     ]
   }
 }

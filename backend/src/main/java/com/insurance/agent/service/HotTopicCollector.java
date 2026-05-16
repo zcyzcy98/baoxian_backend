@@ -4,6 +4,7 @@ import com.insurance.agent.dto.BitableConfig;
 import com.insurance.agent.dto.TopicCandidate;
 import com.insurance.agent.model.HotTopic;
 import com.insurance.agent.repository.HotTopicRepository;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -68,9 +69,37 @@ public class HotTopicCollector {
         this.configService = configService;
     }
 
-    // ==================== TopHub 热点采集（8:00 / 18:00） ====================
+    /**
+     * 服务启动时从 DB 恢复今日缓存。
+     * 避免重启后 /daily 在当天首次定时任务跑完前一直返回空。
+     */
+    @PostConstruct
+    public void initCacheOnStartup() {
+        LocalDate today = LocalDate.now();
+        List<HotTopic> todayRows = repository.findByBatchDate(today);
+        if (!todayRows.isEmpty()) {
+            List<TopicCandidate> mapped = new ArrayList<>();
+            for (HotTopic ht : todayRows) mapped.add(toCandidate(ht));
+            this.hotTopicsCache = new CopyOnWriteArrayList<>(mapped);
+            log.info("[HotTopicCollector] 启动缓存恢复：今日 DB 共 {} 条", mapped.size());
+        } else {
+            // 今天还没采集过，尝试用昨天的数据撑着
+            LocalDate yesterday = today.minusDays(1);
+            List<HotTopic> yesterdayRows = repository.findByBatchDate(yesterday);
+            if (!yesterdayRows.isEmpty()) {
+                List<TopicCandidate> mapped = new ArrayList<>();
+                for (HotTopic ht : yesterdayRows) mapped.add(toCandidate(ht));
+                this.hotTopicsCache = new CopyOnWriteArrayList<>(mapped);
+                log.info("[HotTopicCollector] 今日 DB 为空，用昨天 {} 条数据作为启动缓存", mapped.size());
+            } else {
+                log.warn("[HotTopicCollector] DB 中无今日及昨日数据，等待定时任务首次采集");
+            }
+        }
+    }
 
-    @Scheduled(cron = "0 0 8,18 * * ?")
+    // ==================== TopHub 热点采集（8:00 / 18:00，北京时间） ====================
+
+    @Scheduled(cron = "0 0 8,18 * * ?", zone = "Asia/Shanghai")
     public void collectHotTopics() {
         log.info("[HotTopicCollector] 开始定时采集热点...");
         LocalDate today = LocalDate.now();
@@ -112,20 +141,24 @@ public class HotTopicCollector {
         }
         log.info("[HotTopicCollector] AI 增强后保留 {} 条", enriched.size());
 
-        // AI 增强成功后，过滤掉无险种标签的选题（AI 都识别不出来就不入库）
+        // AI 增强成功后：保留 relevant=true 或 aiScore>=3 的条目；
+        // 不再强制要求有险种标签，避免 AI 漏打标签时把所有热点都过滤掉
         List<TopicCandidate> filteredByAi;
         if (aiSucceeded) {
             filteredByAi = new ArrayList<>();
             for (TopicCandidate c : enriched) {
-                List<String> types = c.getInsuranceTypes();
-                if (types != null && !types.isEmpty()) {
+                // aiScore 存在 score 字段里（TopicAiFilterService 已写入）
+                // whyThisTopic 非空 = AI 认为有价值；insuranceTypes 非空 = AI 给了险种
+                boolean hasTypes = c.getInsuranceTypes() != null && !c.getInsuranceTypes().isEmpty();
+                boolean hasWhy   = c.getWhyThisTopic() != null && !c.getWhyThisTopic().isBlank();
+                if (hasTypes || hasWhy) {
                     filteredByAi.add(c);
                 }
             }
         } else {
             filteredByAi = enriched;
         }
-        log.info("[HotTopicCollector] 险种标签过滤后保留 {} 条", filteredByAi.size());
+        log.info("[HotTopicCollector] AI 质量过滤后保留 {} 条", filteredByAi.size());
 
         List<HotTopic> toInsert = new ArrayList<>();
         for (TopicCandidate c : filteredByAi) {
@@ -146,7 +179,7 @@ public class HotTopicCollector {
 
     // ==================== 飞书知识库采集（15:30） ====================
 
-    @Scheduled(cron = "0 30 15 * * ?")
+    @Scheduled(cron = "0 30 15 * * ?", zone = "Asia/Shanghai")
     public void collectBitableTopics() {
         log.info("[HotTopicCollector] 开始定时采集飞书知识库...");
         LocalDate today = LocalDate.now();

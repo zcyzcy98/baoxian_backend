@@ -5,6 +5,50 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+// ─── 积分消耗自动检测（包装 window.fetch，覆盖所有请求）────────
+const originalFetch = window.fetch
+let _prevBalance = null
+
+async function fetchBalance() {
+  try {
+    const res = await originalFetch('/api/credits/balance', { headers: authHeaders() })
+    if (res.ok) {
+      const data = await res.json()
+      return data.balance
+    }
+  } catch {}
+  return null
+}
+
+// 初始化余额
+fetchBalance().then(b => { _prevBalance = b })
+
+function emitCreditsConsumed(cost, remaining) {
+  window.dispatchEvent(new CustomEvent('credits:consumed', {
+    detail: { cost, remaining }
+  }))
+}
+
+window.fetch = async function patchedFetch(...args) {
+  const res = await originalFetch.apply(this, args)
+
+  // 只检测 POST/PUT/DELETE 请求（积分只在写操作时扣除）
+  const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || ''
+  const method = (args[1]?.method || 'GET').toUpperCase()
+  if (method === 'GET' || !url.startsWith('/api/')) return res
+
+  // 异步检测余额变化（不阻塞主流程）
+  fetchBalance().then(newBal => {
+    if (newBal != null && _prevBalance != null && newBal < _prevBalance) {
+      const cost = _prevBalance - newBal
+      emitCreditsConsumed(cost, newBal)
+    }
+    if (newBal != null) _prevBalance = newBal
+  })
+
+  return res
+}
+
 export async function callAgent(endpoint, payload, model) {
   const res = await fetch(`/api/agents/${endpoint}`, {
     method: 'POST',
@@ -107,16 +151,16 @@ export async function fetchDailyTopics(payload = {}) {
   return postJson('/api/topics/daily', payload)
 }
 
-export async function searchHotTopics(keyword, limit = 50, hashid = '') {
-  return postJson('/api/topics/search', { keyword, limit, hashid })
+export async function searchHotTopics(keyword, limit = 50, hashid = '', profile = null) {
+  return postJson('/api/topics/search', { keyword, limit, hashid, profile })
 }
 
 export async function fetchSearchOptions() {
   return getJson('/api/topics/search-options')
 }
 
-export async function refreshTopics() {
-  return postJson('/api/topics/refresh', {})
+export async function refreshTopics(payload = {}) {
+  return postJson('/api/topics/refresh', payload)
 }
 
 export async function fetchUserProfile() {

@@ -14,6 +14,7 @@ public class ProfileDto {
     private String style;
     private String bio;
     private String tags;
+    private String createdAt;
 
     // ---- 平台绑定（读取时附带） ----
     private List<PlatformBinding> platforms;
@@ -50,6 +51,9 @@ public class ProfileDto {
 
     public String getTags() { return tags; }
     public void setTags(String tags) { this.tags = tags; }
+
+    public String getCreatedAt() { return createdAt; }
+    public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
 
     public List<PlatformBinding> getPlatforms() { return platforms; }
     public void setPlatforms(List<PlatformBinding> platforms) { this.platforms = platforms; }

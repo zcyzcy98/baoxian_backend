@@ -56,10 +56,9 @@ export default function TopicSquarePage({ onNavigate }) {
   const [insuranceFilter, setInsuranceFilter] = useState(persistedFilters.ins || [])
   const [demographicFilter, setDemographicFilter] = useState(persistedFilters.demo || [])
   const [platformFilter, setPlatformFilter] = useState(persistedFilters.plat || [])
+  const [sourceFilter, setSourceFilter] = useState('NEWS_HOTSPOT') // 'HOT_TEMPLATE'=爆款库, 'NEWS_HOTSPOT'=热点库
 
   const [selectedTopic, setSelectedTopic] = useState(null)
-  const [showCustomPanel, setShowCustomPanel] = useState(false)
-  const [customTitle, setCustomTitle] = useState('')
   const [searchKeyword, setSearchKeyword] = useState('')
   const [searching, setSearching] = useState(false)
   const [searchMode, setSearchMode] = useState(false)
@@ -73,10 +72,10 @@ export default function TopicSquarePage({ onNavigate }) {
   }, [insuranceFilter, demographicFilter, platformFilter])
 
   useEffect(() => {
-    loadPersonalized()
+    loadPersonalized('NEWS_HOTSPOT')
   }, [])
 
-  const loadPersonalized = async () => {
+  const loadPersonalized = async (sourceCategory) => {
     setLoading(true)
     setError('')
     setSearchMode(false)
@@ -90,6 +89,7 @@ export default function TopicSquarePage({ onNavigate }) {
 
       const profileData = profile.status === 'fulfilled' ? profile.value : null
       const payload = { categories: ['hotspot'], limit: DEFAULT_LIMIT }
+      if (sourceCategory) payload.sourceCategory = sourceCategory
       if (profileData) {
         payload.profile = {
           primaryProducts: profileData.primaryProducts || [],
@@ -113,7 +113,15 @@ export default function TopicSquarePage({ onNavigate }) {
     setRefreshing(true)
     setError('')
     try {
-      const data = await refreshTopics()
+      const payload = { limit: DEFAULT_LIMIT }
+      if (userProfile) {
+        payload.profile = {
+          primaryProducts: userProfile.primaryProducts || [],
+          targetAudiences: userProfile.targetAudiences || [],
+          style: userProfile.style || '',
+        }
+      }
+      const data = await refreshTopics(payload)
       const items = data.items || []
       setTopics(items)
       setLastFetchedAt(new Date().toISOString())
@@ -136,7 +144,12 @@ export default function TopicSquarePage({ onNavigate }) {
     setSearching(true)
     setError('')
     try {
-      const data = await searchHotTopics(kw, 50)
+      const profilePayload = userProfile ? {
+        primaryProducts: userProfile.primaryProducts || [],
+        targetAudiences: userProfile.targetAudiences || [],
+        style: userProfile.style || '',
+      } : null
+      const data = await searchHotTopics(kw, 50, '', profilePayload)
       const items = data.items || []
       setTopics(items)
       setSearchMode(true)
@@ -176,18 +189,6 @@ export default function TopicSquarePage({ onNavigate }) {
   }
 
   const activeFilterCount = insuranceFilter.length + demographicFilter.length + platformFilter.length
-
-  const handleCustomTopicCreate = () => {
-    if (!customTitle.trim()) return
-    setSelectedTopic({
-      id: 'user-' + Date.now(),
-      title: customTitle.trim(),
-      reason: '用户自定义选题，立即开始创作',
-      angle: '',
-      sourceCategory: 'USER_WRITE',
-      score: 100,
-    })
-  }
 
   const userName = userProfile?.name || userProfile?.phone || '保险代理人'
   const greeting = getGreeting()
@@ -250,7 +251,7 @@ export default function TopicSquarePage({ onNavigate }) {
             {searching ? '搜索中…' : '搜热点'}
           </button>
           {searchMode && (
-            <button className="tsq-search-back" onClick={() => loadPersonalized()}>
+            <button className="tsq-search-back" onClick={() => loadPersonalized(sourceFilter)}>
               ← 返回推荐
             </button>
           )}
@@ -260,9 +261,15 @@ export default function TopicSquarePage({ onNavigate }) {
       {/* ── 筛选栏 ── */}
       <div className="tsq-filter-bar">
         <div className="tsq-filter-chips-row">
-          <FilterDropdown label="险种" options={INSURANCE_TYPES} active={insuranceFilter} onToggle={v => toggleFilter(insuranceFilter, setInsuranceFilter, v)} />
-          <FilterDropdown label="客群" options={DEMOGRAPHICS} active={demographicFilter} onToggle={v => toggleFilter(demographicFilter, setDemographicFilter, v)} />
-          <FilterDropdown label="平台" options={PLATFORMS} active={platformFilter} onToggle={v => toggleFilter(platformFilter, setPlatformFilter, v)} />
+          <div className="tsq-filter-left">
+            <button className={`tsq-source-btn ${sourceFilter === 'NEWS_HOTSPOT' ? 'active' : ''}`} onClick={() => { setSourceFilter('NEWS_HOTSPOT'); loadPersonalized('NEWS_HOTSPOT') }}>热点库</button>
+            <button className={`tsq-source-btn ${sourceFilter === 'HOT_TEMPLATE' ? 'active' : ''}`} onClick={() => { setSourceFilter('HOT_TEMPLATE'); loadPersonalized('HOT_TEMPLATE') }}>爆款库</button>
+          </div>
+          <div className="tsq-filter-right">
+            <FilterDropdown label="险种" options={INSURANCE_TYPES} active={insuranceFilter} onToggle={v => toggleFilter(insuranceFilter, setInsuranceFilter, v)} />
+            <FilterDropdown label="客群" options={DEMOGRAPHICS} active={demographicFilter} onToggle={v => toggleFilter(demographicFilter, setDemographicFilter, v)} />
+            <FilterDropdown label="平台" options={PLATFORMS} active={platformFilter} onToggle={v => toggleFilter(platformFilter, setPlatformFilter, v)} />
+          </div>
         </div>
 
         <div className="tsq-filter-right">
@@ -271,35 +278,8 @@ export default function TopicSquarePage({ onNavigate }) {
           )}
           <span className="tsq-result-count">{filteredTopics.length} 个结果</span>
 
-          <button className="tsq-btn-custom" onClick={() => setShowCustomPanel(!showCustomPanel)}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-            </svg>
-            指定选题
-          </button>
         </div>
       </div>
-
-      {/* ── 自定义选题输入 ── */}
-      {showCustomPanel && (
-        <div className="tsq-custom-panel">
-          <p className="tsq-custom-label">输入你的选题想法，直接进入创作</p>
-          <div className="tsq-custom-row">
-            <input
-              className="tsq-custom-input"
-              type="text"
-              placeholder="例如：30岁买保险的注意事项..."
-              value={customTitle}
-              onChange={e => setCustomTitle(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleCustomTopicCreate()}
-              autoFocus
-            />
-            <button className="tsq-custom-submit" disabled={!customTitle.trim()} onClick={handleCustomTopicCreate}>
-              开始创作
-            </button>
-          </div>
-        </div>
-      )}
 
       {error && (
         <div className="tsq-error">

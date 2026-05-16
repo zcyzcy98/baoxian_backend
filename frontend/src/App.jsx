@@ -92,7 +92,7 @@ export default function App() {
   const location = useLocation()
   const routerNavigate = useRouterNavigate()
   const [topicPrefill, setTopicPrefill] = useState(null)
-  const [userProfile, setUserProfile] = useState({ name: '', title: '', avatarUrl: null })
+  const [userProfile, setUserProfile] = useState({ name: '', title: '', avatarUrl: null, createdAt: null })
   const [visitedPages, setVisitedPages] = useState(new Set(['topic-square']))
   const [contentPrefill, setContentPrefill] = useState({})
 
@@ -109,11 +109,11 @@ export default function App() {
     if (auth.status === 'active') {
       loadProfile().then(dto => {
         setUserProfile(dto
-          ? { name: dto.name || '', title: dto.years || '', avatarUrl: dto.avatarUrl || null }
-          : { name: '', title: '', avatarUrl: null })
+          ? { name: dto.name || '', title: dto.years || '', avatarUrl: dto.avatarUrl || null, createdAt: dto.createdAt || null }
+          : { name: '', title: '', avatarUrl: null, createdAt: null })
       })
     } else if (auth.status === 'guest') {
-      setUserProfile({ name: '', title: '', avatarUrl: null })
+      setUserProfile({ name: '', title: '', avatarUrl: null, createdAt: null })
     }
   }, [auth.status])
 

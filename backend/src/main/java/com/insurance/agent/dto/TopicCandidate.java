@@ -30,6 +30,7 @@ public class TopicCandidate {
     private String sourceUrl;       // 原文链接 (如有)
     private String sourceCategory;  // 来源分类: SYSTEM_RECOMMEND / HOT_TEMPLATE / KNOWLEDGE_BASE / NEWS_HOTSPOT / USER_WRITE
     private int score;              // 0-100 爆款可能性
+    private int aiScore;            // DeepSeek 给的相关性原始分 1-5（手动刷新评分用）
     private OffsetDateTime createdAt; // 入库时间，用于时间衰减打分
     private String suggestedAgent; // 建议跳转哪个 agent ("xhs-title" / "video-script" 等)
 
@@ -65,6 +66,8 @@ public class TopicCandidate {
     public void setSourceCategory(String sourceCategory) { this.sourceCategory = sourceCategory; }
     public int getScore() { return score; }
     public void setScore(int score) { this.score = score; }
+    public int getAiScore() { return aiScore; }
+    public void setAiScore(int aiScore) { this.aiScore = aiScore; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
     public String getSuggestedAgent() { return suggestedAgent; }

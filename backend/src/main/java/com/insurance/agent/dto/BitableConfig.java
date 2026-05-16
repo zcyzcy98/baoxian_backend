@@ -29,6 +29,13 @@ public class BitableConfig {
     private String kind;
 
     /**
+     * 是否在"选题广场"中展示该表的内容（默认 true）。
+     * 设为 false 可让此表仅供其他功能（如视频创作、向量检索）使用，
+     * 不出现在 /daily 推荐列表里。
+     */
+    private boolean showInTopicSquare = true;
+
+    /**
      * 字段映射: 标准语义名 (英文) → 你飞书表里实际的列名 (中文).
      * 例如 {"title": "标题", "likes": "点赞数"}
      * 没填的字段会用 BitableTopicReader.DEFAULT_FIELD_MAPS 里的默认值.
@@ -82,6 +89,9 @@ public class BitableConfig {
 
     public String getKind() { return kind; }
     public void setKind(String kind) { this.kind = kind; }
+
+    public boolean isShowInTopicSquare() { return showInTopicSquare; }
+    public void setShowInTopicSquare(boolean showInTopicSquare) { this.showInTopicSquare = showInTopicSquare; }
 
     public Map<String, String> getFieldMap() { return fieldMap; }
     public void setFieldMap(Map<String, String> fieldMap) { this.fieldMap = fieldMap; }

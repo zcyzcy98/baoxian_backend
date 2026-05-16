@@ -9,6 +9,7 @@ const FILTER_TABS = [
   { id: 'all',    label: '全部' },
   { id: 'create', label: '生成内容' },
   { id: 'qa',     label: '答疑' },
+  { id: 'topup',  label: '充值' },
 ]
 
 const PLATFORM_LABEL = {
@@ -284,7 +285,7 @@ export default function CreditsPage({ onNavigate, onNavigateWithContentPrefill, 
       {/* 记录列表 */}
       <section className="records-section">
         <div className="records-head">
-          <h3>使用记录</h3>
+          <h3>积分流水</h3>
           <div className="records-tabs">
             {FILTER_TABS.map(t => (
               <button

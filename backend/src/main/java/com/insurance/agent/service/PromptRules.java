@@ -140,6 +140,111 @@ public final class PromptRules {
         return "";
     }
 
+    /**
+     * 口播视频风格规则。在 kouboStoryboardSystem() 之外【追加】一段定制规则，
+     * 不修改原始系统提示词（原文中的语调/语速/字数硬绑定等都保留）。
+     *
+     * 叠加顺序：平台层覆盖（抖音/小红书/视频号）→ 风格层覆盖（personal/professional/warm/sharp）
+     * 输出形如：
+     *
+     *   【平台风格补充】...
+     *   【写作风格补充】...
+     */
+    public static String kouboStyleRules(String styleParam, String platform) {
+        StringBuilder out = new StringBuilder();
+
+        // ── 平台层 ───────────────────────────────────────────────
+        String p = platform == null ? "" : platform.toLowerCase();
+        if (p.contains("抖音") || p.contains("douyin")) {
+            out.append("""
+
+                    【平台风格补充 — 抖音】
+                    1. 开头 1-3 秒必须有强钩子（反问 / 反常识 / 数据冲击），否则用户立刻划走。
+                    2. 节奏快，金句要密集，每段口播都要有"可被截图传播"的小高潮。
+                    3. 情绪反差强：可以用"严肃 → 调侃"或"吐槽 → 干货"切换。
+                    4. 避免太软的开场（"大家好""今天给大家分享"），直接切场景或抛冲突。
+                    5. 末尾 CTA 要强硬一点：明确引导评论/收藏/关注，可用"扣 1""留言"等话术。
+                    """);
+        } else if (p.contains("小红书") || p.contains("xhs") || p.contains("xiaohongshu")) {
+            out.append("""
+
+                    【平台风格补充 — 小红书】
+                    1. 干货密度高，像"过来人朋友分享经验"，避免营销号感和恐吓感。
+                    2. 列点感清晰：可以用"3 个误区""4 个建议"这种结构化口播。
+                    3. 语气克制温和，不要追求短视频"爆款式"反差，要"姐妹/朋友间真诚交流"。
+                    4. 开头可以稍微铺垫场景再切入，不需要像抖音那样上来就抛冲突。
+                    5. 末尾 CTA 偏内敛：引导收藏/评论提问/关注更新，不要硬拉转化。
+                    """);
+        } else if (p.contains("视频号") || p.contains("sph") || p.contains("channels")) {
+            out.append("""
+
+                    【平台风格补充 — 视频号】
+                    1. 故事化叙事优先：可以用一个具体人物或家庭故事贯穿全片。
+                    2. 语速可以稍慢，留有呼吸感，符合视频号"中年/家庭用户"为主的观看习惯。
+                    3. 带温情，少用网络流行语和年轻化表达；保险话题强调"为家人/为父母"的角度。
+                    4. 开头不需要强钩子，可以用一个生活场景娓娓道来。
+                    5. 末尾 CTA 朴素自然，如"关注我，持续分享保险知识"，不要硬性引导评论。
+                    """);
+        }
+
+        // ── 风格层 ───────────────────────────────────────────────
+        if (styleParam != null && !styleParam.isBlank()) {
+            String s = styleParam.toLowerCase();
+            if (s.contains("[个人风格档案]")) {
+                String profileSection = extractProfileSection(styleParam);
+                out.append("""
+
+                        【写作风格补充 — 基于你的个人风格档案】
+                        请把以下风格特征转换为"口播说话方式"：让主播听起来就是这种人在镜头前说话，而不是按模板照念。
+
+                        """).append(profileSection).append("""
+
+                        - 第一人称（"我"）出现频率要符合该风格设定
+                        - 标志性口头禅、过渡词、停顿习惯都要体现在 voiceover 文字里
+                        - 不要套用其他风格的句式
+                        """);
+            } else if ((s.contains("克制") && s.contains("案例")) || s.contains("个人风格")) {
+                out.append("""
+
+                        【写作风格补充 — 个人风格（温暖克制·案例驱动）】
+                        1. 多用"我有个客户""我之前遇到过"这种第一人称切入。
+                        2. 语速适中，有自然停顿，标记 [停顿0.5秒] 比强情绪标记更适用。
+                        3. 不喊口号、不卖焦虑；案例只讲通用场景。
+                        4. 给方向不给推荐，让观众自己判断。
+                        """);
+            } else if (s.contains("严谨") || s.contains("专业") || s.contains("数据驱动")) {
+                out.append("""
+
+                        【写作风格补充 — 专业严谨】
+                        1. 数据先行：每个论点尽量带一个具体数字或案例。
+                        2. 句式偏正式，避免"宝子""家人们"等口头语。
+                        3. 表演提示偏"认真讲解"而非"激动""惊讶"。
+                        4. 必要时解释专业术语，但解释要短，不要拖节奏。
+                        """);
+            } else if (s.contains("温暖") || s.contains("亲切") || s.contains("生活化") || s.contains("朋友聊天")) {
+                out.append("""
+
+                        【写作风格补充 — 温暖亲切】
+                        1. 像跟朋友坐下来聊天的语气，多用"你""咱们""说白了"。
+                        2. 例子优先用生活场景（看病、养娃、养老），让观众一秒共鸣。
+                        3. 情绪温和，不制造焦虑；表演标注偏"微笑""认真倾听感"。
+                        4. 不追求金句，追求"听得进去"。
+                        """);
+            } else if (s.contains("犀利") || s.contains("痛点") || s.contains("节奏快")) {
+                out.append("""
+
+                        【写作风格补充 — 犀利直击】
+                        1. 短句轰炸：每句 8-15 字，节奏快，逗号比句号多。
+                        2. 善用反问、对比："你以为...实际上...""90% 的人都搞错了"。
+                        3. 痛点先行，紧跟可执行方向，不要单纯吓唬人。
+                        4. 表演标注偏"皱眉""强调""敲桌"等加强语气的小动作。
+                        """);
+            }
+        }
+
+        return out.toString();
+    }
+
     private static String extractProfileSection(String styleParam) {
         int start = styleParam.indexOf("[个人风格档案]");
         if (start < 0) return "";

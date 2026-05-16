@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { fetchCreditsBalance } from '../api'
 import './Topbar.css'
 
@@ -8,8 +8,9 @@ export default function Topbar({ breadcrumb, onNavigate, onLogout, phone, profil
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef(null)
   const [credits, setCredits] = useState(null) // { balance, total }
+  const [toast, setToast] = useState(null) // { cost, key }
 
-  const refreshCredits = () => fetchCreditsBalance().then(setCredits).catch(() => {})
+  const refreshCredits = useCallback(() => fetchCreditsBalance().then(setCredits).catch(() => {}), [])
 
   // 初次加载 + 面包屑变化时（说明刚切换了页面/完成了操作）刷新
   useEffect(() => {
@@ -26,7 +27,27 @@ export default function Topbar({ breadcrumb, onNavigate, onLogout, phone, profil
   useEffect(() => {
     window.addEventListener('credits:updated', refreshCredits)
     return () => window.removeEventListener('credits:updated', refreshCredits)
+  }, [refreshCredits])
+
+  // 积分消耗 toast + 立即更新余额显示
+  useEffect(() => {
+    function onConsumed(e) {
+      const { cost, remaining } = e.detail || {}
+      if (!cost) return
+      setToast({ cost, key: Date.now() })
+      if (remaining != null) {
+        setCredits(prev => prev ? { ...prev, balance: remaining } : prev)
+      }
+    }
+    window.addEventListener('credits:consumed', onConsumed)
+    return () => window.removeEventListener('credits:consumed', onConsumed)
   }, [])
+
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 4500)
+    return () => clearTimeout(t)
+  }, [toast])
 
   useEffect(() => {
     if (!menuOpen) return
@@ -52,16 +73,20 @@ export default function Topbar({ breadcrumb, onNavigate, onLogout, phone, profil
         ))}
       </div>
       <div className="top-actions">
-        <div className="credits-chip" onClick={() => onNavigate('credits')}>
-          <span className="star">✦</span>
-          <span className="num">{credits ? credits.balance.toLocaleString() : '—'}</span>
-          <span className="total">/ {credits ? credits.total.toLocaleString() : '8,000'} 积分</span>
-          <div className="credits-bar" style={credits ? { '--pct': `${(credits.balance / credits.total * 100).toFixed(1)}%` } : {}}></div>
+        <div className="credits-chip-wrap">
+          {toast && (
+            <div className="credits-toast" key={toast.key}>
+              <span className="credits-toast-icon">✦</span>
+              -{toast.cost} 积分
+            </div>
+          )}
+          <div className="credits-chip" onClick={() => onNavigate('credits')}>
+            <span className="star">✦</span>
+            <span className="num">{credits ? credits.balance.toLocaleString() : '—'}</span>
+            <span className="total">/ {credits ? credits.total.toLocaleString() : '8,000'} 积分</span>
+            <div className="credits-bar" style={credits ? { '--pct': `${(credits.balance / credits.total * 100).toFixed(1)}%` } : {}}></div>
+          </div>
         </div>
-        <button className="icon-btn" aria-label="通知">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          <span className="badge"></span>
-        </button>
         <div className="avatar-wrap" ref={menuRef}>
           <button className="avatar-btn" aria-label="账户菜单" onClick={() => setMenuOpen(v => !v)}
             style={avatarUrl ? { padding: 0, overflow: 'hidden' } : {}}>

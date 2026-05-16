@@ -5,8 +5,6 @@ import { callAgent } from '../api'
 import { copyToClipboard, stripMarkdown } from '../utils/markdown'
 import './ViralPage.css'
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? ''
-
 export default function ViralXhsPage(props) {
   return <ViralAnalysisPage platform="xhs" {...props} />
 }
@@ -17,7 +15,6 @@ export function ViralAnalysisPage({
   onNavigate, onNavigateWithContentPrefill,
 }) {
   const isXhs = platform === 'xhs'
-  const isDouyin = platform === 'douyin'
   const meta = isXhs
     ? {
         title: '拆解小红书爆款',
@@ -41,28 +38,17 @@ export function ViralAnalysisPage({
     loading: false,
     result: null,
     error: '',
-    showCookiePanel: false,
-    cookieInput: '',
-    hasCookie: false,
-    cookieSaving: false,
-    cookieMsg: '',
   }
   const [url, setUrl] = useState(ST.url)
   const [loading, setLoading] = useState(ST.loading)
   const [result, setResult] = useState(ST.result)
   const [error, setError] = useState(ST.error)
-  const [showCookiePanel, setShowCookiePanel] = useState(ST.showCookiePanel)
-  const [cookieInput, setCookieInput] = useState(ST.cookieInput)
-  const [hasCookie, setHasCookie] = useState(ST.hasCookie)
-  const [cookieSaving, setCookieSaving] = useState(ST.cookieSaving)
-  const [cookieMsg, setCookieMsg] = useState(ST.cookieMsg)
 
   const resetState = () => {
     setUrl(ST.url)
     setLoading(ST.loading)
     setResult(ST.result)
     setError(ST.error)
-    setShowCookiePanel(ST.showCookiePanel)
   }
 
   useEffect(() => {
@@ -72,41 +58,6 @@ export function ViralAnalysisPage({
       onContentPrefillConsumed?.()
     }
   }, [contentPrefill])
-
-  useEffect(() => {
-    if (!isDouyin) return
-    fetch(`${API_BASE}/api/douyin/cookie/status`)
-      .then(r => r.json())
-      .then(d => setHasCookie(!!d.hasCookie))
-      .catch(() => {})
-  }, [isDouyin])
-
-  const saveCookie = async () => {
-    setCookieSaving(true)
-    setCookieMsg('')
-    try {
-      const r = await fetch(`${API_BASE}/api/douyin/cookie`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cookie: cookieInput }),
-      })
-      const d = await r.json()
-      setHasCookie(!!d.hasCookie)
-      setCookieMsg('保存成功')
-      if (d.hasCookie) setTimeout(() => setShowCookiePanel(false), 800)
-    } catch {
-      setCookieMsg('保存失败，请重试')
-    } finally {
-      setCookieSaving(false)
-    }
-  }
-
-  const clearCookie = async () => {
-    await fetch(`${API_BASE}/api/douyin/cookie`, { method: 'DELETE' })
-    setHasCookie(false)
-    setCookieInput('')
-    setCookieMsg('已清除')
-  }
 
   const handleAnalyze = async () => {
     if (!url.trim() || loading) return
@@ -135,52 +86,17 @@ export function ViralAnalysisPage({
             粘贴链接 → AI 自动提取笔记/视频内容并拆解爆款结构, 给出可复用的保险选题建议
           </p>
         </div>
-        {isDouyin && (
-          <button
-            className={`btn-ghost dy-cookie-btn ${hasCookie ? 'has-cookie' : ''}`}
-            onClick={() => { setShowCookiePanel(v => !v); setCookieMsg('') }}
-            title={hasCookie ? 'Cookie 已设置（点击更新）' : '设置抖音 Cookie 以获取更好效果'}
-          >
-            {hasCookie ? '🔑 Cookie 已设置' : '⚙ 设置 Cookie'}
-          </button>
-        )}
         <button className="btn-ghost reset-btn" onClick={resetState} title="清除所有内容重新开始">
           重新开始
         </button>
       </header>
 
-      {isDouyin && showCookiePanel && (
-        <section className="dy-cookie-panel">
-          <h4>抖音 Cookie 设置</h4>
-          <p className="dy-cookie-tip">
-            在浏览器中登录 <strong>douyin.com</strong>，打开 DevTools（F12）→ Network 标签 → 随便点一个请求 →
-            找到 <code>Cookie</code> 请求头 → 复制整行内容粘贴到下方。Cookie 仅保存在服务器内存中，重启后失效。
-          </p>
-          <textarea
-            className="form-input dy-cookie-input"
-            rows={4}
-            placeholder="ttwid=xxx; msToken=xxx; ..."
-            value={cookieInput}
-            onChange={e => setCookieInput(e.target.value)}
-          />
-          <div className="dy-cookie-actions">
-            {cookieMsg && <span className="dy-cookie-msg">{cookieMsg}</span>}
-            {hasCookie && (
-              <button className="btn-ghost" onClick={clearCookie}>清除</button>
-            )}
-            <button className="btn-primary" onClick={saveCookie} disabled={!cookieInput.trim() || cookieSaving}>
-              {cookieSaving ? '保存中…' : '保存'}
-            </button>
-          </div>
-        </section>
-      )}
-
       <section className="viral-input-card">
         <label className="form-label">链接 <span className="required">*</span></label>
         {meta.useTextarea ? (
           <textarea
-            className="form-input"
-            rows={3}
+            className="form-input viral-textarea"
+            rows={1}
             placeholder={meta.placeholder}
             value={url}
             onChange={(e) => setUrl(e.target.value)}

@@ -169,14 +169,37 @@ public class AuthService {
     }
 
     public void addCredits(String phone, int amount) {
-        try (Connection c = dataSource.getConnection();
-             PreparedStatement ps = c.prepareStatement("""
+        try (Connection c = dataSource.getConnection()) {
+            // 先更新积分余额
+            try (PreparedStatement ps = c.prepareStatement("""
                 INSERT INTO users (phone, credits) VALUES (?, ?)
                 ON CONFLICT (phone) DO UPDATE SET credits = users.credits + EXCLUDED.credits
+                RETURNING id, credits
                 """)) {
-            ps.setString(1, phone);
-            ps.setInt(2, amount);
-            ps.executeUpdate();
+                ps.setString(1, phone);
+                ps.setFloat(2, amount);
+                ps.executeUpdate();
+                long userId = -1;
+                int balanceAfter = 0;
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        userId = rs.getLong("id");
+                        balanceAfter = rs.getInt("credits");
+                    }
+                }
+                // 记录充值流水
+                if (userId > 0) {
+                    try (PreparedStatement tx = c.prepareStatement(
+                        "INSERT INTO credit_transactions(user_id, delta, balance_after, action, description) VALUES(?,?,?,?,?)")) {
+                        tx.setLong(1, userId);
+                        tx.setInt(2, amount);
+                        tx.setInt(3, balanceAfter);
+                        tx.setString(4, "topup");
+                        tx.setString(5, "积分充值 +" + amount);
+                        tx.executeUpdate();
+                    }
+                }
+            }
             log.info("[Auth] 积分到账 phone={} amount={}", phone, amount);
         } catch (SQLException e) {
             log.error("[Auth] addCredits 失败: {}", e.getMessage());

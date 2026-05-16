@@ -63,6 +63,15 @@ const ICONS = {
 }
 
 export default function Sidebar({ activeId, onNavigate, profile }) {
+  const daysLeft = (() => {
+    if (!profile?.createdAt) return null
+    const created = new Date(profile.createdAt)
+    const expire = new Date(created)
+    expire.setFullYear(expire.getFullYear() + 1)
+    const diff = Math.ceil((expire - new Date()) / (1000 * 60 * 60 * 24))
+    return diff > 0 ? diff : 0
+  })()
+
   const [expanded, setExpanded] = useState(() => {
     // Auto-expand the group that contains activeId
     const initial = new Set()
@@ -152,8 +161,8 @@ export default function Sidebar({ activeId, onNavigate, profile }) {
       <div className="sidebar-foot">
         <div className="member-card">
           <div className="mc-label">— ANNUAL MEMBER</div>
-          <div className="mc-days">还剩 <b>327</b> 天到期</div>
-          <span className="mc-renew">续费 / 加购积分</span>
+          <div className="mc-days">还剩 <b>{daysLeft ?? '--'}</b> 天到期</div>
+          <span className="mc-renew" onClick={() => onNavigate('credits')}>续费 / 加购积分</span>
         </div>
         <div className="user-mini" onClick={() => onNavigate('profile')} style={{ cursor: 'pointer' }}>
           <div className="avatar" style={profile?.avatarUrl ? { padding: 0, overflow: 'hidden', background: 'transparent' } : {}}>

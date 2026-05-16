@@ -144,6 +144,9 @@ public class TopicAiFilterService {
     }
 
     private void applyAiResult(TopicCandidate c, JsonNode info, int aiScore) {
+        // 保留原始 AI 评分供下游使用（手动刷新独立评分依赖这个字段）
+        c.setAiScore(aiScore);
+
         // whyThisTopic
         String why = info.path("whyThisTopic").asText("");
         if (!why.isBlank()) {

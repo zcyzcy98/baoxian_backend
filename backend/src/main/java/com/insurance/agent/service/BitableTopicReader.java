@@ -103,11 +103,12 @@ public class BitableTopicReader {
         this.configService = configService;
     }
 
-    /** 读所有 active 且填了 appToken/tableId 的飞书表, 转成 TopicCandidate. */
+    /** 读所有 active 且填了 appToken/tableId 且允许出现在选题广场的飞书表, 转成 TopicCandidate. */
     public List<TopicCandidate> readAll(UserProfile profile) {
         List<TopicCandidate> out = new ArrayList<>();
         for (BitableConfig cfg : configService.getAllConfigs()) {
             if (!cfg.isActive()) continue;
+            if (!cfg.isShowInTopicSquare()) continue;   // 不展示在选题广场的表直接跳过
             if (isBlank(cfg.getAppToken()) || isBlank(cfg.getTableId())) continue;
             try {
                 List<TopicCandidate> one = readOne(cfg, profile);

@@ -1112,9 +1112,10 @@ public class AgentController {
             user.append("目标受众: ").append(String.join("、", req.getAudiences())).append("\n");
         if (hasScript) user.append("\n[已有口播脚本]\n").append(req.getScript());
 
+        String styleSuffix = PromptRules.kouboStyleRules(req.getStyle(), req.getPlatform());
         String system = ragMode
-                ? PromptRules.kouboStoryboardSystem() + videoSampleRag.buildAnalyzedContext(user.toString(), req.getStyle(), "口播视频分镜脚本创作", "chat")
-                : PromptRules.kouboStoryboardSystem();
+                ? PromptRules.kouboStoryboardSystem() + styleSuffix + videoSampleRag.buildAnalyzedContext(user.toString(), req.getStyle(), "口播视频分镜脚本创作", "chat")
+                : PromptRules.kouboStoryboardSystem() + styleSuffix;
 
         String content = deepSeek.chat(system, user.toString(), ragMode ? "chat" : req.getModel());
         String modelLabel = ragMode ? deepSeek.resolveModel("chat") + " + 爆款RAG" : deepSeek.resolveModel(req.getModel());

@@ -228,6 +228,35 @@
   border-color: #999;
 }
 
+/* ── 来源切换按钮 ── */
+.tsq-source-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1.5px solid #e8e8e8;
+  background: #fff;
+  color: #555;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.tsq-source-btn:hover {
+  border-color: #c45a2e;
+  color: #c45a2e;
+}
+
+.tsq-source-btn.active {
+  background: #c45a2e;
+  border-color: #c45a2e;
+  color: #fff;
+}
+
+.tsq-filter-left {
+  display: flex;
+  gap: 8px;
+}
+
 /* ── 筛选栏 ── */
 .tsq-filter-bar {
   padding: 6px 24px 10px;
@@ -242,6 +271,8 @@
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .tsq-filter-chip {
@@ -408,7 +439,6 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 2px;
 }
 
 .tsq-clear-filter {
@@ -504,62 +534,6 @@
 .tsq-btn-custom:hover {
   border-color: #1a1a1a;
   color: #1a1a1a;
-}
-
-/* ── 自定义选题面板 ── */
-.tsq-custom-panel {
-  margin: 0 24px 8px;
-  padding: 14px 16px;
-  background: #fafafa;
-  border-radius: 10px;
-  border: 1px solid #ebebeb;
-  flex-shrink: 0;
-}
-
-.tsq-custom-label {
-  font-size: 12.5px;
-  color: #888;
-  margin: 0 0 8px;
-}
-
-.tsq-custom-row {
-  display: flex;
-  gap: 8px;
-}
-
-.tsq-custom-input {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1.5px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 13.5px;
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.tsq-custom-input:focus {
-  border-color: #1a1a1a;
-}
-
-.tsq-custom-submit {
-  padding: 8px 18px;
-  border-radius: 8px;
-  border: none;
-  background: #1a1a1a;
-  color: #fff;
-  font-size: 13.5px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s;
-}
-
-.tsq-custom-submit:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
-.tsq-custom-submit:hover:not(:disabled) {
-  background: #333;
 }
 
 /* ── 错误提示 ── */
