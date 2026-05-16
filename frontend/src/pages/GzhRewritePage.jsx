@@ -9,6 +9,7 @@ import {
 } from '../api'
 import { copyToClipboard, stripMarkdown } from '../utils/markdown'
 import { proxyImageUrl } from '../utils/imageProxy'
+import ConfirmModal, { useConfirmModal } from '../components/ConfirmModal'
 import './XhsCreatePage.css'
 import './GzhRewritePage.css'
 
@@ -110,6 +111,33 @@ export default function GzhRewritePage({
   const [imageError, setImageError] = useState(ST.imageError)
   const [regenIndex, setRegenIndex] = useState(ST.regenIndex)
   const [lightboxUrl, setLightboxUrl] = useState(ST.lightboxUrl)
+  const { confirm, props: confirmProps } = useConfirmModal()
+
+  const goStep = (n) => {
+    if (n < 1 || n > 3 || n === step) return
+    const doGo = () => setStep(n)
+    // Step 3 → 1/2：有配图结果时确认
+    if (step === 3 && n < 3 && (coverImage || (batchImages && batchImages.length > 0))) {
+      confirm({
+        title: '返回会丢失配图',
+        message: '当前生成的配图结果将会丢失，且不可恢复。确定要返回吗？',
+        confirmText: '确认返回',
+        onConfirm: doGo,
+      })
+      return
+    }
+    // Step 2 → 1：有改写结果时确认
+    if (step === 2 && n === 1 && result) {
+      confirm({
+        title: '返回会丢失改写结果',
+        message: '当前生成的改写结果将会丢失，需要重新仿写。确定要返回吗？',
+        confirmText: '确认返回',
+        onConfirm: doGo,
+      })
+      return
+    }
+    doGo()
+  }
 
   const resetState = () => {
     setStep(ST.step); setUrl(ST.url); setExtracted(ST.extracted)
@@ -295,7 +323,7 @@ export default function GzhRewritePage({
         </div>
         <div className="steps">
         {[1, 2, 3].map(s => (
-          <div key={s} className={`step ${step > s ? 'done' : ''} ${step === s ? 'active' : ''}`}>
+          <div key={s} className={`step ${step > s ? 'done' : ''} ${step === s ? 'active' : ''}`} onClick={() => step >= s && goStep(s)}>
             <div className="dot">{step > s ? '✓' : s}</div>
             <div className="step-label">{s === 1 ? '提供原文与改写要求' : s === 2 ? '改写结果' : '配图'}</div>
           </div>
@@ -339,39 +367,35 @@ export default function GzhRewritePage({
                       </span>
                     </div>
 
-                    <div className="gz-source-cover-row">
-                      {extracted.cover && (
-                        <div className="gz-source-cover">
-                          <span className="gz-cover-tag">★ 封面</span>
-                          <img src={proxyImageUrl(extracted.cover)} alt="封面"
-                            onError={e => { e.currentTarget.style.display = 'none' }} />
-                        </div>
-                      )}
-                      <div>
+                    <div className="gz-source-body-row">
+                      {/* 左侧：封面 + 正文图片，竖向滚动 */}
+                      <div className="gz-source-images-col">
+                        {extracted.cover && (
+                          <div className="gz-source-img-thumb gz-source-cover-thumb"
+                            onClick={() => setLightboxUrl(extracted.cover)}>
+                            <img src={proxyImageUrl(extracted.cover)} alt="封面"
+                              onError={e => { e.currentTarget.style.display = 'none' }} />
+                          </div>
+                        )}
+                        {extracted.imageUrls?.map((imgUrl, i) => (
+                          <div key={i} className="gz-source-img-thumb"
+                            onClick={() => setLightboxUrl(imgUrl)}>
+                            <img src={proxyImageUrl(imgUrl)} alt={`图片${i + 1}`}
+                              onError={e => { e.currentTarget.style.display = 'none' }} />
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* 右侧：标题 + 正文 */}
+                      <div className="gz-source-info">
                         <div className="gz-source-title">{extracted.title}</div>
                         {extracted.content && (
                           <div className="gz-source-body">
-                            {extracted.content.slice(0, 500)}{extracted.content.length > 500 ? '…' : ''}
+                            {extracted.content}
                           </div>
                         )}
                       </div>
                     </div>
-
-                    {extracted.imageUrls?.length > 0 && (
-                      <div className="gz-source-images">
-                        <div className="gz-source-images-label">正文图片 ({extracted.imageUrls.length} 张)</div>
-                        <div className="gz-source-images-grid">
-                          {extracted.imageUrls.map((imgUrl, i) => (
-                            <a key={i} href={imgUrl} target="_blank" rel="noreferrer"
-                              className="gz-source-img-thumb"
-                              onClick={(e) => { e.preventDefault(); setLightboxUrl(imgUrl) }}>
-                              <img src={proxyImageUrl(imgUrl)} alt={`图片${i + 1}`}
-                                onError={e => { e.currentTarget.style.display = 'none' }} />
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </>
               )}
@@ -493,7 +517,7 @@ export default function GzhRewritePage({
                 </div>
               </div>
             </div>
-            <button className="gz-btn-tool" onClick={() => setStep(1)}>
+            <button className="gz-btn-tool" onClick={() => goStep(1)}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
               <span>返回修改</span>
             </button>
@@ -577,7 +601,7 @@ export default function GzhRewritePage({
         <div>
           {/* 返回按钮 */}
           <div style={{ marginBottom: 16 }}>
-            <button className="gz-btn-back" onClick={() => setStep(2)}>
+            <button className="gz-btn-back" onClick={() => goStep(2)}>
               ← 回到改写结果
             </button>
           </div>
@@ -751,7 +775,7 @@ export default function GzhRewritePage({
       {lightboxUrl && (
         <div className="gz-lightbox-overlay" onClick={() => setLightboxUrl(null)}>
           <div className="gz-lightbox-box" onClick={e => e.stopPropagation()}>
-            <img src={lightboxUrl} alt="预览" />
+            <img src={proxyImageUrl(lightboxUrl)} alt="预览" />
             <div className="gz-lightbox-actions">
               <button className="gz-lightbox-btn" onClick={() => handleDownload(lightboxUrl)}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -770,7 +794,7 @@ export default function GzhRewritePage({
       <div className="gz-actions-bar">
         <div className="gz-ab-left">
           {step > 1 && (
-            <button className="gz-btn-back" onClick={() => setStep(step - 1)}>
+            <button className="gz-btn-back" onClick={() => goStep(step - 1)}>
               ← {step === 2 ? '返回修改' : '回到改写结果'}
             </button>
           )}
@@ -793,6 +817,8 @@ export default function GzhRewritePage({
           )}
         </div>
       </div>
+
+      <ConfirmModal {...confirmProps} />
     </div>
   )
 }

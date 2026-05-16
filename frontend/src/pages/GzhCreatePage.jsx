@@ -10,6 +10,7 @@ import {
   parseRefUrl,
   fetchStyleProfile,
 } from '../api'
+import ConfirmModal, { useConfirmModal } from '../components/ConfirmModal'
 import './XhsCreatePage.css'
 import './GzhCreatePage.css'
 
@@ -276,6 +277,7 @@ export default function GzhCreatePage({
   const [regenLoadingIndex, setRegenLoadingIndex] = useState(ST.regenLoadingIndex)
   const [lightboxUrl, setLightboxUrl] = useState(ST.lightboxUrl)
   const [showRefModal, setShowRefModal] = useState(ST.showRefModal)
+  const { confirm, props: confirmProps } = useConfirmModal()
 
   const resetState = () => {
     setStep(ST.step); setLoading(ST.loading); setTopic(ST.topic); setDirection(ST.direction)
@@ -348,6 +350,13 @@ export default function GzhCreatePage({
             : String(p.traits)
           if (traitsText) parts.push('特征: ' + traitsText)
         }
+        // 与小红书一致：把 radar 维度也加进来
+        if (p.radar) {
+          const radarText = Object.entries(p.radar)
+            .map(([k, v]) => k + ':' + v)
+            .join('，')
+          if (radarText) parts.push('维度: ' + radarText)
+        }
       } else {
         parts.push('风格: ' + STYLE_MAP[styleOption])
       }
@@ -416,14 +425,16 @@ export default function GzhCreatePage({
   // ─── 配图 ────────────────────────────────────────────────────
   const handleGenerateCover = async (useSeedream = false) => {
     setImageLoading(true)
+    const usedRatio = imgRatio
     try {
       const selectedTitleText = titles[selectedTitle] || ''
       const res = await generateGzhImage({
         topic: selectedTitleText,
-        imageRatio: imgRatio,
+        imageRatio: usedRatio,
         imageProvider: useSeedream ? 'seedream' : 'hiapi',
       })
       setCoverImage(res.imageUrl || null)
+      setResultRatio(usedRatio)
     } catch (e) {
       alert('封面生成失败: ' + e.message)
     } finally {
@@ -435,9 +446,11 @@ export default function GzhCreatePage({
     if (!bodyContent.trim() || batchImgLoading) return
     setBatchImgLoading(true)
     setBatchImgError('')
+    const usedRatio = imgRatio
     try {
-      const data = await generateGzhBatchImages(bodyContent, imgCount, imgRatio, 'hiapi')
+      const data = await generateGzhBatchImages(bodyContent, imgCount, usedRatio, 'hiapi')
       setBatchImgResults(data)
+      setResultRatio(usedRatio)
       setCoverImage(null)
     } catch (e) {
       setBatchImgError(e.message)
@@ -449,7 +462,9 @@ export default function GzhCreatePage({
   const handleRegenOneImage = async (itemIndex, itemDesc, isCover) => {
     setRegenLoadingIndex(itemIndex)
     try {
-      const res = await regenGzhOneImage(bodyContent, itemDesc, imgRatio, 'hiapi', isCover)
+      // 重做用生成时的比例，而不是当前 chip 状态
+      const ratioForRegen = resultRatio || imgRatio
+      const res = await regenGzhOneImage(bodyContent, itemDesc, ratioForRegen, 'hiapi', isCover)
       setBatchImgResults(prev => prev.map((item, i) => {
         if (i !== itemIndex) return item
         return { ...item, imageUrl: res.imageUrl, error: undefined }
@@ -464,7 +479,29 @@ export default function GzhCreatePage({
     }
   }
 
-  const goStep = (n) => { if (n >= 1 && n <= 3) setStep(n) }
+  const goStep = (n) => {
+    if (n < 1 || n > 3 || n === step) return
+    const doGo = () => setStep(n)
+    if (step === 3 && n < 3 && (coverImage || batchImgResults.length > 0)) {
+      confirm({
+        title: '返回会丢失配图',
+        message: '当前生成的配图结果将会丢失，且不可恢复。确定要返回吗？',
+        confirmText: '确认返回',
+        onConfirm: doGo,
+      })
+      return
+    }
+    if (step === 2 && n === 1 && bodyContent) {
+      confirm({
+        title: '返回会丢失正文',
+        message: '当前生成的标题候选与正文将会丢失，且不可恢复。确定要返回吗？',
+        confirmText: '确认返回',
+        onConfirm: doGo,
+      })
+      return
+    }
+    doGo()
+  }
 
   const handleDownload = async (url) => {
     try {
@@ -876,7 +913,7 @@ export default function GzhCreatePage({
                       {batchImgResults.map((item) => (
                         <div key={item.index} className={`batch-image-item ${batchImgLoading ? 'regenerating' : ''}`}>
                           {item.imageUrl ? (
-                            <div className="batch-thumb-wrap gzh-thumb-wrap" style={{ position: 'relative', ...ratioAspectStyle(imgRatio) }}>
+                            <div className="batch-thumb-wrap gzh-thumb-wrap" style={{ position: 'relative', ...ratioAspectStyle(resultRatio || imgRatio) }}>
                               {item.index === 1 && <span className="cover-badge">★ 封面</span>}
                               <a href={item.imageUrl} target="_blank" rel="noreferrer" onClick={(e) => { e.preventDefault(); setLightboxUrl(item.imageUrl) }} style={{ display: 'block', width: '100%', height: '100%' }}>
                                 <img src={item.imageUrl} alt={`配图${item.index}`} className="gzh-thumb-img" />
@@ -892,7 +929,7 @@ export default function GzhCreatePage({
                               </div>
                             </div>
                           ) : (
-                            <div className="batch-thumb-error gzh-thumb-error" style={ratioAspectStyle(imgRatio)}><span>生成失败</span>{item.error && <small>{item.error}</small>}</div>
+                            <div className="batch-thumb-error gzh-thumb-error" style={ratioAspectStyle(resultRatio || imgRatio)}><span>生成失败</span>{item.error && <small>{item.error}</small>}</div>
                           )}
                         </div>
                       ))}
@@ -902,7 +939,7 @@ export default function GzhCreatePage({
                   {/* 单张封面结果 */}
                   {!batchImgLoading && batchImgResults.length === 0 && coverImage && (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16, maxWidth: 720, margin: '0 auto' }}>
-                      <div className="batch-thumb-wrap gzh-thumb-wrap" style={{ position: 'relative', ...ratioAspectStyle(imgRatio) }}>
+                      <div className="batch-thumb-wrap gzh-thumb-wrap" style={{ position: 'relative', ...ratioAspectStyle(resultRatio || imgRatio) }}>
                         <a href={coverImage} target="_blank" rel="noreferrer" onClick={(e) => { e.preventDefault(); setLightboxUrl(coverImage) }} style={{ display: 'block', width: '100%', height: '100%' }}>
                           <img src={coverImage} alt="封面" className="gzh-thumb-img" />
                         </a>
@@ -975,6 +1012,8 @@ export default function GzhCreatePage({
 
       <RefMaterialModal show={showRefModal} onClose={() => setShowRefModal(false)}
         onAdd={(ref) => { setRefMaterials(prev => [...prev, ref]) }} />
+
+      <ConfirmModal {...confirmProps} />
 
       {lightboxUrl && (
         <div className="lightbox-overlay" onClick={() => setLightboxUrl(null)}>

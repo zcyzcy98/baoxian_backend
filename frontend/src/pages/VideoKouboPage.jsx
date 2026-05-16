@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { callAgent, generateSeedanceSegment, mergeVideos } from '../api'
+import ConfirmModal, { useConfirmModal } from '../components/ConfirmModal'
 import './VideoKouboPage.css'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -594,15 +595,38 @@ export default function VideoKouboPage({ topicPrefill, onPrefillConsumed, isActi
   const platformLabel = PLATFORMS.find(p => p.id === platform)?.label || ''
   const selectedTitleText = titles[selectedTitle]?.text || ''
 
+  // ── 步骤切换 + 返回确认 ──────────────────────────────────────────────────
+  const { confirm, props: confirmProps } = useConfirmModal()
+
+  const goStep = (n) => {
+    if (n < 1 || n > 3 || n === step) return
+    const doGo = () => setStep(n)
+    if (n < step) {
+      const willLose = []
+      if (n < 2 && step >= 2 && (shots.length > 0 || titles.length > 0)) willLose.push('分镜脚本与标题')
+      if (n < 3 && step >= 3 && (seedanceSegments.length > 0 || mergedVideoUrl)) willLose.push('已生成的视频')
+      if (willLose.length > 0) {
+        confirm({
+          title: '返回会丢失内容',
+          message: `当前 ${willLose.join('、')} 将会丢失，且不可恢复。确定要返回吗？`,
+          confirmText: '确认返回',
+          onConfirm: doGo,
+        })
+        return
+      }
+    }
+    doGo()
+  }
+
   // ── back/next bar logic ───────────────────────────────────────────────────
   function handleBack() {
-    if (step > 1) setStep(s => s - 1)
+    if (step > 1) goStep(step - 1)
   }
 
   function handleNext() {
     if (step === 1) handleGenStoryboard()
     else if (step === 2) goGenerate()
-    else setStep(1)
+    else goStep(1)
   }
 
   const STEP_CONFIG = {
@@ -647,7 +671,7 @@ export default function VideoKouboPage({ topicPrefill, onPrefillConsumed, isActi
             <div
               key={s.id}
               className={`vk-step${step === s.id ? ' active' : step > s.id ? ' done' : ''}`}
-              onClick={() => step > s.id && setStep(s.id)}
+              onClick={() => step > s.id && goStep(s.id)}
             >
               <div className="vk-step-dot">{step > s.id ? '✓' : s.id}</div>
               <div className="vk-step-label">{s.label}</div>
@@ -1478,6 +1502,7 @@ export default function VideoKouboPage({ topicPrefill, onPrefillConsumed, isActi
         </div>
       )}
 
+      <ConfirmModal {...confirmProps} />
     </div>
   )
 }

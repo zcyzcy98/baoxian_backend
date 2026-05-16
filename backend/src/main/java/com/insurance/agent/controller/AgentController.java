@@ -473,7 +473,8 @@ public class AgentController {
 
                 请输出 5 个候选标题，按点击率预估从高到低排列，每行一个，不带编号和 markdown 格式。
                 ⛔ 严禁加方括号标签 ⛔ 严禁加 1. 2. 3. 编号
-                """ + PromptRules.wechatPlatform()
+                """ + PromptRules.wechatStyleRules(req.getStyle())
+                + PromptRules.wechatPlatform()
                 + PromptRules.insuranceCompliance()
                 + PromptRules.outputDiscipline();
         StringBuilder userBuilder = new StringBuilder("主题: ").append(req.getTopic());
@@ -521,7 +522,8 @@ public class AgentController {
 
                 【输出格式】
                 直接输出正文内容，不要输出任何前言、说明或标题行。不要 emoji，不要话题标签（公众号文章不需要）。
-                """ + PromptRules.wechatPlatform()
+                """ + PromptRules.wechatStyleRules(req.getStyle())
+                + PromptRules.wechatPlatform()
                 + PromptRules.insuranceCompliance()
                 + PromptRules.factuality()
                 + PromptRules.outputDiscipline()).formatted(wordCount);
@@ -683,6 +685,7 @@ public class AgentController {
                 - 杂志/编辑设计风，不要小红书卡片风
                 - 推荐配色：深蓝、墨绿、藏青、暖橙、米白、深灰
                 - 严禁水印、品牌 logo、二维码、低质量 AI 真人脸
+                - ⛔ 非必要不出现具体的日期或时间（如 "2024 年 3 月"、"今年""明年"、"截止 X 月 X 日" 等）。除非主题本身就是政策时间节点，否则一律不要写日期。
 
                 【输出格式】
                 [IMAGE_PROMPT]
@@ -906,7 +909,8 @@ public class AgentController {
                     String videoAnalysis = result.document();
                     
                     String analysisPrompt = """
-                            你是一位专业的短视频爆款分析专家。请基于以下视频分析结果和补充信息，进行爆款分析。
+                            你是一位专业的短视频爆款分析专家，擅长保险类口播视频的深度拆解。
+                            请基于以下视频分析结果和补充信息，输出结构化 JSON 分析报告。
 
                             视频分析结果（来自视觉分析）：
                             %s
@@ -914,19 +918,62 @@ public class AgentController {
                             补充信息（来自平台提取）：
                             %s
 
-                            请按照以下结构进行分析：
-                            1. **钩子分析**：视频的开头是如何吸引观众的？画面、文案、节奏有什么特别之处？
-                            2. **内容结构**：视频的内容组织结构有什么可借鉴的地方？
-                            3. **节奏把控**：视频的节奏是如何安排的？快慢如何搭配？
-                            4. **视觉表现**：画面、色彩、字幕、构图有什么可借鉴的？
-                            5. **情绪价值**：视频传递了哪些情绪价值？是如何调动观众情绪的？
-                            6. **金句/记忆点**：视频中有哪些让人印象深刻的金句或记忆点？
-                            7. **可仿写要点**：提炼出3-5个可以直接仿写的核心要点
+                            【输出要求】严格输出纯 JSON，不要加任何注释、代码块符号或前置说明。JSON 结构如下：
+                            {
+                              "summary": {
+                                "video_type": "视频类型（如：口播科普型、情感共鸣型、数据反差型等）",
+                                "duration": "视频时长",
+                                "hook_highlight": "一句话概括最大爆点",
+                                "platform": "发布平台"
+                              },
+                              "topic": {
+                                "tags": ["话题标签1", "话题标签2", "话题标签3"],
+                                "theme": "主题归类说明，2-3句话概括内容定位和目标人群"
+                              },
+                              "structure": [
+                                {"role": "钩子", "time": "0:00-0:09", "text": "这段做了什么，为什么有效"},
+                                {"role": "展开", "time": "0:09-0:43", "text": "这段做了什么，为什么有效"},
+                                {"role": "高潮", "time": "0:43-1:13", "text": "这段做了什么，为什么有效"},
+                                {"role": "收尾", "time": "1:13-1:18", "text": "这段做了什么，为什么有效"}
+                              ],
+                              "script_segments": [
+                                {
+                                  "index": 1,
+                                  "scene": "画面描述（景别、场景、人物动作）",
+                                  "dialog": "口播原文或对话台词",
+                                  "speaker": "说话人（如有多个角色）",
+                                  "time": "时间段"
+                                }
+                              ],
+                              "characters": [
+                                {
+                                  "name": "人物名称或代称",
+                                  "role": "角色定位（如：引导者、主角、质疑者）",
+                                  "desc": "简要描述（年龄、身份、出现在哪些分镜）"
+                                }
+                              ],
+                              "viral_points": [
+                                {
+                                  "title": "爆点标题",
+                                  "tag": "Hook/Pacing/Empathy/Data/Visual",
+                                  "desc": "具体分析，说明为什么这个点能引爆"
+                                }
+                              ],
+                              "suggestions": [
+                                {
+                                  "label": "主题建议/结构建议/角色建议/平台建议",
+                                  "title": "建议标题",
+                                  "body": "具体建议内容，要有可操作性"
+                                }
+                              ]
+                            }
 
                             注意：
                             - 要结合视觉分析和文案信息一起分析
                             - 分析要具体，不要泛泛而谈
-                            - 可仿写要点要具有可操作性
+                            - script_segments 要尽量还原视频的完整脚本，按分镜拆分
+                            - viral_points 至少分析 3 个爆点
+                            - suggestions 至少给出 3 条仿做建议
                             """.formatted(videoAnalysis, videoDesc);
 
                     String content = deepSeek.chat(analysisPrompt, "请分析这个爆款视频的原因", req.getModel());
@@ -951,30 +998,45 @@ public class AgentController {
             }
 
             String analysisPrompt = """
-                    你是一位专业的短视频爆款分析专家。请对提供的素材进行爆款分析。
+                    你是一位专业的短视频爆款分析专家，擅长保险类口播视频的深度拆解。
+                    请对提供的素材进行爆款分析，输出结构化 JSON。
 
                     注意：
-                    - 你可能拿到的是完整的视频文案，也可能只是标题和一些基础信息，请根据你获取到的信息灵活分析
-                    - 如果素材信息较少，请重点分析：标题吸引力、话题选择等
-                    - 请务必给出具体、可操作的分析，不要泛泛而谈
+                    - 你可能拿到的是完整的视频文案，也可能只是标题和一些基础信息，请根据获取到的信息灵活分析
+                    - 如果素材信息较少，重点分析标题吸引力、话题选择等，对应字段可以简短但必须保留
+                    - 分析要具体、可操作，不要泛泛而谈
 
-                    请按照以下结构进行分析：
-
-                    1. **钩子分析**
-                    - 标题/开头是如何吸引观众的？
-                    - 用了什么技巧（提问、痛点、悬念、数字等）？
-
-                    2. **内容结构**
-                    - 整体内容的组织结构有什么可借鉴的？
-                    - 是如何层层递进的？
-
-                    3. **情绪价值**
-                    - 传递了哪些情绪价值？
-                    - 是如何调动观众情绪的？
-
-                    4. **可仿写要点**（最重要！）
-                    - 请提炼出3-5个可以直接仿写的核心要点
-                    - 要具体，有可操作性
+                    【输出要求】严格输出纯 JSON，不要加任何注释、代码块符号或前置说明。JSON 结构如下：
+                    {
+                      "summary": {
+                        "video_type": "视频类型",
+                        "duration": "视频时长",
+                        "hook_highlight": "一句话概括最大爆点",
+                        "platform": "发布平台"
+                      },
+                      "topic": {
+                        "tags": ["话题标签1", "话题标签2", "话题标签3"],
+                        "theme": "主题归类说明，2-3句话"
+                      },
+                      "structure": [
+                        {"role": "钩子", "time": "时间段", "text": "分析"},
+                        {"role": "展开", "time": "时间段", "text": "分析"},
+                        {"role": "高潮", "time": "时间段", "text": "分析"},
+                        {"role": "收尾", "time": "时间段", "text": "分析"}
+                      ],
+                      "script_segments": [
+                        {"index": 1, "scene": "画面描述", "dialog": "口播原文", "speaker": "说话人", "time": "时间段"}
+                      ],
+                      "characters": [
+                        {"name": "人物", "role": "角色定位", "desc": "描述"}
+                      ],
+                      "viral_points": [
+                        {"title": "爆点标题", "tag": "Hook/Pacing/Empathy/Data", "desc": "具体分析"}
+                      ],
+                      "suggestions": [
+                        {"label": "建议类别", "title": "建议标题", "body": "具体建议"}
+                      ]
+                    }
 
                     以下是分析素材：
                     %s

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { callAgent, generateImage, generateSeedreamImage, fetchImageTemplates, generateXhsBatchImages, regenOneImage, parseRefMaterial, parseRefUrl, fetchStyleProfile } from '../api'
+import ConfirmModal, { useConfirmModal } from '../components/ConfirmModal'
 import './XhsCreatePage.css'
 
 const COUNT_OPTIONS = [1, 3, 6, 9]
@@ -266,6 +267,7 @@ export default function XhsCreatePage({
   const [styleProfile, setStyleProfile] = useState(ST.styleProfile)
   const [imgMode, setImgMode] = useState(ST.imgMode)
   const [showRefModal, setShowRefModal] = useState(ST.showRefModal)
+  const { confirm, props: confirmProps } = useConfirmModal()
 
   const resetState = () => {
     setStep(ST.step)
@@ -529,7 +531,29 @@ export default function XhsCreatePage({
   }
 
   const goStep = (n) => {
-    if (n >= 1 && n <= 3) setStep(n)
+    if (n < 1 || n > 3 || n === step) return
+    const doGo = () => setStep(n)
+    // Step 3 → 1/2：有配图结果时确认
+    if (step === 3 && n < 3 && (images.length > 0 || batchImgResults.length > 0)) {
+      confirm({
+        title: '返回会丢失配图',
+        message: '当前生成的配图结果将会丢失，且不可恢复。确定要返回吗？',
+        confirmText: '确认返回',
+        onConfirm: doGo,
+      })
+      return
+    }
+    // Step 2 → 1：有正文时确认
+    if (step === 2 && n === 1 && bodyContent) {
+      confirm({
+        title: '返回会丢失正文',
+        message: '当前生成的标题候选与正文将会丢失，且不可恢复。确定要返回吗？',
+        confirmText: '确认返回',
+        onConfirm: doGo,
+      })
+      return
+    }
+    doGo()
   }
 
   const handleDownload = async (url) => {
@@ -1068,6 +1092,8 @@ export default function XhsCreatePage({
       {/* 参考资料弹窗 */}
       <RefMaterialModal show={showRefModal} onClose={() => setShowRefModal(false)}
         onAdd={(ref) => { setRefMaterials(prev => [...prev, ref]) }} />
+
+      <ConfirmModal {...confirmProps} />
 
       {/* Lightbox */}
       {lightboxUrl && (
