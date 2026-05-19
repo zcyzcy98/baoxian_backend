@@ -254,6 +254,7 @@ public class CustomerAdvisoryService {
 
         // 3. 调用 DeepSeek
         String rawResponse = deepSeek.chat(SYSTEM_PROMPT, userPrompt, "chat");
+        log.info("[Advisory] 原始响应长度={} 内容={}", rawResponse.length(), truncate(rawResponse, 500));
 
         // 4. 解析 JSON
         Map<String, Object> analysis = parseAnalysisJson(rawResponse);
@@ -354,23 +355,95 @@ public class CustomerAdvisoryService {
     @SuppressWarnings("unchecked")
     private Map<String, Object> parseAnalysisJson(String raw) {
         try {
-            String text = raw == null ? "" : raw.trim();
-            text = text.replaceAll("(?s)^```json\\s*", "").replaceAll("(?s)```\\s*$", "").trim();
-            text = text.replaceAll("(?s)^```\\s*", "").trim();
-            int start = text.indexOf('{');
-            int end = text.lastIndexOf('}');
-            if (start >= 0 && end > start) text = text.substring(start, end + 1);
+            String text = extractJsonText(raw);
+            log.info("[Advisory] JSON 解析输入: {}", truncate(text, 300));
             return mapper.readValue(text, new TypeReference<Map<String, Object>>() {});
         } catch (Exception e) {
-            log.warn("[Advisory] JSON 解析失败，回退到原始文本: {}", e.getMessage());
-            Map<String, Object> fallback = new LinkedHashMap<>();
-            fallback.put("trueIntent", raw);
-            fallback.put("responseStable", raw);
-            fallback.put("emotionState", "分析中");
-            fallback.put("anxietyLevel", 3);
-            fallback.put("nextSteps", List.of("请查看上方原始分析内容"));
-            return fallback;
+            log.warn("[Advisory] JSON 直接解析失败({})，尝试修复未转义引号...", e.getMessage());
+            try {
+                String text = extractJsonText(raw);
+                text = fixUnescapedInnerQuotes(text);
+                log.info("[Advisory] 修复后 JSON: {}", truncate(text, 300));
+                return mapper.readValue(text, new TypeReference<Map<String, Object>>() {});
+            } catch (Exception e2) {
+                log.warn("[Advisory] JSON 解析最终失败，回退到原始文本: {}", e2.getMessage());
+                Map<String, Object> fallback = new LinkedHashMap<>();
+                fallback.put("trueIntent", raw);
+                fallback.put("responseStable", raw);
+                fallback.put("emotionState", "分析中");
+                fallback.put("anxietyLevel", 3);
+                fallback.put("nextSteps", List.of("请查看上方原始分析内容"));
+                return fallback;
+            }
         }
+    }
+
+    /** 从 LLM 响应中提取 JSON 文本，兼容代码块包裹 */
+    private String extractJsonText(String raw) {
+        String text = raw == null ? "" : raw.trim();
+        java.util.regex.Matcher codeBlock = java.util.regex.Pattern
+                .compile("```(?:json)?\\s*\\n?(\\{[\\s\\S]*?\\})\\s*\\n?```")
+                .matcher(text);
+        if (codeBlock.find()) {
+            return codeBlock.group(1).trim();
+        }
+        int start = text.indexOf('{');
+        int end = text.lastIndexOf('}');
+        if (start >= 0 && end > start) return text.substring(start, end + 1);
+        return text;
+    }
+
+    /**
+     * 修复 Claude 输出的 JSON 中未转义的内部双引号。
+     * Claude 有时在字符串值内输出 "医保" 而不是 \"医保\"，导致 Jackson 解析失败。
+     * 策略：逐字符状态机，跟踪 JSON 字符串边界，将内部引号交替替换为「」。
+     */
+    private String fixUnescapedInnerQuotes(String json) {
+        StringBuilder sb = new StringBuilder(json.length());
+        boolean inString = false;
+        boolean escapeNext = false;
+        boolean innerQuoteIsOpen = true; // 下一个内部引号是开引号
+        for (int i = 0; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (escapeNext) {
+                sb.append(c);
+                escapeNext = false;
+                continue;
+            }
+            if (c == '\\' && inString) {
+                sb.append(c);
+                escapeNext = true;
+                continue;
+            }
+            if (c == '"') {
+                if (!inString) {
+                    // 结构性开引号
+                    inString = true;
+                    innerQuoteIsOpen = true;
+                    sb.append(c);
+                } else {
+                    // 在字符串内遇到 " — 判断是内部引号还是结构性闭引号
+                    char next = (i + 1 < json.length()) ? json.charAt(i + 1) : '\0';
+                    if (next == ',' || next == '}' || next == ']' || next == ':'
+                            || next == ' ' || next == '\n' || next == '\r' || next == '\t' || next == '\0') {
+                        // 结构性闭引号（后面跟 JSON 结构字符或空白/EOF）
+                        inString = false;
+                        sb.append(c);
+                    } else {
+                        // 内部未转义引号 — 交替替换为「」
+                        if (innerQuoteIsOpen) {
+                            sb.append("「");
+                        } else {
+                            sb.append("」");
+                        }
+                        innerQuoteIsOpen = !innerQuoteIsOpen;
+                    }
+                }
+                continue;
+            }
+            sb.append(c);
+        }
+        return sb.toString();
     }
 
     private long saveMessage(long sessionId, String customerInfo, String question,
@@ -436,5 +509,10 @@ public class CustomerAdvisoryService {
 
     private Connection openConnection() throws SQLException {
         return dataSource.getConnection();
+    }
+
+    private String truncate(String s, int n) {
+        if (s == null) return "null";
+        return s.length() <= n ? s : s.substring(0, n) + "…(" + s.length() + ")";
     }
 }

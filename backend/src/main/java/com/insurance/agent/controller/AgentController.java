@@ -977,6 +977,7 @@ public class AgentController {
                             """.formatted(videoAnalysis, videoDesc);
 
                     String content = deepSeek.chat(analysisPrompt, "请分析这个爆款视频的原因", req.getModel());
+                    content = stripCodeFences(content);
                     return ResponseEntity.ok(new AgentResponse(content, deepSeek.resolveModel(req.getModel()) + " + 真实视频分析"));
                 } catch (Exception e) {
                     log.error("[爆款分析] 火山方舟API调用失败: {}", e.getMessage(), e);
@@ -1044,6 +1045,7 @@ public class AgentController {
 
             log.info("[爆款分析] 使用降级文案分析，内容长度: {}", videoContent.length());
             String content = deepSeek.chat(analysisPrompt, "请分析这个爆款视频的原因", req.getModel());
+            content = stripCodeFences(content);
             return ResponseEntity.ok(new AgentResponse(content, deepSeek.resolveModel(req.getModel()) + " + 文案分析"));
         }
 
@@ -1698,6 +1700,20 @@ public class AgentController {
 
     private static boolean isBlank(String s) {
         return s == null || s.isBlank();
+    }
+
+    /** 剥离 Claude/DeepSeek 可能包裹的 markdown 代码块，返回纯内容 */
+    private static String stripCodeFences(String text) {
+        if (text == null) return "";
+        String trimmed = text.trim();
+        // 尝试提取 ```json ... ``` 或 ``` ... ``` 中的内容
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("```(?:json)?\\s*\\n?([\\s\\S]*?)\\n?\\s*```")
+                .matcher(trimmed);
+        if (m.find()) {
+            return m.group(1).trim();
+        }
+        return trimmed;
     }
 
     private static String blankFallback(String s, String fallback) {

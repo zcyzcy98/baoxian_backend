@@ -261,21 +261,60 @@ public class SeedanceService {
         }
 
         try {
-            String json = raw.replaceAll("(?s)```[a-zA-Z]*\\s*", "").replaceAll("```", "").trim();
-            JsonNode root = mapper.readTree(json);
-            JsonNode segs = root.path("segments");
-            List<Segment> result = new ArrayList<>();
-            for (JsonNode s : segs) {
-                result.add(new Segment(
-                        s.path("script").asText("").trim(),
-                        s.path("prompt").asText("").trim(),
-                        Math.max(8, Math.min(15, s.path("duration_estimate").asInt(10)))));
+            String json = extractJsonFromCodeBlock(raw);
+            try {
+                JsonNode root = mapper.readTree(json);
+                JsonNode segs = root.path("segments");
+                List<Segment> result = new ArrayList<>();
+                for (JsonNode s : segs) {
+                    result.add(new Segment(
+                            s.path("script").asText("").trim(),
+                            s.path("prompt").asText("").trim(),
+                            Math.max(8, Math.min(15, s.path("duration_estimate").asInt(10)))));
+                }
+                if (!result.isEmpty()) return result;
+            } catch (Exception e) {
+                // Claude 有时输出未转义的内部引号，尝试修复后再解析
+                log.warn("[Seedance] JSON 解析失败({})，尝试修复引号...", e.getMessage());
+                String fixed = fixUnescapedInnerQuotes(json);
+                JsonNode root = mapper.readTree(fixed);
+                JsonNode segs = root.path("segments");
+                List<Segment> result = new ArrayList<>();
+                for (JsonNode s : segs) {
+                    result.add(new Segment(
+                            s.path("script").asText("").trim(),
+                            s.path("prompt").asText("").trim(),
+                            Math.max(8, Math.min(15, s.path("duration_estimate").asInt(10)))));
+                }
+                if (!result.isEmpty()) return result;
             }
-            if (!result.isEmpty()) return result;
         } catch (Exception e) {
             log.warn("[Seedance] JSON 解析失败，降级为简单切分: {}", e.getMessage());
         }
         return fallbackSplit(script);
+    }
+
+    /** 从 LLM 响应中提取 JSON，兼容 markdown 代码块包裹 */
+    private String extractJsonFromCodeBlock(String raw) {
+        if (raw == null) return "";
+        String text = raw.trim();
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("```(?:json)?\\s*\\n?(\\{[\\s\\S]*?\\})\\s*\\n?```")
+                .matcher(text);
+        if (m.find()) return m.group(1).trim();
+        // 没有代码块，直接找 { ... }
+        int start = text.indexOf('{');
+        int end = text.lastIndexOf('}');
+        if (start >= 0 && end > start) return text.substring(start, end + 1);
+        return text;
+    }
+
+    /** 修复 Claude 输出的 JSON 中未转义的内部双引号 */
+    private String fixUnescapedInnerQuotes(String json) {
+        return java.util.regex.Pattern
+                .compile("(?<=[\\u4e00-\\u9fff，。、！？；：])\"([^\"]{1,40})\"(?=[\\u4e00-\\u9fff，。、！？；：])")
+                .matcher(json)
+                .replaceAll("「$1」");
     }
 
     private List<Segment> fallbackSplit(String script) {

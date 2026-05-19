@@ -445,9 +445,27 @@ public class StyleService {
         return raw;
     }
 
+    /** 修复 Claude 输出的 JSON 中未转义的内部双引号 */
+    private String fixUnescapedInnerQuotes(String json) {
+        return java.util.regex.Pattern
+                .compile("(?<=[\\u4e00-\\u9fff，。、！？；：])\"([^\"]{1,40})\"(?=[\\u4e00-\\u9fff，。、！？；：])")
+                .matcher(json)
+                .replaceAll("「$1」");
+    }
+
     private Object parseJson(String json) {
         if (json == null || json.isBlank()) return null;
-        try { return mapper.readValue(json, Object.class); } catch (Exception e) { return null; }
+        try {
+            return mapper.readValue(json, Object.class);
+        } catch (Exception e) {
+            // Claude 有时输出未转义的内部引号，尝试修复后再解析
+            try {
+                String fixed = fixUnescapedInnerQuotes(json);
+                return mapper.readValue(fixed, Object.class);
+            } catch (Exception e2) {
+                return null;
+            }
+        }
     }
 
     private String buildXhsText(String title, String content) {
