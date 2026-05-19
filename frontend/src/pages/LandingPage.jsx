@@ -219,7 +219,16 @@ export default function LandingPage({ onAuthSuccess, noAccess, phone: naBannerPh
             <a href="#contact">联系</a>
           </div>
           <div className="nav-cta">
-            <button className="btn btn-text" onClick={() => openModal()}>登录 / 注册</button>
+            {noAccess ? (
+              <>
+                <span className="btn btn-text" style={{cursor:'default'}}>
+                  {naBannerPhone?.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}
+                </span>
+                <button className="btn btn-ghost" onClick={onLogout}>退出</button>
+              </>
+            ) : (
+              <button className="btn btn-text" onClick={() => openModal()}>登录 / 注册</button>
+            )}
             <a href="#pricing" className="btn btn-primary">立即开通</a>
           </div>
         </div>
