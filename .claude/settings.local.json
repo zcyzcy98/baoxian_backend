@@ -56,11 +56,7 @@
       "Bash(java -version)",
       "Bash(ps *)",
       "Bash(curl -s \"http://localhost:5174/src/pages/DramaPage.jsx\")",
-      "Bash(unzip -o \"/Users/yang2krown/Downloads/crosstalk-script-v3.zip\" -d crosstalk-script)",
-      "Bash(ffprobe *)",
-      "Bash(brew list *)",
-      "Bash(python3 -c \"import cv2; print\\(cv2.__version__\\)\")",
-      "Bash(python3 -c \"from moviepy.editor import VideoFileClip; print\\('moviepy available'\\)\")"
+      "Bash(unzip -o \"/Users/yang2krown/Downloads/crosstalk-script-v3.zip\" -d crosstalk-script)"
     ]
   }
 }
