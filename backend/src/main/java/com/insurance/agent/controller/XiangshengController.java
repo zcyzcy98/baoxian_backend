@@ -37,9 +37,8 @@ public class XiangshengController {
         return authService.userIdByToken(auth.substring(7));
     }
 
-    @GetMapping("/styles")
-    public ResponseEntity<?> getStyles() {
-        return ResponseEntity.ok(XiangshengPromptTemplates.styleOptions());
+    private String defaultVal(String value, String defaultVal) {
+        return (value != null && !value.isBlank()) ? value : defaultVal;
     }
 
     private ResponseEntity<?> checkCredits(long userId, int cost) {
@@ -49,6 +48,34 @@ public class XiangshengController {
                     .body(Map.of("error", "积分不足（当前 " + balance + " 积分，需要 " + cost + " 积分）"));
         }
         return null;
+    }
+
+    /**
+     * 获取所有维度选项
+     */
+    @GetMapping("/dimensions")
+    public ResponseEntity<?> getDimensions() {
+        return ResponseEntity.ok(XiangshengPromptTemplates.dimensionOptions());
+    }
+
+    /**
+     * AI智能推荐：分析主题，推荐最佳维度组合
+     */
+    @PostMapping("/recommend")
+    public ResponseEntity<?> recommend(@RequestBody XiangshengRequest req,
+                                        @RequestHeader(value = "Authorization", required = false) String auth) {
+        if (req.getTopic() == null || req.getTopic().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "请输入选题"));
+        }
+
+        long userId = resolveUserId(auth);
+        ResponseEntity<?> creditCheck = checkCredits(userId, 1);
+        if (creditCheck != null) return creditCheck;
+
+        var result = xiangshengService.recommend(req.getTopic(), req.getModel());
+
+        creditsService.deduct(userId, 1, "xiangsheng_recommend", "AI推荐", null);
+        return ResponseEntity.ok(result);
     }
 
     /**
@@ -65,8 +92,16 @@ public class XiangshengController {
         ResponseEntity<?> creditCheck = checkCredits(userId, 15);
         if (creditCheck != null) return creditCheck;
 
-        int styleIndex = req.getStyleIndex() != null ? req.getStyleIndex() : 1;
-        XiangshengResponse result = xiangshengService.fullPipeline(req.getTopic(), styleIndex, req.getModel());
+        XiangshengResponse result = xiangshengService.fullPipeline(
+                req.getTopic(),
+                defaultVal(req.getHookType(), "身份权威型"),
+                defaultVal(req.getStructure(), "反转五段式"),
+                defaultVal(req.getEmotionArc(), "偏见→反驳→致敬"),
+                defaultVal(req.getAudience(), "C端潜在客户"),
+                defaultVal(req.getTopicDirection(), "反驳偏见"),
+                req.getToneStyle(),
+                req.getDuration(),
+                req.getModel());
 
         Long contentId = generatedContentService.save("xiangsheng_script",
                 result.getStyleName() + " | " + req.getTopic(),
@@ -91,8 +126,16 @@ public class XiangshengController {
         ResponseEntity<?> creditCheck = checkCredits(userId, 5);
         if (creditCheck != null) return creditCheck;
 
-        int styleIndex = req.getStyleIndex() != null ? req.getStyleIndex() : 1;
-        var result = xiangshengService.stage1(req.getTopic(), styleIndex, req.getModel());
+        var result = xiangshengService.stage1(
+                req.getTopic(),
+                defaultVal(req.getHookType(), "身份权威型"),
+                defaultVal(req.getStructure(), "反转五段式"),
+                defaultVal(req.getEmotionArc(), "偏见→反驳→致敬"),
+                defaultVal(req.getAudience(), "C端潜在客户"),
+                defaultVal(req.getTopicDirection(), "反驳偏见"),
+                req.getToneStyle(),
+                req.getDuration(),
+                req.getModel());
 
         Long contentId = generatedContentService.save("xiangsheng_dialogue",
                 result.styleName() + " | " + req.getTopic(),
@@ -119,7 +162,7 @@ public class XiangshengController {
         ResponseEntity<?> creditCheck = checkCredits(userId, 5);
         if (creditCheck != null) return creditCheck;
 
-        String storyboard = xiangshengService.stage2(req.getDialogue(), req.getModel());
+        String storyboard = xiangshengService.stage2(req.getDialogue(), req.getDuration(), req.getModel());
 
         Long contentId = generatedContentService.save("xiangsheng_storyboard",
                 "分镜剧本",
