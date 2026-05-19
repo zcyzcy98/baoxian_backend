@@ -1,7 +1,5 @@
 package com.insurance.agent.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wechat.pay.java.core.RSAPublicKeyConfig;
 import com.wechat.pay.java.core.notification.NotificationConfig;
 import com.wechat.pay.java.core.notification.NotificationParser;
@@ -24,18 +22,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * 微信支付 Native（扫码）服务。
- *
- * 使用前需在 application-local.yml 填入：
- *   wxpay.mch-id / app-id / api-v3-key / private-key-path / mch-serial-no / notify-url
- */
 @Service
 public class WechatPayService {
 
@@ -48,10 +38,6 @@ public class WechatPayService {
     }
 
     public record PackageInfo(String id, String name, int credits, int priceFen, int saveFen) {}
-
-    // ─── 订单内存存储 ─────────────────────────────────────────────
-    // outTradeNo -> OrderInfo
-    private final Map<String, OrderInfo> orders = new ConcurrentHashMap<>();
 
     public record OrderInfo(String outTradeNo, String phone, String product,
                             int amountFen, long createdAt, String status) {}
@@ -86,7 +72,6 @@ public class WechatPayService {
     private boolean testMode;
 
     private RSAPublicKeyConfig payConfig;
-    private final ObjectMapper mapper = new ObjectMapper();
 
     @PostConstruct
     public void init() {
@@ -117,12 +102,8 @@ public class WechatPayService {
                 && !isBlank(publicKeyPath) && !isBlank(publicKeyId) && !isBlank(notifyUrl);
     }
 
-    // ─── 创建 Native 订单 ─────────────────────────────────────────
+    // ─── 套餐 ────────────────────────────────────────────────────
 
-    /**
-     * 调微信下单接口，返回 { outTradeNo, codeUrl }。
-     * codeUrl 用于前端生成二维码。
-     */
     public List<PackageInfo> listPackages() {
         List<PackageInfo> result = new ArrayList<>();
         try (Connection c = dataSource.getConnection();
@@ -159,9 +140,12 @@ public class WechatPayService {
         return null;
     }
 
+    // ─── 创建订单 ─────────────────────────────────────────────────
+
     public Map<String, String> createMembershipOrder(String phone) {
         requireConfigured();
         String outTradeNo = "MEM" + UUID.randomUUID().toString().replace("-", "").substring(0, 20).toUpperCase();
+        int amountFen = testMode ? 1 : 149900;
 
         PrepayRequest request = new PrepayRequest();
         request.setAppid(appId);
@@ -170,7 +154,6 @@ public class WechatPayService {
         request.setOutTradeNo(outTradeNo);
         request.setNotifyUrl(notifyUrl);
 
-        int amountFen = testMode ? 1 : 149900;
         Amount amount = new Amount();
         amount.setTotal(amountFen);
         amount.setCurrency("CNY");
@@ -180,8 +163,7 @@ public class WechatPayService {
         PrepayResponse response = service.prepay(request);
         String codeUrl = response.getCodeUrl();
 
-        orders.put(outTradeNo, new OrderInfo(outTradeNo, phone, "membership", amountFen,
-                System.currentTimeMillis(), "PENDING"));
+        insertOrder(outTradeNo, phone, "membership", amountFen);
         log.info("[WechatPay] 会员下单成功 outTradeNo={} phone={} amountFen={}", outTradeNo, phone, amountFen);
         return Map.of("outTradeNo", outTradeNo, "codeUrl", codeUrl, "amountFen", String.valueOf(amountFen));
     }
@@ -192,6 +174,7 @@ public class WechatPayService {
         if (pkg == null) throw new IllegalArgumentException("未知商品: " + product);
 
         String outTradeNo = "PAY" + UUID.randomUUID().toString().replace("-", "").substring(0, 20).toUpperCase();
+        int payFen = testMode ? 1 : pkg.priceFen();
 
         PrepayRequest request = new PrepayRequest();
         request.setAppid(appId);
@@ -200,7 +183,6 @@ public class WechatPayService {
         request.setOutTradeNo(outTradeNo);
         request.setNotifyUrl(notifyUrl);
 
-        int payFen = testMode ? 1 : pkg.priceFen();
         Amount amount = new Amount();
         amount.setTotal(payFen);
         amount.setCurrency("CNY");
@@ -210,26 +192,19 @@ public class WechatPayService {
         PrepayResponse response = service.prepay(request);
         String codeUrl = response.getCodeUrl();
 
-        orders.put(outTradeNo, new OrderInfo(outTradeNo, phone, product, pkg.priceFen(),
-                System.currentTimeMillis(), "PENDING"));
-
+        insertOrder(outTradeNo, phone, product, pkg.priceFen());
         log.info("[WechatPay] 下单成功 outTradeNo={} phone={} product={}", outTradeNo, phone, product);
         return Map.of("outTradeNo", outTradeNo, "codeUrl", codeUrl);
     }
 
     // ─── 处理微信回调 ─────────────────────────────────────────────
 
-    /**
-     * 验证微信回调签名并处理支付结果。
-     * 验签通过 + 支付成功 → 返回对应 OrderInfo；否则返回 null。
-     */
     public OrderInfo handleNotify(String body,
                                   String timestamp, String nonce,
                                   String signature, String serialNo) {
         requireConfigured();
         try {
-            NotificationConfig notifyConfig = payConfig;
-            NotificationParser parser = new NotificationParser(notifyConfig);
+            NotificationParser parser = new NotificationParser((NotificationConfig) payConfig);
 
             RequestParam requestParam = new RequestParam.Builder()
                     .serialNumber(serialNo)
@@ -246,12 +221,10 @@ public class WechatPayService {
             log.info("[WechatPay] 回调 outTradeNo={} tradeState={}", outTradeNo, tradeState);
 
             if ("SUCCESS".equals(tradeState)) {
-                OrderInfo order = orders.get(outTradeNo);
+                OrderInfo order = getOrder(outTradeNo);
                 if (order != null && "PENDING".equals(order.status())) {
-                    orders.put(outTradeNo, new OrderInfo(
-                            order.outTradeNo(), order.phone(), order.product(),
-                            order.amountFen(), order.createdAt(), "PAID"));
-                    return orders.get(outTradeNo);
+                    markPaid(outTradeNo);
+                    return getOrder(outTradeNo);
                 }
             }
         } catch (Exception e) {
@@ -263,12 +236,59 @@ public class WechatPayService {
     // ─── 查询订单 ─────────────────────────────────────────────────
 
     public OrderInfo getOrder(String outTradeNo) {
-        return orders.get(outTradeNo);
+        try (Connection c = dataSource.getConnection();
+             PreparedStatement ps = c.prepareStatement(
+                "SELECT out_trade_no, phone, product, amount_fen, created_at, status FROM orders WHERE out_trade_no = ?")) {
+            ps.setString(1, outTradeNo);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new OrderInfo(
+                        rs.getString("out_trade_no"),
+                        rs.getString("phone"),
+                        rs.getString("product"),
+                        rs.getInt("amount_fen"),
+                        rs.getTimestamp("created_at").getTime(),
+                        rs.getString("status")
+                    );
+                }
+            }
+        } catch (Exception e) {
+            log.error("[WechatPay] 查询订单失败 outTradeNo={}: {}", outTradeNo, e.getMessage(), e);
+        }
+        return null;
     }
 
     public int getCredits(String product) {
         PackageInfo pkg = findPackage(product);
         return pkg == null ? 0 : pkg.credits();
+    }
+
+    // ─── 数据库操作 ───────────────────────────────────────────────
+
+    private void insertOrder(String outTradeNo, String phone, String product, int amountFen) {
+        try (Connection c = dataSource.getConnection();
+             PreparedStatement ps = c.prepareStatement(
+                "INSERT INTO orders (out_trade_no, phone, product, amount_fen, status) VALUES (?, ?, ?, ?, 'PENDING')")) {
+            ps.setString(1, outTradeNo);
+            ps.setString(2, phone);
+            ps.setString(3, product);
+            ps.setInt(4, amountFen);
+            ps.executeUpdate();
+        } catch (Exception e) {
+            log.error("[WechatPay] 写入订单失败: {}", e.getMessage(), e);
+            throw new RuntimeException("订单创建失败", e);
+        }
+    }
+
+    private void markPaid(String outTradeNo) {
+        try (Connection c = dataSource.getConnection();
+             PreparedStatement ps = c.prepareStatement(
+                "UPDATE orders SET status = 'PAID', paid_at = NOW() WHERE out_trade_no = ? AND status = 'PENDING'")) {
+            ps.setString(1, outTradeNo);
+            ps.executeUpdate();
+        } catch (Exception e) {
+            log.error("[WechatPay] 更新订单状态失败 outTradeNo={}: {}", outTradeNo, e.getMessage(), e);
+        }
     }
 
     // ─── 工具 ────────────────────────────────────────────────────

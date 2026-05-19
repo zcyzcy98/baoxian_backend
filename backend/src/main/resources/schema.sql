@@ -155,6 +155,19 @@ INSERT INTO credit_packages (id, name, credits, price_fen, save_fen, sort_order)
     ('credits_10000', '专业包',  10000,  85900, 13100,  3)
 ON CONFLICT (id) DO NOTHING;
 
+-- 支付订单
+CREATE TABLE IF NOT EXISTS orders (
+    out_trade_no  VARCHAR(32)  PRIMARY KEY,
+    phone         VARCHAR(20)  NOT NULL,
+    product       VARCHAR(50)  NOT NULL,
+    amount_fen    INT          NOT NULL,
+    status        VARCHAR(20)  NOT NULL DEFAULT 'PENDING',
+    created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    paid_at       TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_orders_phone ON orders(phone);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+
 -- 热点选题池（每日定时采集入库）
 CREATE TABLE IF NOT EXISTS hot_topics (
     id              BIGSERIAL PRIMARY KEY,
