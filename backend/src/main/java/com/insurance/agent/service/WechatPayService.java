@@ -159,6 +159,33 @@ public class WechatPayService {
         return null;
     }
 
+    public Map<String, String> createMembershipOrder(String phone) {
+        requireConfigured();
+        String outTradeNo = "MEM" + UUID.randomUUID().toString().replace("-", "").substring(0, 20).toUpperCase();
+
+        PrepayRequest request = new PrepayRequest();
+        request.setAppid(appId);
+        request.setMchid(mchId);
+        request.setDescription("承知年度会员");
+        request.setOutTradeNo(outTradeNo);
+        request.setNotifyUrl(notifyUrl);
+
+        int amountFen = testMode ? 1 : 149900;
+        Amount amount = new Amount();
+        amount.setTotal(amountFen);
+        amount.setCurrency("CNY");
+        request.setAmount(amount);
+
+        NativePayService service = new NativePayService.Builder().config(payConfig).build();
+        PrepayResponse response = service.prepay(request);
+        String codeUrl = response.getCodeUrl();
+
+        orders.put(outTradeNo, new OrderInfo(outTradeNo, phone, "membership", amountFen,
+                System.currentTimeMillis(), "PENDING"));
+        log.info("[WechatPay] 会员下单成功 outTradeNo={} phone={} amountFen={}", outTradeNo, phone, amountFen);
+        return Map.of("outTradeNo", outTradeNo, "codeUrl", codeUrl, "amountFen", String.valueOf(amountFen));
+    }
+
     public Map<String, String> createOrder(String phone, String product) {
         requireConfigured();
         PackageInfo pkg = findPackage(product);

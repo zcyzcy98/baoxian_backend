@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { sendCode as apiSendCode, verifyCode as apiVerifyCode, setToken } from '../auth'
+import PayModal from '../components/PayModal'
 import './LandingPage.css'
 
 const BrandMark = () => (
@@ -83,6 +84,7 @@ export default function LandingPage({ onAuthSuccess, noAccess, phone: naBannerPh
   const [scrolled, setScrolled] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [modalView, setModalView] = useState('form') // 'form' | 'no-access'
+  const [payOpen, setPayOpen] = useState(false)
 
   // phone input
   const [phone, setPhone] = useState('')
@@ -183,11 +185,9 @@ export default function LandingPage({ onAuthSuccess, noAccess, phone: naBannerPh
       const data = await apiVerifyCode(p, c)
       setToken(data.token)
       clearInterval(timerRef.current)
-      if (data.hasAccess) {
-        onAuthSuccess({ phone: data.phone, hasAccess: true })
-      } else {
-        setSuccessPhone(p.slice(0,3) + ' **** ' + p.slice(7))
-        setModalView('no-access')
+      onAuthSuccess({ phone: data.phone, hasAccess: data.hasAccess })
+      if (!data.hasAccess) {
+        closeModal()
       }
     } catch (e) {
       setErrorHtml(`<strong>验证失败</strong>${e.message}`)
@@ -229,7 +229,10 @@ export default function LandingPage({ onAuthSuccess, noAccess, phone: naBannerPh
             ) : (
               <button className="btn btn-text" onClick={() => openModal()}>登录 / 注册</button>
             )}
-            <a href="#pricing" className="btn btn-primary">立即开通</a>
+            {noAccess
+              ? <button className="btn btn-primary" onClick={() => setPayOpen(true)}>立即开通</button>
+              : <a href="#pricing" className="btn btn-primary">立即开通</a>
+            }
           </div>
         </div>
       </nav>
@@ -569,7 +572,7 @@ export default function LandingPage({ onAuthSuccess, noAccess, phone: naBannerPh
                 <span className="price-unit">/年</span>
               </div>
               <p className="price-note">折合每天约 4.1 元 · 比一杯咖啡便宜</p>
-              <button className="btn btn-primary btn-lg" onClick={() => openModal('signup')}>立即开通 <span className="btn-arrow">→</span></button>
+              <button className="btn btn-primary btn-lg" onClick={() => noAccess ? setPayOpen(true) : openModal('signup')}>立即开通 <span className="btn-arrow">→</span></button>
             </div>
             <div className="pricing-body">
               <h5>开通即解锁全部能力</h5>
@@ -691,6 +694,16 @@ export default function LandingPage({ onAuthSuccess, noAccess, phone: naBannerPh
           </div>
         </div>
       </div>
+
+      {payOpen && (
+        <PayModal
+          onClose={() => setPayOpen(false)}
+          onSuccess={(me) => {
+            setPayOpen(false)
+            onAuthSuccess(me)
+          }}
+        />
+      )}
     </div>
   )
 }

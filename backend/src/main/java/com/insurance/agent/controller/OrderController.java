@@ -51,6 +51,20 @@ public class OrderController {
         return ResponseEntity.ok(Map.of("products", list));
     }
 
+    // ─── 创建会员订单 ─────────────────────────────────────────────
+
+    @PostMapping("/membership-order")
+    public ResponseEntity<?> createMembershipOrder(
+            @RequestHeader(value = "Authorization", required = false) String auth) {
+        String phone = resolvePhone(auth);
+        try {
+            Map<String, String> result = wechatPayService.createMembershipOrder(phone);
+            return ResponseEntity.ok(result);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(503).body(Map.of("error", e.getMessage()));
+        }
+    }
+
     // ─── 创建订单 ─────────────────────────────────────────────────
 
     /**
@@ -119,9 +133,14 @@ public class OrderController {
 
         OrderInfo paid = wechatPayService.handleNotify(body, timestamp, nonce, signature, serialNo);
         if (paid != null) {
-            int credits = wechatPayService.getCredits(paid.product());
-            authService.addCredits(paid.phone(), credits);
-            log.info("[WechatPay] 支付成功，phone={} product={} credits={}", paid.phone(), paid.product(), credits);
+            if ("membership".equals(paid.product())) {
+                authService.grantAccess(paid.phone());
+                log.info("[WechatPay] 会员开通成功 phone={}", paid.phone());
+            } else {
+                int credits = wechatPayService.getCredits(paid.product());
+                authService.addCredits(paid.phone(), credits);
+                log.info("[WechatPay] 积分到账 phone={} product={} credits={}", paid.phone(), paid.product(), credits);
+            }
         }
 
         // 微信要求：成功处理返回 {"code":"SUCCESS"}，否则会重试

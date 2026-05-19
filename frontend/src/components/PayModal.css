@@ -1,0 +1,111 @@
+.pay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(31, 31, 30, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.pay-modal {
+  background: #FAF9F5;
+  border-radius: 16px;
+  padding: 36px 40px 32px;
+  width: 320px;
+  position: relative;
+  text-align: center;
+  font-family: var(--sans, system-ui, sans-serif);
+}
+
+.pay-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: #9A9791;
+  cursor: pointer;
+  line-height: 1;
+}
+.pay-close:hover { color: #1F1F1E; }
+
+.pay-header h3 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1F1F1E;
+}
+
+.pay-sub {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: #9A9791;
+}
+
+.pay-amount {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px;
+}
+.pay-currency { font-size: 18px; color: #CC785C; font-weight: 600; }
+.pay-price { font-size: 40px; font-weight: 800; color: #CC785C; line-height: 1; }
+.pay-unit { font-size: 13px; color: #9A9791; margin-left: 4px; }
+
+.pay-qr-wrap {
+  display: inline-block;
+  padding: 12px;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #E8E4DA;
+  margin-bottom: 14px;
+}
+
+.pay-hint {
+  font-size: 13px;
+  color: #9A9791;
+  margin: 0;
+}
+
+.pay-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0;
+  color: #4A4845;
+  font-size: 14px;
+}
+
+.pay-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #E8E4DA;
+  border-top-color: #CC785C;
+  border-radius: 50%;
+  animation: pay-spin 0.8s linear infinite;
+}
+@keyframes pay-spin { to { transform: rotate(360deg); } }
+
+.pay-success .pay-check {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #3F5C52;
+  color: #fff;
+  font-size: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pay-success h3 { margin: 0; color: #1F1F1E; }
+
+.pay-error {
+  color: #c00;
+  font-size: 14px;
+  margin: 0;
+}
