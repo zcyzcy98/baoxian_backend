@@ -347,19 +347,6 @@ export async function fetchXiangshengDimensions() {
   return res.json()
 }
 
-export async function recommendXiangsheng(topic, model = 'chat') {
-  const res = await fetch('/api/xiangsheng/recommend', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ topic, model }),
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || 'AI推荐失败')
-  }
-  return res.json()
-}
-
 export async function createXiangsheng(topic, dimensions, model = 'chat') {
   const res = await fetch('/api/xiangsheng/create', {
     method: 'POST',
